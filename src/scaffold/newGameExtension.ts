@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import sanitize from "sanitize-filename";
 import { RequiredFiles, IRequiredFile } from '../constants/requiredFile';
-import { runInstallDeps } from '../utils/shellUtils';
+import { ensureGitAvailable, ensureNodeAvailable, runInstallDeps } from '../utils/shellUtils';
 import { EXTENSION_ID, EXTENSION_NAME, log } from '../extension';
 import { getRequiredFiles, getWorkspaceRootUri, VortexWorkspaceType } from '../workspace/vortexWorkspaceUtils';
 
@@ -12,6 +12,9 @@ type PendingScaffoldState = {
 };
 
 export async function newGameSupportExtension(context: vscode.ExtensionContext) {
+    await ensureNodeAvailable();
+    await ensureGitAvailable();
+    
     // 1. Ask for the new extension game name
     const gameTitle = await vscode.window.showInputBox({
         prompt: 'Game title (as it should appear in Vortex)',

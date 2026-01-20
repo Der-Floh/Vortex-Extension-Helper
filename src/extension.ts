@@ -89,14 +89,14 @@ async function activateVortexWorkspace(context: vscode.ExtensionContext) {
 }
 
 async function newGameSupportExtensionLocal(context: vscode.ExtensionContext) {
-	log.debug(`${EXTENSION_NAME}: Starting new game extension scaffold command`);
+	log.debug(`${EXTENSION_NAME}: Starting new game extension command`);
 	try {
 		await newGameSupportExtension(context);
-		log.debug(`${EXTENSION_NAME}: New game extension scaffold command completed`);
+		log.debug(`${EXTENSION_NAME}: New game extension command completed`);
 	}
 	catch (err) {
-		log.error(`${EXTENSION_NAME}: Error during new game extension scaffold command: ${String(err)}`);
-		vscode.window.showErrorMessage(`Error during new game extension scaffold command: ${String(err)}`);
+		log.error(`${EXTENSION_NAME}: Error during new game extension command: ${String(err)}`);
+		vscode.window.showErrorMessage(`Error during new game extension command: ${String(err)}`);
 	}
 }
 

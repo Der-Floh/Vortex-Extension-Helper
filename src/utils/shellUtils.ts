@@ -37,6 +37,9 @@ export async function runInstallDeps(targetUri: vscode.Uri) {
         return;
     }
 
+    await ensureNodeAvailable(targetUri);
+    await ensureGitAvailable(targetUri);
+
     const taskName = `${EXTENSION_NAME}: install-current-deps`;
 
     const execution = new vscode.ShellExecution('npm run install-current-deps', {
@@ -60,4 +63,70 @@ export async function runInstallDeps(targetUri: vscode.Uri) {
 
     await runShellTaskAndWait(task);
     log.debug(`${EXTENSION_NAME}: install-current-deps completed successfully`);
+}
+
+export async function ensureNodeAvailable(targetUri?: vscode.Uri): Promise<void> {
+    const taskName = `${EXTENSION_NAME}: check-node-version`;
+
+    const cwd = targetUri?.fsPath ?? vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+
+    const execution = cwd
+        ? new vscode.ShellExecution('node -v', { cwd })
+        : new vscode.ShellExecution('node -v');
+
+    const task = new vscode.Task(
+        { type: EXTENSION_ID, task: 'check-node-version' },
+        vscode.TaskScope.Workspace,
+        taskName,
+        EXTENSION_ID,
+        execution
+    );
+
+    task.presentationOptions = {
+        reveal: vscode.TaskRevealKind.Never,
+        panel: vscode.TaskPanelKind.Shared,
+        clear: false,
+        showReuseMessage: false
+    };
+
+    try {
+        await runShellTaskAndWait(task);
+        log.debug(`${EXTENSION_NAME}: Node.js detected via "node -v"`);
+    } catch (err) {
+        log.warn(`${EXTENSION_NAME}: Node.js is not installed or not on PATH ${String(err) }`);
+        throw new Error('Node.js is not installed or not on PATH');
+    }
+}
+
+export async function ensureGitAvailable(targetUri?: vscode.Uri): Promise<void> {
+    const taskName = `${EXTENSION_NAME}: check-git-version`;
+
+    const cwd = targetUri?.fsPath ?? vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+
+    const execution = cwd
+        ? new vscode.ShellExecution('git -v', { cwd })
+        : new vscode.ShellExecution('git -v');
+
+    const task = new vscode.Task(
+        { type: EXTENSION_ID, task: 'check-git-version' },
+        vscode.TaskScope.Workspace,
+        taskName,
+        EXTENSION_ID,
+        execution
+    );
+
+    task.presentationOptions = {
+        reveal: vscode.TaskRevealKind.Never,
+        panel: vscode.TaskPanelKind.Shared,
+        clear: false,
+        showReuseMessage: false
+    };
+
+    try {
+        await runShellTaskAndWait(task);
+        log.debug(`${EXTENSION_NAME}: Git detected via "git -v"`);
+    } catch (err) {
+        log.warn(`${EXTENSION_NAME}: Git is not installed or not on PATH ${String(err)}`);
+        throw new Error('Git is not installed or not on PATH');
+    }
 }
