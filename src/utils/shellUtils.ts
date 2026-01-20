@@ -37,8 +37,7 @@ export async function runInstallDeps(targetUri: vscode.Uri) {
         return;
     }
 
-    await ensureNodeAvailable(targetUri);
-    await ensureGitAvailable(targetUri);
+    await ensureNodeAndGitAvailable(targetUri);
 
     const taskName = `${EXTENSION_NAME}: install-current-deps`;
 
@@ -65,7 +64,34 @@ export async function runInstallDeps(targetUri: vscode.Uri) {
     log.debug(`${EXTENSION_NAME}: install-current-deps completed successfully`);
 }
 
-export async function ensureNodeAvailable(targetUri?: vscode.Uri): Promise<void> {
+export async function ensureNodeAndGitAvailable(targetUri?: vscode.Uri): Promise<void> {
+    const [nodeRes, gitRes] = await Promise.allSettled([
+        ensureNodeAvailable(targetUri),
+        ensureGitAvailable(targetUri),
+    ]);
+
+    const nodeFailed = nodeRes.status === "rejected";
+    const gitFailed = gitRes.status === "rejected";
+
+    if (!nodeFailed && !gitFailed) {
+        return;
+    }
+
+    if (nodeFailed && gitFailed) {
+        throw new Error("Node.js and Git are not installed or not on PATH");
+    }
+
+    if (nodeFailed) {
+        const reason = (nodeRes as PromiseRejectedResult).reason;
+        throw reason instanceof Error ? reason : new Error(String(reason));
+    }
+
+    const reason = (gitRes as PromiseRejectedResult).reason;
+    throw reason instanceof Error ? reason : new Error(String(reason));
+}
+
+
+async function ensureNodeAvailable(targetUri?: vscode.Uri): Promise<void> {
     const taskName = `${EXTENSION_NAME}: check-node-version`;
 
     const cwd = targetUri?.fsPath ?? vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
@@ -93,12 +119,12 @@ export async function ensureNodeAvailable(targetUri?: vscode.Uri): Promise<void>
         await runShellTaskAndWait(task);
         log.debug(`${EXTENSION_NAME}: Node.js detected via "node -v"`);
     } catch (err) {
-        log.warn(`${EXTENSION_NAME}: Node.js is not installed or not on PATH ${String(err) }`);
+        log.warn(`${EXTENSION_NAME}: Node.js is not installed or not on PATH ${String(err)}`);
         throw new Error('Node.js is not installed or not on PATH');
     }
 }
 
-export async function ensureGitAvailable(targetUri?: vscode.Uri): Promise<void> {
+async function ensureGitAvailable(targetUri?: vscode.Uri): Promise<void> {
     const taskName = `${EXTENSION_NAME}: check-git-version`;
 
     const cwd = targetUri?.fsPath ?? vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
