@@ -1,0 +1,96 @@
+{
+  "name": "vortex-extension-helper",
+  "displayName": "Vortex Extension Helper",
+  "description": "Helps create and validate Vortex game support extensions",
+  "version": "0.0.1",
+  "publisher": "der-floh",
+  "license": "MIT",
+  "icon": "./assets/vortex-icon-x512.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Der-Floh/Vortex-Extension-Helper"
+  },
+  "bugs": {
+    "url": "https://github.com/Der-Floh/Vortex-Extension-Helper/issues"
+  },
+  "homepage": "https://github.com/Der-Floh/Vortex-Extension-Helper",
+  "keywords": [
+    "vortex",
+    "vortex-api",
+    "nexusmods",
+    "nexus mods",
+    "modding",
+    "game mods",
+    "mod manager",
+    "game extension",
+    "vortex extension",
+    "javascript",
+    "typescript",
+    "intellisense",
+    "scaffolding"
+  ],
+  "engines": {
+    "vscode": "^1.108.1"
+  },
+  "categories": [
+    "Programming Languages",
+    "Linters",
+    "Snippets"
+  ],
+  "extensionKind": [
+    "ui",
+    "workspace"
+  ],
+  "activationEvents": [
+    "onStartupFinished",
+    "onFileSystem:info.json",
+    "onLanguage:javascript",
+    "onLanguage:typescript"
+  ],
+  "main": "./out/extension.js",
+  "types": "./src/types/vortex-api.d.ts",
+  "contributes": {
+    "commands": [
+      {
+        "command": "vortexHelper.newGameSupportExtension",
+        "title": "Vortex: New Game Support Extension"
+      },
+      {
+        "command": "vortexHelper.setupVortexApi",
+        "title": "Vortex: Setup Vortex API in Workspace"
+      },
+      {
+        "command": "vortexHelper.scaffoldGameExtension",
+        "title": "Vortex: Scaffold Game Extension in Workspace"
+      },
+      {
+        "command": "vortexHelper.runWorkspaceChecks",
+        "title": "Vortex: Run Workspace Checks"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src",
+    "package": "npx -y @vscode/vsce package"
+  },
+  "devDependencies": {
+    "@types/degit": "^2.8.6",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "22.x",
+    "@types/vscode": "^1.108.1",
+    "@vscode/test-cli": "^0.0.12",
+    "@vscode/test-electron": "^2.5.2",
+    "eslint": "^9.39.2",
+    "eslint-import-resolver-typescript": "^4.4.4",
+    "eslint-plugin-import": "^2.32.0",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.52.0"
+  },
+  "dependencies": {
+    "sanitize-filename": "^1.6.3"
+  }
+}
