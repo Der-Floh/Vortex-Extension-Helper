@@ -2,6 +2,8 @@
 
 A Visual Studio Code extension that streamlines the development of game support extensions for [Vortex](https://www.nexusmods.com/about/vortex/).
 
+![Extension demo intellisense short](assets/preview/Vortex-Helper-Extension-Preview_Intellisense-Short.gif)
+
 ## Features
 
 ### 🚀 Quick Project Scaffolding
@@ -23,6 +25,24 @@ A Visual Studio Code extension that streamlines the development of game support 
 - **Vortex API Installation**: One-click setup of the Vortex API and related libraries
 - **Categorized Dependencies**: Easy access to required, common, additional, and unofficial Vortex libraries
 - **NPM Scripts**: Pre-configured scripts for building, packaging, and dependency management
+
+## Demo
+
+#### Create Extension
+
+![Extension demo create extension](assets/preview/Vortex-Helper-Extension-Preview_Create-Extension.gif)
+
+---
+
+#### Intellisense
+
+![Extension demo intellisense](assets/preview/Vortex-Helper-Extension-Preview_Intellisense-Short.gif)
+
+---
+
+#### Workspace Checks
+
+![Extension demo intellisense](assets/preview/Vortex-Helper-Extension-Preview_Workspace-Checks.gif)
 
 ## Commands
 
