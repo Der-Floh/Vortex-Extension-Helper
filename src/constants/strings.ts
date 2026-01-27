@@ -23,9 +23,9 @@ export namespace NEXUS_API {
     export const APP_ID = 'vortex_helper_extension';
     export const APP_NAME = 'Vortex Helper';
     export const APP_VERSION = '0.0.1';
-    export const DEFAULT_GAME = 'plantsvszombiesreplanted';
+    export const DEFAULT_GAME = '';
     export const SERVICE_ID = 'nexusmods-api-key';
-    export const API_KEY = '...';
+    export const API_KEY = 'hidden';
 }
 
 export namespace MISCELLANEOUS {
