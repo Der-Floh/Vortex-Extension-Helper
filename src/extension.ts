@@ -18,7 +18,9 @@ export async function activate(context: vscode.ExtensionContext) {
 	Logger.debug(`Detected workspace type: ${workspaceType}`);
 
 	const newGameCmd = vscode.commands.registerCommand(COMMANDS.NEW_GAME_SUPPORT, async () => await newGameSupportExtensionLocal(context));
-	context.subscriptions.push(newGameCmd);
+	const scaffoldCmd = vscode.commands.registerCommand(COMMANDS.SCAFFOLD_GAME_EXTENSION, scaffoldGameExtensionLocal);
+	const openDocCmd = vscode.commands.registerCommand(COMMANDS.OPEN_DOCUMENTATION, openDocumentationLocal);
+	context.subscriptions.push(newGameCmd, scaffoldCmd, openDocCmd);
 
 	if (isVortexWorkspace) {
 		await activateVortexWorkspace(context);
@@ -42,11 +44,10 @@ async function activateVortexWorkspace(context: vscode.ExtensionContext) {
 
 	Logger.debug(`Registering commands`);
 	const setupVortexApiCmd = vscode.commands.registerCommand(COMMANDS.SETUP_VORTEX_API, setupVortexApiLocal);
-	const scaffoldCmd = vscode.commands.registerCommand(COMMANDS.SCAFFOLD_GAME_EXTENSION, scaffoldGameExtensionLocal);
+	
 	const checkCmd = vscode.commands.registerCommand(COMMANDS.RUN_WORKSPACE_CHECKS, runWorkspaceChecksLocal);
-	const openDocCmd = vscode.commands.registerCommand(COMMANDS.OPEN_DOCUMENTATION, openDocumentationLocal);
 
-	context.subscriptions.push(setupVortexApiCmd, scaffoldCmd, checkCmd, openDocCmd);
+	context.subscriptions.push(setupVortexApiCmd, checkCmd);
 
 	// Register completion provider for JS
 	const vortexCompletionProviderInfo = await getVortexCompletionProvider();

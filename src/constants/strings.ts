@@ -20,7 +20,7 @@ export namespace GLOBAL_STATE {
 }
 
 export namespace NEXUS_API {
-    export const APP_ID = 'vortex_helper_extension';
+    export const APP_ID = 'vortex_extension_helper';
     export const APP_NAME = 'Vortex Helper';
     export const APP_VERSION = '0.0.1';
     export const DEFAULT_GAME = '';
