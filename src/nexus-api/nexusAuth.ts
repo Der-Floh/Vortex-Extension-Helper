@@ -1,26 +1,35 @@
 import * as vscode from 'vscode';
 import WebSocket from 'ws';
 import { randomUUID } from 'crypto';
-import * as keytar from 'keytar';
 import { NEXUS_API } from '../constants/strings';
+import { Logger } from '../utils/logger';
 
-const SSO_URL = 'wss://sso.nexusmods.com';
-const SSO_BROWSER_URL = 'https://www.nexusmods.com/sso';
+let secretStorage: vscode.SecretStorage | undefined;
+
+export function initializeNexusSecretStorage(context: vscode.ExtensionContext) {
+    secretStorage = context.secrets;
+}
 
 async function saveApiKey(apiKey: string): Promise<void> {
-    const machineId = vscode.env.machineId;
-    await keytar.setPassword(NEXUS_API.SERVICE_ID, machineId, apiKey);
+    if (!secretStorage) {
+        throw new Error('Secret storage not initialized. Call initializeNexusSecretStorage(context) in activate().');
+    }
+
+    await secretStorage.store(NEXUS_API.API_KEY_SECRET, apiKey);
 }
 
 export async function getStoredApiKey(): Promise<string | undefined> {
-    const machineId = vscode.env.machineId;
-    return await keytar.getPassword(NEXUS_API.SERVICE_ID, machineId) ?? undefined;
+    if (!secretStorage) {
+        throw new Error('Secret storage not initialized. Call initializeNexusSecretStorage(context) in activate().');
+    }
+
+    return (await secretStorage.get(NEXUS_API.API_KEY_SECRET)) ?? undefined;
 }
 
 export async function authenticateWithNexusMods(): Promise<string> {
     return new Promise<string>((resolve, reject) => {
         const id = randomUUID();
-        const ws = new WebSocket(SSO_URL);
+        const ws = new WebSocket(NEXUS_API.SSO_URL);
 
         let pingTimer: NodeJS.Timeout | undefined;
         let resolved = false;
@@ -53,7 +62,7 @@ export async function authenticateWithNexusMods(): Promise<string> {
             }, 30_000);
 
             // 3) Open browser so user can authorize
-            const ssoUri = vscode.Uri.parse(`${SSO_BROWSER_URL}?id=${encodeURIComponent(id)}`);
+            const ssoUri = vscode.Uri.parse(`${NEXUS_API.SSO_BROWSER_URL}?id=${encodeURIComponent(id)}`);
             vscode.env.openExternal(ssoUri);
         });
 
@@ -76,11 +85,9 @@ export async function authenticateWithNexusMods(): Promise<string> {
             try {
                 await saveApiKey(apiKey);
             } catch (e) {
-                console.error('Failed to save Nexus API key:', e);
+                Logger.error('Failed to save Nexus API key:', e);
                 // Still resolve with the key, but warn user via VS Code UI
-                vscode.window.showWarningMessage(
-                    'Authenticated with Nexus Mods, but failed to store the API key securely. You may need to re-authenticate later.'
-                );
+                vscode.window.showWarningMessage('Authenticated with Nexus Mods, but failed to store the API key securely. You may need to re-authenticate later.');
             }
 
             resolve(apiKey);

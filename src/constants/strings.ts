@@ -24,8 +24,10 @@ export namespace NEXUS_API {
     export const APP_NAME = 'Vortex Helper';
     export const APP_VERSION = '0.0.1';
     export const DEFAULT_GAME = '';
-    export const SERVICE_ID = 'nexusmods-api-key';
     export const API_KEY = 'hidden';
+    export const API_KEY_SECRET = `${EXTENSION.ID}.nexusApiKey`;
+    export const SSO_URL = 'wss://sso.nexusmods.com';
+    export const SSO_BROWSER_URL = 'https://www.nexusmods.com/sso';
 }
 
 export namespace MISCELLANEOUS {

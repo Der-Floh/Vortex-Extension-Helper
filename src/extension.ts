@@ -9,6 +9,7 @@ import { getRequiredFilesForWorkspace, getVortexCompletionProvider, getVortexWor
 import { checkPendingScaffold, scaffoldGameExtension } from './scaffold/scaffoldFunctions';
 import { COMMANDS, MISCELLANEOUS } from './constants/strings';
 import { Logger } from './utils/logger';
+import { initializeNexusSecretStorage } from './nexus-api/nexusAuth';
 
 export async function activate(context: vscode.ExtensionContext) {
 	Logger.debug(`Activating extension`);
@@ -17,6 +18,10 @@ export async function activate(context: vscode.ExtensionContext) {
 	const isVortexWorkspace = isVortexWorkspaceType(workspaceType);
 	Logger.debug(`Detected workspace type: ${workspaceType}`);
 
+	Logger.debug(`Initializing Nexus Mods secret storage`);
+	initializeNexusSecretStorage(context);
+
+	Logger.debug(`Registering commands`);
 	const newGameCmd = vscode.commands.registerCommand(COMMANDS.NEW_GAME_SUPPORT, async () => await newGameSupportExtensionLocal(context));
 	const scaffoldCmd = vscode.commands.registerCommand(COMMANDS.SCAFFOLD_GAME_EXTENSION, scaffoldGameExtensionLocal);
 	const openDocCmd = vscode.commands.registerCommand(COMMANDS.OPEN_DOCUMENTATION, openDocumentationLocal);
@@ -26,6 +31,7 @@ export async function activate(context: vscode.ExtensionContext) {
 		await activateVortexWorkspace(context);
 	}
 
+	Logger.debug(`Checking for pending scaffold`);
 	const scaffolded = await checkPendingScaffold(context);
 	if (scaffolded) {
 		const workspaceType = await getVortexWorkspaceType();
@@ -35,6 +41,8 @@ export async function activate(context: vscode.ExtensionContext) {
 			await activateVortexWorkspace(context);
 		}
 	}
+
+	Logger.debug(`Extension activated`);
 }
 
 export function deactivate() { }
@@ -44,7 +52,7 @@ async function activateVortexWorkspace(context: vscode.ExtensionContext) {
 
 	Logger.debug(`Registering commands`);
 	const setupVortexApiCmd = vscode.commands.registerCommand(COMMANDS.SETUP_VORTEX_API, setupVortexApiLocal);
-	
+
 	const checkCmd = vscode.commands.registerCommand(COMMANDS.RUN_WORKSPACE_CHECKS, runWorkspaceChecksLocal);
 
 	context.subscriptions.push(setupVortexApiCmd, checkCmd);
