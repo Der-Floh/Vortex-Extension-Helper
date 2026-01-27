@@ -50,6 +50,15 @@
   "main": "./out/extension.js",
   "types": "./src/types/vortex-api.d.ts",
   "contributes": {
+    "configuration": {
+      "title": "Vortex Extension Helper",
+      "properties": {
+        "vortexHelper.useNexusApi": {
+          "type": "boolean",
+          "description": "Whether to use the Nexus Mods Api for fetching game data when creating new game support extensions."
+        }
+      }
+    },
     "commands": [
       {
         "command": "vortexHelper.newGameSupportExtension",
@@ -66,6 +75,10 @@
       {
         "command": "vortexHelper.runWorkspaceChecks",
         "title": "Vortex: Run Workspace Checks"
+      },
+      {
+        "command": "vortexHelper.openDocumentation",
+        "title": "Vortex: Open Extension Documentation"
       }
     ]
   },
@@ -79,9 +92,11 @@
   },
   "devDependencies": {
     "@types/degit": "^2.8.6",
+    "@types/bluebird": "^3.5.42",
     "@types/mocha": "^10.0.10",
     "@types/node": "22.x",
     "@types/vscode": "^1.108.1",
+    "@types/ws": "^8.18.1",
     "eslint": "^9.39.2",
     "eslint-import-resolver-typescript": "^4.4.4",
     "eslint-plugin-import": "^2.32.0",
@@ -89,6 +104,11 @@
     "typescript-eslint": "^8.52.0"
   },
   "dependencies": {
-    "sanitize-filename": "^1.6.3"
+    "@nexusmods/nexus-api": "github:Nexus-Mods/node-nexus-api",
+    "bluebird": "^3.7.2",
+    "keytar": "^7.9.0",
+    "sanitize-filename": "^1.6.3",
+    "vortex-api": "github:Nexus-Mods/vortex-api",
+    "ws": "^8.19.0"
   }
 }

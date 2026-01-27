@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
-import { EXTENSION_ID, EXTENSION_NAME, log } from '../extension';
+import { Logger } from './logger';
+import { EXTENSION } from '../constants/strings';
 
 function isWeb(): boolean {
     return vscode.env.uiKind === vscode.UIKind.Web;
@@ -26,10 +27,10 @@ function runShellTaskAndWait(task: vscode.Task): Promise<void> {
 }
 
 export async function runInstallDeps(targetUri: vscode.Uri) {
-    log.debug(`${EXTENSION_NAME}: Running install-current-deps in "${targetUri.fsPath}"`);
+    Logger.debug(`Running install-current-deps in "${targetUri.fsPath}"`);
 
     if (isWeb()) {
-        log.warn(`${EXTENSION_NAME}: Cannot run install-current-deps in VS Code Web`);
+        Logger.warn(`Cannot run install-current-deps in VS Code Web`);
         await vscode.window.showWarningMessage(
             'Automatic dependency installation is not available in VS Code Web. ' +
             'Please run "npm run install-current-deps" in your local or remote environment.'
@@ -39,17 +40,17 @@ export async function runInstallDeps(targetUri: vscode.Uri) {
 
     await ensureNodeAndGitAvailable(targetUri);
 
-    const taskName = `${EXTENSION_NAME}: install-current-deps`;
+    const taskName = `install-current-deps`;
 
     const execution = new vscode.ShellExecution('npm run install-current-deps', {
         cwd: targetUri.fsPath
     });
 
     const task = new vscode.Task(
-        { type: EXTENSION_ID, task: 'install-current-deps' },
+        { type: EXTENSION.ID, task: 'install-current-deps' },
         vscode.TaskScope.Workspace,
         taskName,
-        EXTENSION_ID,
+        EXTENSION.ID,
         execution
     );
 
@@ -61,7 +62,7 @@ export async function runInstallDeps(targetUri: vscode.Uri) {
     };
 
     await runShellTaskAndWait(task);
-    log.debug(`${EXTENSION_NAME}: install-current-deps completed successfully`);
+    Logger.debug(`install-current-deps completed successfully`);
 }
 
 export async function ensureNodeAndGitAvailable(targetUri?: vscode.Uri): Promise<void> {
@@ -92,7 +93,7 @@ export async function ensureNodeAndGitAvailable(targetUri?: vscode.Uri): Promise
 
 
 async function ensureNodeAvailable(targetUri?: vscode.Uri): Promise<void> {
-    const taskName = `${EXTENSION_NAME}: check-node-version`;
+    const taskName = `check-node-version`;
 
     const cwd = targetUri?.fsPath ?? vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
 
@@ -101,10 +102,10 @@ async function ensureNodeAvailable(targetUri?: vscode.Uri): Promise<void> {
         : new vscode.ShellExecution('node -v');
 
     const task = new vscode.Task(
-        { type: EXTENSION_ID, task: 'check-node-version' },
-        vscode.TaskScope.Workspace,
+        { type: EXTENSION.ID, task: taskName },
+        vscode.TaskScope.Global,
         taskName,
-        EXTENSION_ID,
+        EXTENSION.ID,
         execution
     );
 
@@ -117,15 +118,15 @@ async function ensureNodeAvailable(targetUri?: vscode.Uri): Promise<void> {
 
     try {
         await runShellTaskAndWait(task);
-        log.debug(`${EXTENSION_NAME}: Node.js detected via "node -v"`);
+        Logger.debug(`Node.js detected via "node -v"`);
     } catch (err) {
-        log.warn(`${EXTENSION_NAME}: Node.js is not installed or not on PATH ${String(err)}`);
+        Logger.warn(`Node.js is not installed or not on PATH ${String(err)}`);
         throw new Error('Node.js is not installed or not on PATH');
     }
 }
 
 async function ensureGitAvailable(targetUri?: vscode.Uri): Promise<void> {
-    const taskName = `${EXTENSION_NAME}: check-git-version`;
+    const taskName = `check-git-version`;
 
     const cwd = targetUri?.fsPath ?? vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
 
@@ -134,10 +135,10 @@ async function ensureGitAvailable(targetUri?: vscode.Uri): Promise<void> {
         : new vscode.ShellExecution('git -v');
 
     const task = new vscode.Task(
-        { type: EXTENSION_ID, task: 'check-git-version' },
-        vscode.TaskScope.Workspace,
+        { type: EXTENSION.ID, task: taskName },
+        vscode.TaskScope.Global,
         taskName,
-        EXTENSION_ID,
+        EXTENSION.ID,
         execution
     );
 
@@ -150,9 +151,9 @@ async function ensureGitAvailable(targetUri?: vscode.Uri): Promise<void> {
 
     try {
         await runShellTaskAndWait(task);
-        log.debug(`${EXTENSION_NAME}: Git detected via "git -v"`);
+        Logger.debug(`Git detected via "git -v"`);
     } catch (err) {
-        log.warn(`${EXTENSION_NAME}: Git is not installed or not on PATH ${String(err)}`);
+        Logger.warn(`Git is not installed or not on PATH ${String(err)}`);
         throw new Error('Git is not installed or not on PATH');
     }
 }

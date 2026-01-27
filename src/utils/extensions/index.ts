@@ -1,1 +1,2 @@
 import './stringExtensions';
+import './vscodeExtensions';

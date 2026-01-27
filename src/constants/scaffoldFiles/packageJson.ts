@@ -40,7 +40,8 @@ export namespace PackageJson {
             },
             scripts: {
                 "build": "tsc -p tsconfig.json",
-                "package": "npm run build && shx rm -rf .pack && shx mkdir -p .pack && shx cp dist/index.js .pack/index.js && shx cp gameart.jpg info.json .pack/ && cd .pack && cross-replace bestzip ../dist/$npm_package_name-$npm_package_version.zip index.js gameart.jpg info.json",
+                "watch": "tsc -watch -p ./",
+                "package": "npm run build && shx rm -rf .pack && shx mkdir -p .pack && shx cp dist/index.js .pack/index.js && shx cp gameart.jpg info.json .pack/ && cd .pack && cross-replace bestzip ../dist/$npm_package_name-$npm_package_version.zip index.js gameart.jpg info.json && cd .. && shx rm dist/index.js",
                 ...LIB_SCRIPTS
             },
         }, null, 2);

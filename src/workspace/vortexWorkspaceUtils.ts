@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
-import { EXTENSION_NAME, log } from '../extension';
 import { RequiredFiles } from '../constants/requiredFile';
 import { VortexCompletionProvider } from '../completions/vortexCompletionProvider';
+import { Logger } from '../utils/logger';
 
 export enum VortexWorkspaceType {
     None,
@@ -9,17 +9,17 @@ export enum VortexWorkspaceType {
     TypeScript
 }
 
-export async function getWorkspaceRootUri(): Promise<vscode.Uri> {
-    log.debug(`${EXTENSION_NAME}: Getting workspace root URI`);
+export async function getWorkspaceFolder(): Promise<vscode.WorkspaceFolder> {
+    Logger.debug(`Getting workspace folder`);
     const workspaceFolders = vscode.workspace.workspaceFolders;
     if (!workspaceFolders || workspaceFolders.length === 0) {
-        log.error(`${EXTENSION_NAME}: No workspace folder is open.`);
+        Logger.error(`No workspace folder is open.`);
         throw new Error('Open a folder first to get the workspace root URI.');
     }
 
     if (workspaceFolders.length === 1) {
-        log.debug(`${EXTENSION_NAME}: Single workspace folder detected: "${workspaceFolders[0].name}"`);
-        return workspaceFolders[0].uri;
+        Logger.debug(`Single workspace folder detected: "${workspaceFolders[0].name}"`);
+        return workspaceFolders[0];
     }
 
     const workspaceChoice = await vscode.window.showQuickPick(
@@ -32,16 +32,25 @@ export async function getWorkspaceRootUri(): Promise<vscode.Uri> {
 
     const selectedWorkspace = workspaceFolders.find(wf => wf.name === workspaceChoice);
     if (!selectedWorkspace) {
-        log.error(`${EXTENSION_NAME}: Selected workspace folder not found.`);
+        Logger.error(`Selected workspace folder not found.`);
         throw new Error('Selected workspace folder not found.');
     }
-    log.debug(`${EXTENSION_NAME}: User selected workspace folder: "${workspaceChoice}"`);
+    Logger.debug(`User selected workspace folder: "${workspaceChoice}"`);
 
-    return selectedWorkspace.uri;
+    return selectedWorkspace;
+}
+
+export async function getWorkspaceRootUri(workspaceFolder?: vscode.WorkspaceFolder): Promise<vscode.Uri> {
+    Logger.debug(`Getting workspace root URI`);
+    if (!workspaceFolder) {
+        workspaceFolder = await getWorkspaceFolder();
+    }
+
+    return workspaceFolder.uri;
 }
 
 export async function getVortexWorkspaceType(rootUri?: vscode.Uri) {
-    log.debug(`${EXTENSION_NAME}: Determining Vortex workspace type`);
+    Logger.debug(`Determining Vortex workspace type`);
     try {
         if (!rootUri) {
             rootUri = await getWorkspaceRootUri();
@@ -59,8 +68,8 @@ export async function getVortexWorkspaceType(rootUri?: vscode.Uri) {
             1
         );
 
-        log.debug(`${EXTENSION_NAME}: Found ${matchesJs.length} jsconfig.json files`);
-        log.debug(`${EXTENSION_NAME}: Found ${matchesTs.length} tsconfig.json files`);
+        Logger.debug(`Found ${matchesJs.length} jsconfig.json files`);
+        Logger.debug(`Found ${matchesTs.length} tsconfig.json files`);
 
         if (matchesTs.length !== 0) {
             return VortexWorkspaceType.TypeScript;
@@ -76,26 +85,26 @@ export async function getVortexWorkspaceType(rootUri?: vscode.Uri) {
 }
 
 export function isVortexWorkspaceType(type: VortexWorkspaceType) {
-    log.debug(`${EXTENSION_NAME}: Checking if workspace type "${type}" is Vortex workspace type`);
+    Logger.debug(`Checking if workspace type "${type}" is Vortex workspace type`);
     return type === VortexWorkspaceType.JavaScript || type === VortexWorkspaceType.TypeScript;
 }
 
 export function ensureVortexWorkspaceType(type: VortexWorkspaceType) {
-    log.debug(`${EXTENSION_NAME}: Ensuring Vortex workspace type`);
+    Logger.debug(`Ensuring Vortex workspace type`);
     if (!isVortexWorkspaceType(type)) {
-        log.error(`${EXTENSION_NAME}: The current workspace is not a Vortex API workspace.`);
+        Logger.error(`The current workspace is not a Vortex API workspace.`);
         throw new Error('The current workspace is not a Vortex API workspace.');
     }
 }
 
 export async function getRequiredFilesForWorkspace(rootUri?: vscode.Uri) {
-    log.debug(`${EXTENSION_NAME}: Determining required files for workspace`);
+    Logger.debug(`Determining required files for workspace`);
     let workspaceType;
     try {
         workspaceType = await getVortexWorkspaceType(rootUri);
         ensureVortexWorkspaceType(workspaceType);
     } catch (err) {
-        log.error(`${EXTENSION_NAME}: No Vortex workspace type detected: ${String(err)}`);
+        Logger.error(`No Vortex workspace type detected: ${String(err)}`);
         vscode.window.showErrorMessage(String(err));
         return [];
     }
@@ -106,38 +115,38 @@ export async function getRequiredFilesForWorkspace(rootUri?: vscode.Uri) {
 export function getRequiredFiles(workspaceType: VortexWorkspaceType) {
     switch (workspaceType) {
         case VortexWorkspaceType.JavaScript:
-            log.debug(`${EXTENSION_NAME}: Providing Js required files: ${RequiredFiles.JS.map(f => f.fileName).join(', ')}`);
+            Logger.debug(`Providing Js required files: ${RequiredFiles.JS.map(f => f.fileName).join(', ')}`);
             return RequiredFiles.JS;
         case VortexWorkspaceType.TypeScript:
-            log.debug(`${EXTENSION_NAME}: Providing Ts required files: ${RequiredFiles.TS.map(f => f.fileName).join(', ')}`);
+            Logger.debug(`Providing Ts required files: ${RequiredFiles.TS.map(f => f.fileName).join(', ')}`);
             return RequiredFiles.TS;
         default:
-            log.debug(`${EXTENSION_NAME}: No required files for workspace type`);
+            Logger.debug(`No required files for workspace type`);
             return [];
     }
 }
 
 export async function getVortexCompletionProvider(rootUri?: vscode.Uri) {
-    log.debug(`${EXTENSION_NAME}: Getting VortexCompletionProvider for workspace`);
+    Logger.debug(`Getting VortexCompletionProvider for workspace`);
     let workspaceType;
     try {
         workspaceType = await getVortexWorkspaceType(rootUri);
         ensureVortexWorkspaceType(workspaceType);
     } catch (err) {
-        log.error(`${EXTENSION_NAME}: No Vortex workspace type detected: ${String(err)}`);
+        Logger.error(`No Vortex workspace type detected: ${String(err)}`);
         vscode.window.showErrorMessage(String(err));
         return;
     }
 
     switch (workspaceType) {
         case VortexWorkspaceType.JavaScript:
-            log.debug(`${EXTENSION_NAME}: Providing VortexCompletionProviderJs`);
+            Logger.debug(`Providing VortexCompletionProviderJs`);
             return { instance: new VortexCompletionProvider.JS(), language: 'javascript' };
         case VortexWorkspaceType.TypeScript:
-            log.debug(`${EXTENSION_NAME}: Providing VortexCompletionProviderTs`);
+            Logger.debug(`Providing VortexCompletionProviderTs`);
             return { instance: new VortexCompletionProvider.TS(), language: 'typescript' };
         default:
-            log.debug(`${EXTENSION_NAME}: No completion provider for workspace type`);
+            Logger.debug(`No completion provider for workspace type`);
             return;
     }
 }

@@ -4,22 +4,20 @@ import * as path from 'path';
 import './utils/extensions';
 
 import { runInstallDeps } from './utils/shellUtils';
-import { checkPendingScaffold, newGameSupportExtension, scaffoldGameExtension } from './scaffold/newGameExtension';
+import { newGameSupportExtension } from './scaffold/newGameExtension';
 import { getRequiredFilesForWorkspace, getVortexCompletionProvider, getVortexWorkspaceType, getWorkspaceRootUri, isVortexWorkspaceType } from './workspace/vortexWorkspaceUtils';
-
-export const EXTENSION_NAME = 'Vortex Helper';
-export const EXTENSION_ID = 'vortexHelper';
-
-export let log: vscode.LogOutputChannel;
+import { checkPendingScaffold, scaffoldGameExtension } from './scaffold/scaffoldFunctions';
+import { COMMANDS, MISCELLANEOUS } from './constants/strings';
+import { Logger } from './utils/logger';
 
 export async function activate(context: vscode.ExtensionContext) {
-	log = vscode.window.createOutputChannel(EXTENSION_NAME, { log: true });
+	Logger.debug(`Activating extension`);
 
 	const workspaceType = await getVortexWorkspaceType();
 	const isVortexWorkspace = isVortexWorkspaceType(workspaceType);
-	log.debug(`${EXTENSION_NAME}: Detected workspace type: ${workspaceType}`);
+	Logger.debug(`Detected workspace type: ${workspaceType}`);
 
-	const newGameCmd = vscode.commands.registerCommand(`${EXTENSION_ID}.newGameSupportExtension`, async () => await newGameSupportExtensionLocal(context));
+	const newGameCmd = vscode.commands.registerCommand(COMMANDS.NEW_GAME_SUPPORT, async () => await newGameSupportExtensionLocal(context));
 	context.subscriptions.push(newGameCmd);
 
 	if (isVortexWorkspace) {
@@ -30,7 +28,7 @@ export async function activate(context: vscode.ExtensionContext) {
 	if (scaffolded) {
 		const workspaceType = await getVortexWorkspaceType();
 		const isVortexWorkspace = isVortexWorkspaceType(workspaceType);
-		log.debug(`${EXTENSION_NAME}: Detected workspace type after scaffolding: ${workspaceType}`);
+		Logger.debug(`Detected workspace type after scaffolding: ${workspaceType}`);
 		if (isVortexWorkspace) {
 			await activateVortexWorkspace(context);
 		}
@@ -40,17 +38,19 @@ export async function activate(context: vscode.ExtensionContext) {
 export function deactivate() { }
 
 async function activateVortexWorkspace(context: vscode.ExtensionContext) {
-	log.debug(`${EXTENSION_NAME}: Activating Vortex workspace features`);
+	Logger.debug(`Activating Vortex workspace features`);
 
-	log.debug(`${EXTENSION_NAME}: Registering commands`);
-	const setupVortexApiCmd = vscode.commands.registerCommand(`${EXTENSION_ID}.setupVortexApi`, setupVortexApiLocal);
-	const scaffoldCmd = vscode.commands.registerCommand(`${EXTENSION_ID}.scaffoldGameExtension`, scaffoldGameExtensionLocal);
-	const checkCmd = vscode.commands.registerCommand(`${EXTENSION_ID}.runWorkspaceChecks`, runWorkspaceChecksLocal);
-	context.subscriptions.push(setupVortexApiCmd, scaffoldCmd, checkCmd);
+	Logger.debug(`Registering commands`);
+	const setupVortexApiCmd = vscode.commands.registerCommand(COMMANDS.SETUP_VORTEX_API, setupVortexApiLocal);
+	const scaffoldCmd = vscode.commands.registerCommand(COMMANDS.SCAFFOLD_GAME_EXTENSION, scaffoldGameExtensionLocal);
+	const checkCmd = vscode.commands.registerCommand(COMMANDS.RUN_WORKSPACE_CHECKS, runWorkspaceChecksLocal);
+	const openDocCmd = vscode.commands.registerCommand(COMMANDS.OPEN_DOCUMENTATION, openDocumentationLocal);
+
+	context.subscriptions.push(setupVortexApiCmd, scaffoldCmd, checkCmd, openDocCmd);
 
 	// Register completion provider for JS
 	const vortexCompletionProviderInfo = await getVortexCompletionProvider();
-	log.debug(`${EXTENSION_NAME}: Registering completion provider for ${vortexCompletionProviderInfo?.language}`);
+	Logger.debug(`Registering completion provider for ${vortexCompletionProviderInfo?.language}`);
 	if (!vortexCompletionProviderInfo) {
 		vscode.window.showErrorMessage('Failed to initialize Vortex completion provider.');
 	} else {
@@ -62,11 +62,11 @@ async function activateVortexWorkspace(context: vscode.ExtensionContext) {
 		context.subscriptions.push(completionProvider);
 	}
 
-	log.debug(`${EXTENSION_NAME}: Setting up diagnostics`);
+	Logger.debug(`Setting up diagnostics`);
 	const diagCollection = vscode.languages.createDiagnosticCollection('vortex');
 	context.subscriptions.push(diagCollection);
 
-	log.debug(`${EXTENSION_NAME}: Registering document listeners`);
+	Logger.debug(`Registering document listeners`);
 	vscode.workspace.onDidSaveTextDocument(async doc => {
 		const requiredFiles = await getRequiredFilesForWorkspace();
 		for (const requiredFile of requiredFiles) {
@@ -85,26 +85,26 @@ async function activateVortexWorkspace(context: vscode.ExtensionContext) {
 		}
 	});
 
-	log.debug(`${EXTENSION_NAME}: Vortex workspace features activated`);
+	Logger.debug(`Vortex workspace features activated`);
 }
 
 async function newGameSupportExtensionLocal(context: vscode.ExtensionContext) {
-	log.debug(`${EXTENSION_NAME}: Starting new game extension command`);
+	Logger.debug(`Starting new game extension command`);
 	try {
 		await newGameSupportExtension(context);
-		log.debug(`${EXTENSION_NAME}: New game extension command completed`);
+		Logger.debug(`New game extension command completed`);
 	}
 	catch (err) {
-		log.error(`${EXTENSION_NAME}: Error during new game extension command: ${String(err)}`);
+		Logger.error(`Error during new game extension command: ${String(err)}`);
 		vscode.window.showErrorMessage(`Error during new game extension command: ${String(err)}`);
 	}
 }
 
 async function runWorkspaceChecksLocal() {
-	log.debug(`${EXTENSION_NAME}: Running workspace checks`);
+	Logger.debug(`Running workspace checks`);
 	const rootUri = await getWorkspaceRootUri();
 	const requiredFiles = await getRequiredFilesForWorkspace(rootUri);
-	log.debug(`${EXTENSION_NAME}: Found ${requiredFiles.length} required files to check`);
+	Logger.debug(`Found ${requiredFiles.length} required files to check`);
 
 	const problems: string[] = [];
 
@@ -116,6 +116,12 @@ async function runWorkspaceChecksLocal() {
 		},
 		async (progress) => {
 			for (const requiredFile of requiredFiles) {
+				if (requiredFile.skipInWorkspaceChecks) {
+					Logger.debug(`Skipping workspace check for ${requiredFile.fileName}`);
+					continue;
+				}
+
+				Logger.debug(`Checking required file ${requiredFile.fileName}`);
 				progress.report({ message: `Checking ${requiredFile.fileName}...` });
 
 				const fileUri = vscode.Uri.joinPath(rootUri, requiredFile.fileName);
@@ -133,7 +139,7 @@ async function runWorkspaceChecksLocal() {
 								problems.push(`${requiredFile.fileName} is missing required field "${field}".`);
 							}
 						}
-					} catch (err) {
+					} catch {
 						problems.push(`${requiredFile.fileName} is not valid JSON.`);
 					}
 				}
@@ -142,16 +148,16 @@ async function runWorkspaceChecksLocal() {
 	);
 
 	if (problems.length === 0) {
-		log.debug(`${EXTENSION_NAME}: Workspace checks passed`);
+		Logger.debug(`Workspace checks passed`);
 		vscode.window.showInformationMessage('Vortex workspace checks passed ✔');
 	} else {
-		log.warn(`${EXTENSION_NAME}: Workspace checks found issues:\n` + problems.join('\n'));
+		Logger.warn(`Workspace checks found issues:\n` + problems.join('\n'));
 		vscode.window.showWarningMessage('Vortex workspace checks found issues:\n' + problems.join('\n'));
 	}
 }
 
 async function setupVortexApiLocal() {
-	log.debug(`${EXTENSION_NAME}: Setting up Vortex API`);
+	Logger.debug(`Setting up Vortex API`);
 	const rootUri = await getWorkspaceRootUri();
 
 	await vscode.window.withProgress(
@@ -165,22 +171,22 @@ async function setupVortexApiLocal() {
 			try {
 				await runInstallDeps(rootUri);
 			} catch (err) {
-				log.error(`${EXTENSION_NAME}: Failed to install dependencies: ${String(err)}`);
+				Logger.error(`Failed to install dependencies: ${String(err)}`);
 				vscode.window.showErrorMessage(`Failed to install dependencies: ${String(err)}`);
 				return;
 			}
 		}
 	);
 
-	log.debug(`${EXTENSION_NAME}: Vortex API setup completed`);
+	Logger.debug(`Vortex API setup completed`);
 	vscode.window.showInformationMessage('Vortex API setup completed.');
 }
 
 async function scaffoldGameExtensionLocal() {
-	log.debug(`${EXTENSION_NAME}: Scaffolding missing files`);
+	Logger.debug(`Scaffolding missing files`);
 	const rootUri = await getWorkspaceRootUri();
 	const requiredFiles = await getRequiredFilesForWorkspace(rootUri);
-	log.debug(`${EXTENSION_NAME}: Found ${requiredFiles.length} required files to scaffold`);
+	Logger.debug(`Found ${requiredFiles.length} required files to scaffold`);
 
 	await vscode.window.withProgress(
 		{
@@ -193,15 +199,19 @@ async function scaffoldGameExtensionLocal() {
 			try {
 				await scaffoldGameExtension(requiredFiles, rootUri);
 			} catch (err) {
-				log.error(`${EXTENSION_NAME}: Failed to create missing files: ${String(err)}`);
+				Logger.error(`Failed to create missing files: ${String(err)}`);
 				vscode.window.showErrorMessage(`Failed to create missing files: ${String(err)}`);
 				return;
 			}
 		}
 	);
 
-	log.debug(`${EXTENSION_NAME}: Missing files created`);
+	Logger.debug(`Missing files created`);
 	vscode.window.showInformationMessage('Missing files created.');
+}
+
+async function openDocumentationLocal() {
+	await vscode.env.openExternal(vscode.Uri.parse(MISCELLANEOUS.NEXUS_DOCS_URL));
 }
 
 async function fileExists(uri: vscode.Uri): Promise<boolean> {

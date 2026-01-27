@@ -14,7 +14,7 @@ export function validateInfoJson(requiredFields: string[], document: vscode.Text
                 diagnostics.push(diag);
             }
         }
-    } catch (err) {
+    } catch {
         // const diag = new vscode.Diagnostic(
         //     new vscode.Range(0, 0, 0, 1),
         //     'info.json is not valid JSON',
