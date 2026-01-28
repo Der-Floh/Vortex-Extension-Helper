@@ -1,3 +1,4 @@
+/*
 import * as vscode from 'vscode';
 import WebSocket from 'ws';
 import { randomUUID } from 'crypto';
@@ -110,3 +111,4 @@ export async function authenticateWithNexusMods(): Promise<string> {
         });
     });
 }
+*/

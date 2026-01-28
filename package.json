@@ -55,6 +55,7 @@
       "properties": {
         "vortexHelper.useNexusApi": {
           "type": "boolean",
+          "default": true,
           "description": "Whether to use the Nexus Mods Api for fetching game data when creating new game support extensions."
         }
       }

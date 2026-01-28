@@ -1,3 +1,4 @@
+/*
 import Nexus from '@nexusmods/nexus-api';
 import { authenticateWithNexusMods, getStoredApiKey } from './nexusAuth';
 import { NEXUS_API } from '../constants/strings';
@@ -23,3 +24,4 @@ export async function getNexusClient(useApiKey?: boolean) {
 
     return nexus;
 }
+*/

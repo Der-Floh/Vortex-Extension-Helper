@@ -9,7 +9,6 @@ import { getRequiredFilesForWorkspace, getVortexCompletionProvider, getVortexWor
 import { checkPendingScaffold, scaffoldGameExtension } from './scaffold/scaffoldFunctions';
 import { COMMANDS, MISCELLANEOUS } from './constants/strings';
 import { Logger } from './utils/logger';
-import { initializeNexusSecretStorage } from './nexus-api/nexusAuth';
 
 export async function activate(context: vscode.ExtensionContext) {
 	Logger.debug(`Activating extension`);
@@ -17,9 +16,6 @@ export async function activate(context: vscode.ExtensionContext) {
 	const workspaceType = await getVortexWorkspaceType();
 	const isVortexWorkspace = isVortexWorkspaceType(workspaceType);
 	Logger.debug(`Detected workspace type: ${workspaceType}`);
-
-	Logger.debug(`Initializing Nexus Mods secret storage`);
-	initializeNexusSecretStorage(context);
 
 	Logger.debug(`Registering commands`);
 	const newGameCmd = vscode.commands.registerCommand(COMMANDS.NEW_GAME_SUPPORT, async () => await newGameSupportExtensionLocal(context));

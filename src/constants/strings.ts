@@ -20,6 +20,7 @@ export namespace GLOBAL_STATE {
 }
 
 export namespace NEXUS_API {
+    /*
     export const APP_ID = 'vortex_extension_helper';
     export const APP_NAME = 'Vortex Helper';
     export const APP_VERSION = '0.0.1';
@@ -28,6 +29,8 @@ export namespace NEXUS_API {
     export const API_KEY_SECRET = `${EXTENSION.ID}.nexusApiKey`;
     export const SSO_URL = 'wss://sso.nexusmods.com';
     export const SSO_BROWSER_URL = 'https://www.nexusmods.com/sso';
+    */
+    export const GAMES_URL = 'https://data.nexusmods.com/file/nexus-data/games.json';
 }
 
 export namespace MISCELLANEOUS {

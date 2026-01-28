@@ -6,16 +6,19 @@ function isWeb(): boolean {
     return vscode.env.uiKind === vscode.UIKind.Web;
 }
 
-function runShellTaskAndWait(task: vscode.Task): Promise<void> {
+function runShellTaskAndWait(task: vscode.Task, token?: vscode.CancellationToken): Promise<void> {
     return new Promise(async (resolve, reject) => {
-        const started = await vscode.tasks.executeTask(task);
+        const execution = await vscode.tasks.executeTask(task);
+        let finished = false;
 
         const disposable = vscode.tasks.onDidEndTaskProcess(e => {
-            if (e.execution !== started) {
+            if (e.execution !== execution) {
                 return;
             }
 
+            finished = true;
             disposable.dispose();
+            tokenListener?.dispose();
 
             if (e.exitCode === 0) {
                 resolve();
@@ -23,6 +26,27 @@ function runShellTaskAndWait(task: vscode.Task): Promise<void> {
                 reject(new Error(`Task "${task.name}" failed with exit code ${e.exitCode ?? 'unknown'}`));
             }
         });
+
+        let tokenListener: vscode.Disposable | undefined;
+        if (token) {
+            tokenListener = token.onCancellationRequested(() => {
+                if (finished) {
+                    return;
+                }
+
+                finished = true;
+
+                try {
+                    execution.terminate();
+                } catch { }
+
+                disposable.dispose();
+                tokenListener?.dispose();
+
+                // Let callers distinguish cancellation if they want
+                reject(new vscode.CancellationError());
+            });
+        }
     });
 }
 
@@ -65,10 +89,10 @@ export async function runInstallDeps(targetUri: vscode.Uri) {
     Logger.debug(`install-current-deps completed successfully`);
 }
 
-export async function ensureNodeAndGitAvailable(targetUri?: vscode.Uri): Promise<void> {
+export async function ensureNodeAndGitAvailable(targetUri?: vscode.Uri, token?: vscode.CancellationToken): Promise<void> {
     const [nodeRes, gitRes] = await Promise.allSettled([
-        ensureNodeAvailable(targetUri),
-        ensureGitAvailable(targetUri),
+        ensureNodeAvailable(targetUri, token),
+        ensureGitAvailable(targetUri, token),
     ]);
 
     const nodeFailed = nodeRes.status === "rejected";
@@ -92,7 +116,7 @@ export async function ensureNodeAndGitAvailable(targetUri?: vscode.Uri): Promise
 }
 
 
-async function ensureNodeAvailable(targetUri?: vscode.Uri): Promise<void> {
+async function ensureNodeAvailable(targetUri?: vscode.Uri, token?: vscode.CancellationToken): Promise<void> {
     const taskName = `check-node-version`;
 
     const cwd = targetUri?.fsPath ?? vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
@@ -117,7 +141,7 @@ async function ensureNodeAvailable(targetUri?: vscode.Uri): Promise<void> {
     };
 
     try {
-        await runShellTaskAndWait(task);
+        await runShellTaskAndWait(task, token);
         Logger.debug(`Node.js detected via "node -v"`);
     } catch (err) {
         Logger.warn(`Node.js is not installed or not on PATH ${String(err)}`);
@@ -125,7 +149,7 @@ async function ensureNodeAvailable(targetUri?: vscode.Uri): Promise<void> {
     }
 }
 
-async function ensureGitAvailable(targetUri?: vscode.Uri): Promise<void> {
+async function ensureGitAvailable(targetUri?: vscode.Uri, token?: vscode.CancellationToken): Promise<void> {
     const taskName = `check-git-version`;
 
     const cwd = targetUri?.fsPath ?? vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
@@ -150,7 +174,7 @@ async function ensureGitAvailable(targetUri?: vscode.Uri): Promise<void> {
     };
 
     try {
-        await runShellTaskAndWait(task);
+        await runShellTaskAndWait(task, token);
         Logger.debug(`Git detected via "git -v"`);
     } catch (err) {
         Logger.warn(`Git is not installed or not on PATH ${String(err)}`);
