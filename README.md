@@ -7,40 +7,44 @@ A Visual Studio Code extension that streamlines the development of game support 
 ## Features
 
 ### 🚀 Quick Project Scaffolding
+
 - **New Game Extension Wizard**: Create a basic game support extension structure with a single command
 - **Language Support**: Choose between JavaScript or TypeScript projects
 - **Automatic Setup**: Generates all required files including `info.json`, package.json, `index.js/ts`, configuration files, and placeholder game artwork
 
 ### 💡 Intelligent Code Completion
+
 - **Vortex API Snippets**: Access pre-built code snippets for common Vortex API patterns
 - **Context-Aware**: Snippets include game registration, mod installers, mod manager integration, and tool definitions
 - **Language-Specific**: Tailored completions for both JavaScript and TypeScript projects
 
 ### ✅ Workspace Validation
+
 - **File Structure Checks**: Automatically validates that all required files are present
 - **JSON Validation**: Ensures `info.json` and package.json contain required fields
 - **Live Diagnostics**: Real-time validation as you edit files
 
 ### 📦 Dependency Management
+
 - **Vortex API Installation**: One-click setup of the Vortex API and related libraries
 - **Categorized Dependencies**: Easy access to required, common, additional, and unofficial Vortex libraries
 - **NPM Scripts**: Pre-configured scripts for building, packaging, and dependency management
 
 ## Demo
 
-#### Create Extension
+### Create Extension
 
-![Extension demo create extension](assets/preview/Vortex-Helper-Extension-Preview_Create-Extension.gif)
+![Extension demo create extension](assets/preview/Vortex-Helper-Extension-Preview_Create-Extension-NexusAPI.gif)
 
 ---
 
-#### Intellisense
+### Intellisense
 
 ![Extension demo intellisense](assets/preview/Vortex-Helper-Extension-Preview_Intellisense-Short.gif)
 
 ---
 
-#### Workspace Checks
+### Workspace Checks
 
 ![Extension demo intellisense](assets/preview/Vortex-Helper-Extension-Preview_Workspace-Checks.gif)
 
@@ -52,15 +56,16 @@ Access these commands via the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`):
 - **Vortex: Setup Vortex API in Workspace** - Install Vortex API dependencies
 - **Vortex: Scaffold Game Extension in Workspace** - Add missing required files to an existing project
 - **Vortex: Run Workspace Checks** - Validate your workspace structure and required files
+- **Vortex: Open Extension Documentation** - Opens the Nexus Mods Documentation on how to create Extensions
 
 ## Getting Started
 
 1. **Create a New Extension**:
    - Open the Command Palette
    - Run `Vortex: New Game Support Extension`
-   - Enter your game title
-   - Select JavaScript or TypeScript
    - Choose a location for your project
+   - Select JavaScript or TypeScript
+   - Select your Game
 
 2. **Complete the Setup**:
    - The extension will automatically scaffold all required files
@@ -93,6 +98,9 @@ A scaffolded extension includes:
 
 ```
 your-game-extension/
+├── .vscode
+   ├── settings.json
+   └── tasks.json
 ├── info.json              # Extension metadata
 ├── package.json           # NPM dependencies and scripts
 ├── gameart.jpg            # Game icon (replace with actual artwork)
@@ -112,9 +120,11 @@ your-game-extension/
 The extension provides easy access to official Vortex libraries:
 
 **Required:**
+
 - [`vortex-api`](https://github.com/Nexus-Mods/vortex-api)
 
 **Common:**
+
 - [`winapi-bindings`](https://github.com/Nexus-Mods/node-winapi-bindings)
 - [`vortex-parse-ini`](https://github.com/Nexus-Mods/vortex-parse-ini)
 - [`node-7z`](https://github.com/Nexus-Mods/node-7z)
