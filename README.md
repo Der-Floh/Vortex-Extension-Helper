@@ -2,6 +2,8 @@
 
 A Visual Studio Code extension that streamlines the development of game support extensions for [Vortex](https://www.nexusmods.com/about/vortex/).
 
+> This is a community-created VSCode extension and is **not an official product of Nexus Mods**.
+
 ![Extension demo intellisense short](assets/preview/Vortex-Helper-Extension-Preview_Intellisense-Short.gif)
 
 ## Features
