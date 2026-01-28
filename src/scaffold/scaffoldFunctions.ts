@@ -78,14 +78,19 @@ export async function checkPendingScaffold(context: vscode.ExtensionContext) {
 export async function scaffoldGameExtension(requiredFiles: IRequiredFile[], rootUri: vscode.Uri, packageOptions?: Record<string, string>) {
     Logger.debug(`Scaffolding game extension files in "${rootUri.fsPath}"`);
     for (const requiredFile of requiredFiles) {
-        Logger.debug(`Scaffolding file "${requiredFile.fileName}"`);
-        if (requiredFile.scaffoldContent) {
-            if (packageOptions) {
-                requiredFile.scaffoldContent = applyRequiredFileCustomizations(requiredFile, requiredFile.scaffoldContent, packageOptions);
-            }
+        try {
+            Logger.debug(`Scaffolding file "${requiredFile.fileName}"`);
+            if (requiredFile.scaffoldContent) {
+                if (packageOptions) {
+                    requiredFile.scaffoldContent = applyRequiredFileCustomizations(requiredFile, requiredFile.scaffoldContent, packageOptions);
+                }
 
-            const fileUri = vscode.Uri.joinPath(rootUri, requiredFile.directory ?? '', requiredFile.fileName);
-            await writeFileIfMissing(fileUri, requiredFile.scaffoldContent);
+                const fileUri = vscode.Uri.joinPath(rootUri, requiredFile.directory ?? '', requiredFile.fileName);
+                await writeFileIfMissing(fileUri, requiredFile.scaffoldContent);
+            }
+        } catch (err) {
+            Logger.error(`Failed to scaffold file "${requiredFile.fileName}": ${String(err)}`);
+            vscode.window.showErrorMessage(`Failed to scaffold file "${requiredFile.fileName}": ${String(err)}`);
         }
     }
 }

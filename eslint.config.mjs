@@ -48,11 +48,5 @@ export default [
             "import/no-cycle": ["error", { maxDepth: 10 }],
             "import/no-unresolved": "error",
         },
-    },
-    {
-        files: ["./src/vortex-testing/testGameExt.ts"],
-        rules: {
-            "@typescript-eslint/no-unused-vars": "warn",
-        },
-    },
+    }
 ];

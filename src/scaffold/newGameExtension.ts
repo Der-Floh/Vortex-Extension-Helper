@@ -9,11 +9,13 @@ import { CONFIGS, GLOBAL_STATE } from '../constants/strings';
 import { pickGame } from '../nexus-api/gameQuickPick';
 import { getNexusGames } from '../nexus-api/nexusData';
 import { IGameListEntry } from '@nexusmods/nexus-api';
+import { trimChars } from '../utils/trim';
 
 type GameName = [gameTitle: string | undefined, gameDomainName: string | undefined];
 
 export async function newGameSupportExtension(context: vscode.ExtensionContext) {
     const cts = new vscode.CancellationTokenSource();
+    let baseUri: vscode.Uri | undefined;
 
     try {
         await vscode.window.withProgress(
@@ -34,7 +36,7 @@ export async function newGameSupportExtension(context: vscode.ExtensionContext) 
 
                     // 1. Let the user select a base folder where the new extension folder will be created
                     progress.report({ message: 'Selecting base folder...' });
-                    const baseUri = await getNewGameExtensionFolder();
+                    baseUri = await getNewGameExtensionFolder();
                     if (!baseUri) {
                         cts.cancel();
                         return;
@@ -88,6 +90,12 @@ export async function newGameSupportExtension(context: vscode.ExtensionContext) 
         if (err instanceof vscode.CancellationError) {
             // User cancelled via progress UI or our CTS – no error popup needed
             Logger.debug('New game support extension creation cancelled by user');
+            if (baseUri) {
+                try {
+                    Logger.debug(`Cleaning up created folder at "${baseUri.fsPath}"`);
+                    await vscode.workspace.fs.delete(baseUri, { recursive: true, useTrash: false });
+                } catch { }
+            }
             return;
         }
 
@@ -228,7 +236,7 @@ async function getGameManually(): Promise<GameName> {
         throw new Error('Game title is required.');
     }
 
-    const sanitizedTitle = sanitize(`${gameTitle.toLowerCase()}`).replace(/[^a-z0-9]+/g, '-').trimChars('-');
+    const sanitizedTitle = trimChars(sanitize(`${gameTitle.toLowerCase()}`).replace(/[^a-z0-9]+/g, '-'), '-');
     if (!sanitizedTitle || sanitizedTitle.length === 0) {
         Logger.error(`Could not generate a valid folder name from the game title "${gameTitle}"`);
         throw new Error(`Could not generate a valid folder name from the game title "${gameTitle}"`);

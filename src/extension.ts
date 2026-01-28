@@ -72,7 +72,7 @@ async function activateVortexWorkspace(context: vscode.ExtensionContext) {
 	context.subscriptions.push(diagCollection);
 
 	Logger.debug(`Registering document listeners`);
-	vscode.workspace.onDidSaveTextDocument(async doc => {
+	const saveListener = vscode.workspace.onDidSaveTextDocument(async doc => {
 		const requiredFiles = await getRequiredFilesForWorkspace();
 		for (const requiredFile of requiredFiles) {
 			if (path.basename(doc.fileName) === requiredFile.fileName) {
@@ -81,7 +81,7 @@ async function activateVortexWorkspace(context: vscode.ExtensionContext) {
 		}
 	});
 
-	vscode.workspace.onDidOpenTextDocument(async doc => {
+	const openListener = vscode.workspace.onDidOpenTextDocument(async doc => {
 		const requiredFiles = await getRequiredFilesForWorkspace();
 		for (const requiredFile of requiredFiles) {
 			if (path.basename(doc.fileName) === requiredFile.fileName) {
@@ -89,6 +89,8 @@ async function activateVortexWorkspace(context: vscode.ExtensionContext) {
 			}
 		}
 	});
+
+	context.subscriptions.push(saveListener, openListener);
 
 	Logger.debug(`Vortex workspace features activated`);
 }

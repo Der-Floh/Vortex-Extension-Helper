@@ -2,11 +2,12 @@ import * as vscode from 'vscode';
 import { IGameListEntry } from "@nexusmods/nexus-api";
 import { NEXUS_API } from "../constants/strings";
 
-export async function getNexusGames(token?: vscode.CancellationToken) {
+export async function getNexusGames(token?: vscode.CancellationToken, timeoutMs: number = 5000) {
     const controller = new AbortController();
     const { signal } = controller;
 
     let tokenListener: vscode.Disposable | undefined;
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
     if (token) {
         if (token.isCancellationRequested) {
             controller.abort();
@@ -15,6 +16,12 @@ export async function getNexusGames(token?: vscode.CancellationToken) {
                 controller.abort();
             });
         }
+    }
+
+    if (timeoutMs > 0) {
+        timeoutId = setTimeout(() => {
+            controller.abort();
+        }, timeoutMs);
     }
 
     try {
@@ -40,5 +47,8 @@ export async function getNexusGames(token?: vscode.CancellationToken) {
         throw err;
     } finally {
         tokenListener?.dispose();
+        if (timeoutId) {
+            clearTimeout(timeoutId);
+        }
     }
 }

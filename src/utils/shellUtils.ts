@@ -6,19 +6,28 @@ function isWeb(): boolean {
     return vscode.env.uiKind === vscode.UIKind.Web;
 }
 
-function runShellTaskAndWait(task: vscode.Task, token?: vscode.CancellationToken): Promise<void> {
+function runShellTaskAndWait(task: vscode.Task, token?: vscode.CancellationToken, timeoutMs?: number): Promise<void> {
     return new Promise(async (resolve, reject) => {
         const execution = await vscode.tasks.executeTask(task);
         let finished = false;
+
+        let tokenListener: vscode.Disposable | undefined;
+        let timeoutId: ReturnType<typeof setTimeout> | undefined;
 
         const disposable = vscode.tasks.onDidEndTaskProcess(e => {
             if (e.execution !== execution) {
                 return;
             }
 
+            if (finished) {
+                return;
+            }
             finished = true;
             disposable.dispose();
             tokenListener?.dispose();
+            if (timeoutId) {
+                clearTimeout(timeoutId);
+            }
 
             if (e.exitCode === 0) {
                 resolve();
@@ -27,7 +36,6 @@ function runShellTaskAndWait(task: vscode.Task, token?: vscode.CancellationToken
             }
         });
 
-        let tokenListener: vscode.Disposable | undefined;
         if (token) {
             tokenListener = token.onCancellationRequested(() => {
                 if (finished) {
@@ -42,10 +50,32 @@ function runShellTaskAndWait(task: vscode.Task, token?: vscode.CancellationToken
 
                 disposable.dispose();
                 tokenListener?.dispose();
+                if (timeoutId) {
+                    clearTimeout(timeoutId);
+                }
 
                 // Let callers distinguish cancellation if they want
                 reject(new vscode.CancellationError());
             });
+        }
+
+        if (timeoutMs && timeoutMs > 0) {
+            timeoutId = setTimeout(() => {
+                if (finished) {
+                    return;
+                }
+
+                finished = true;
+
+                try {
+                    execution.terminate();
+                } catch { }
+
+                disposable.dispose();
+                tokenListener?.dispose();
+
+                reject(new vscode.CancellationError());
+            }, timeoutMs);
         }
     });
 }
@@ -89,10 +119,10 @@ export async function runInstallDeps(targetUri: vscode.Uri) {
     Logger.debug(`install-current-deps completed successfully`);
 }
 
-export async function ensureNodeAndGitAvailable(targetUri?: vscode.Uri, token?: vscode.CancellationToken): Promise<void> {
+export async function ensureNodeAndGitAvailable(targetUri?: vscode.Uri, token?: vscode.CancellationToken, timeoutMs: number = 20000): Promise<void> {
     const [nodeRes, gitRes] = await Promise.allSettled([
-        ensureNodeAvailable(targetUri, token),
-        ensureGitAvailable(targetUri, token),
+        ensureNodeAvailable(targetUri, token, timeoutMs),
+        ensureGitAvailable(targetUri, token, timeoutMs),
     ]);
 
     const nodeFailed = nodeRes.status === "rejected";
@@ -116,7 +146,7 @@ export async function ensureNodeAndGitAvailable(targetUri?: vscode.Uri, token?: 
 }
 
 
-async function ensureNodeAvailable(targetUri?: vscode.Uri, token?: vscode.CancellationToken): Promise<void> {
+async function ensureNodeAvailable(targetUri?: vscode.Uri, token?: vscode.CancellationToken, timeoutMs: number = 20000): Promise<void> {
     const taskName = `check-node-version`;
 
     const cwd = targetUri?.fsPath ?? vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
@@ -141,7 +171,7 @@ async function ensureNodeAvailable(targetUri?: vscode.Uri, token?: vscode.Cancel
     };
 
     try {
-        await runShellTaskAndWait(task, token);
+        await runShellTaskAndWait(task, token, timeoutMs);
         Logger.debug(`Node.js detected via "node -v"`);
     } catch (err) {
         Logger.warn(`Node.js is not installed or not on PATH ${String(err)}`);
@@ -149,7 +179,7 @@ async function ensureNodeAvailable(targetUri?: vscode.Uri, token?: vscode.Cancel
     }
 }
 
-async function ensureGitAvailable(targetUri?: vscode.Uri, token?: vscode.CancellationToken): Promise<void> {
+async function ensureGitAvailable(targetUri?: vscode.Uri, token?: vscode.CancellationToken, timeoutMs: number = 20000): Promise<void> {
     const taskName = `check-git-version`;
 
     const cwd = targetUri?.fsPath ?? vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
@@ -174,7 +204,7 @@ async function ensureGitAvailable(targetUri?: vscode.Uri, token?: vscode.Cancell
     };
 
     try {
-        await runShellTaskAndWait(task, token);
+        await runShellTaskAndWait(task, token, timeoutMs);
         Logger.debug(`Git detected via "git -v"`);
     } catch (err) {
         Logger.warn(`Git is not installed or not on PATH ${String(err)}`);
