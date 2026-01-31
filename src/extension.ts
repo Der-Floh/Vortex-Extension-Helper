@@ -1,8 +1,6 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 
-import './utils/extensions';
-
 import { runInstallDeps } from './utils/shellUtils';
 import { newGameSupportExtension } from './scaffold/newGameExtension';
 import { getRequiredFilesForWorkspace, getVortexCompletionProvider, getVortexWorkspaceType, getWorkspaceRootUri, isVortexWorkspaceType } from './workspace/vortexWorkspaceUtils';

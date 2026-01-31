@@ -2,7 +2,7 @@
   "name": "vortex-extension-helper",
   "displayName": "Vortex Extension Helper",
   "description": "Helps create and validate Vortex game support extensions",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "publisher": "der-floh",
   "license": "MIT",
   "icon": "./assets/vortex-icon-x512.png",
@@ -92,6 +92,7 @@
     "package": "npx -y @vscode/vsce package"
   },
   "devDependencies": {
+    "@nexusmods/nexus-api": "github:Nexus-Mods/node-nexus-api",
     "@types/bluebird": "^3.5.42",
     "@types/degit": "^2.8.6",
     "@types/mocha": "^10.0.10",
@@ -105,10 +106,6 @@
     "typescript-eslint": "^8.54.0"
   },
   "dependencies": {
-    "@nexusmods/nexus-api": "github:Nexus-Mods/node-nexus-api",
-    "bluebird": "^3.7.2",
-    "sanitize-filename": "^1.6.3",
-    "vortex-api": "github:Nexus-Mods/vortex-api",
-    "ws": "^8.19.0"
+    "sanitize-filename": "^1.6.3"
   }
 }

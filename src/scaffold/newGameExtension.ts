@@ -8,7 +8,7 @@ import { Logger } from '../utils/logger';
 import { CONFIGS, GLOBAL_STATE } from '../constants/strings';
 import { pickGame } from '../nexus-api/gameQuickPick';
 import { getNexusGames } from '../nexus-api/nexusData';
-import { IGameListEntry } from '@nexusmods/nexus-api';
+import type { IGameListEntry } from '@nexusmods/nexus-api';
 import { trimChars } from '../utils/trim';
 
 type GameName = [gameTitle: string | undefined, gameDomainName: string | undefined];

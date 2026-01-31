@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { IGameListEntry } from '@nexusmods/nexus-api';
+import type { IGameListEntry } from '@nexusmods/nexus-api';
 
 
 interface IGameQuickPickItem extends vscode.QuickPickItem {

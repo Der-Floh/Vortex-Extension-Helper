@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { IGameListEntry } from "@nexusmods/nexus-api";
+import type { IGameListEntry } from "@nexusmods/nexus-api";
 import { NEXUS_API } from "../constants/strings";
 
 export async function getNexusGames(token?: vscode.CancellationToken, timeoutMs: number = 5000) {
