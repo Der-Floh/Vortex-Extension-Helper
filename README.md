@@ -129,7 +129,7 @@ The extension provides numerous code snippets accessible by typing `t` followed 
 
 A scaffolded extension includes:
 
-```
+```text
 your-game-extension/
 ├── .vscode
    ├── settings.json
