@@ -166,6 +166,42 @@ The extension provides easy access to official Vortex libraries:
 
 **Additional:** Game-specific libraries for formats like BA2, BSA, ESP, and more
 
+## Build from Source
+
+If you want to build and run the extension yourself:
+
+1. **Clone the repository**
+
+   ```bash
+   git clone https://github.com/Der-Floh/Vortex-Extension-Helper
+   cd Vortex-Extension-Helper
+   ```
+
+2. Install dependencies
+
+   ```bash
+   npm install
+   ```
+
+3. Build & Run in VS Code
+
+   - Open the project folder in Visual Studio Code
+   - To build: press `Ctrl+Shift+B` to run the default build task
+   - To debug the extension:
+     1. Press `F5`
+     2. This launches a new Extension Development Host window with the extension loaded
+
+4. Package the Extension (vsce)
+
+   To create a `.vsix` package using `vsce`:
+
+   ```bash
+   npm run package
+   ```
+
+   This will generate a VSIX file that you can install locally via:
+   - VS Code: Extensions view → `...` menu → Install from VSIX...
+
 ## Known Issues
 
 - The extension requires an active internet connection to install Vortex API dependencies from Git repositories
