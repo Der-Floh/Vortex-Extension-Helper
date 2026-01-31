@@ -6,6 +6,15 @@ A Visual Studio Code extension that streamlines the development of game support 
 
 ![Extension demo intellisense short](assets/preview/Vortex-Helper-Extension-Preview_Intellisense-Short.gif)
 
+## Table of Contents
+
+- [Features](#features)
+- [Demo](#demo)
+- [Installation](#installation)
+- [Commands](#commands)
+- [Getting Started](#getting-started)
+- [Contributing](#contributing)
+
 ## Features
 
 ### 🚀 Quick Project Scaffolding
@@ -49,6 +58,28 @@ A Visual Studio Code extension that streamlines the development of game support 
 ### Workspace Checks
 
 ![Extension demo intellisense](assets/preview/Vortex-Helper-Extension-Preview_Workspace-Checks.gif)
+
+## Installation
+
+### Install from within Visual Studio Code (Recommended)
+
+1. Open **Visual Studio Code**
+2. Go to the **Extensions** view (`Ctrl+Shift+X` / `Cmd+Shift+X`)
+3. Search for **`Vortex Extension Helper`**
+4. Click **Install**
+5. Reload VS Code if prompted
+
+---
+
+### Install from other Sources
+
+You can also install the extension directly from the Visual Studio Code Marketplace:
+
+- [VSCode Marketplace](https://marketplace.visualstudio.com/items?itemName=Der-Floh.vortex-extension-helper)
+- [Open VSX Registry](https://open-vsx.org/extension/der-floh/vortex-extension-helper)
+- [Nexus Mods](https://www.nexusmods.com/site/mods/1669)
+
+After installation, reload VS Code and access the extension via the **Command Palette** (`Ctrl+Shift+P` / `Cmd+Shift+P`) by searching for commands starting with **`Vortex:`**.
 
 ## Commands
 
