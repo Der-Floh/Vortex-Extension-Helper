@@ -2,7 +2,7 @@
   "name": "vortex-extension-helper",
   "displayName": "Vortex Extension Helper",
   "description": "Helps create and validate Vortex game support extensions",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "publisher": "der-floh",
   "license": "MIT",
   "icon": "./assets/vortex-icon-x512.png",
