@@ -95,14 +95,14 @@
     "@types/bluebird": "^3.5.42",
     "@types/degit": "^2.8.6",
     "@types/mocha": "^10.0.10",
-    "@types/node": "22.x",
+    "@types/node": "25.x",
     "@types/vscode": "^1.108.1",
     "@types/ws": "^8.18.1",
     "eslint": "^9.39.2",
     "eslint-import-resolver-typescript": "^4.4.4",
     "eslint-plugin-import": "^2.32.0",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.52.0"
+    "typescript-eslint": "^8.54.0"
   },
   "dependencies": {
     "@nexusmods/nexus-api": "github:Nexus-Mods/node-nexus-api",
