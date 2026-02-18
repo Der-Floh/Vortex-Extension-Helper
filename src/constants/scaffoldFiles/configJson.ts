@@ -20,7 +20,8 @@ export namespace ConfigJson {
                 rootDir: ".",
                 declaration: false,
                 sourceMap: false,
-                skipLibCheck: true
+                skipLibCheck: true,
+                types: ["node"],
             },
             include: ["**/*.ts"],
         }, null, 2);
