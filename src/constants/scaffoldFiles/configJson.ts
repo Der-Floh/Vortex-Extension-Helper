@@ -20,6 +20,8 @@ export namespace ConfigJson {
                 rootDir: ".",
                 declaration: false,
                 sourceMap: false,
+                inlineSourceMap: true,
+                inlineSources: true,
                 skipLibCheck: true,
                 types: ["node"],
             },
