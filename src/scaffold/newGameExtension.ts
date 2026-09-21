@@ -163,7 +163,6 @@ async function getNewGameExtensionName(games?: IGameListEntry[]) {
 }
 
 async function getGameTitle(games?: IGameListEntry[]): Promise<GameName> {
-    // await askForNexusApi();
     const useNexusApi = vscode.workspace.getConfiguration().get<boolean>(CONFIGS.CONFIG_USE_NEXUS_API);
     if (useNexusApi) {
         return getGameWithNexusApi(games);
@@ -171,36 +170,6 @@ async function getGameTitle(games?: IGameListEntry[]): Promise<GameName> {
         return getGameManually();
     }
 }
-
-/*
-async function askForNexusApi() {
-    const config = vscode.workspace.getConfiguration();
-    const inspect = config.inspect<boolean>(CONFIGS.CONFIG_USE_NEXUS_API);
-
-    const hasExplicitValue =
-        inspect?.globalValue !== undefined ||
-        inspect?.workspaceValue !== undefined ||
-        inspect?.workspaceFolderValue !== undefined;
-
-    if (!hasExplicitValue) {
-        const choice = await vscode.window.showQuickPick(
-            ['Yes', 'No', 'Don\'t ask again'],
-            {
-                placeHolder: 'Do you want to Login to Nexus Mods to show a list of available games?',
-                ignoreFocusOut: true,
-            }
-        );
-
-        switch (choice) {
-            case 'Yes':
-                await config.update(CONFIGS.CONFIG_USE_NEXUS_API, true, vscode.ConfigurationTarget.Global);
-                break;
-            case 'Don\'t ask again':
-                await config.update(CONFIGS.CONFIG_USE_NEXUS_API, false, vscode.ConfigurationTarget.Global);
-                break;
-        }
-    }
-}*/
 
 async function getGameWithNexusApi(games?: IGameListEntry[]): Promise<GameName> {
     if (!games) {

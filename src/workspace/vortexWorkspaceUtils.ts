@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { RequiredFiles } from '../constants/requiredFile';
 import { VortexCompletionProvider } from '../completions/vortexCompletionProvider';
 import { Logger } from '../utils/logger';
+import { fileExists } from '../utils/fileSystemUtils';
 
 export enum VortexWorkspaceType {
     None,
@@ -56,29 +57,13 @@ export async function getVortexWorkspaceType(rootUri?: vscode.Uri) {
             rootUri = await getWorkspaceRootUri();
         }
 
-        const matchesJs = await vscode.workspace.findFiles(
-            '**/jsconfig.json',
-            '**/node_modules/**',
-            1
-        );
-
-        const matchesTs = await vscode.workspace.findFiles(
-            '**/tsconfig.json',
-            '**/node_modules/**',
-            1
-        );
-
-        Logger.debug(`Found ${matchesJs.length} jsconfig.json files`);
-        Logger.debug(`Found ${matchesTs.length} tsconfig.json files`);
-
-        if (matchesTs.length !== 0) {
-            return VortexWorkspaceType.TypeScript;
-        }
-        if (matchesJs.length !== 0) {
-            return VortexWorkspaceType.JavaScript;
+        if (!(await fileExists(vscode.Uri.joinPath(rootUri, RequiredFiles.INFO_JSON_NAME)))) {
+            Logger.debug(`No ${RequiredFiles.INFO_JSON_NAME} found in workspace root`);
+            return VortexWorkspaceType.None;
         }
 
-        return VortexWorkspaceType.None;
+        const isTypeScript = await fileExists(vscode.Uri.joinPath(rootUri, RequiredFiles.TSCONFIG_JSON_NAME));
+        return isTypeScript ? VortexWorkspaceType.TypeScript : VortexWorkspaceType.JavaScript;
     } catch {
         return VortexWorkspaceType.None;
     }

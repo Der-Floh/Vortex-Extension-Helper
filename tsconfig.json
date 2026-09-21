@@ -22,7 +22,6 @@
 	],
 	"exclude": [
 		"out",
-		"node_modules",
-		"_helper"
+		"node_modules"
 	]
 }

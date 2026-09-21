@@ -43,7 +43,7 @@
   ],
   "activationEvents": [
     "onStartupFinished",
-    "onFileSystem:info.json",
+    "workspaceContains:info.json",
     "onLanguage:javascript",
     "onLanguage:typescript"
   ],
@@ -98,7 +98,6 @@
     "@types/mocha": "^10.0.10",
     "@types/node": "25.x",
     "@types/vscode": "^1.108.1",
-    "@types/ws": "^8.18.1",
     "eslint": "^9.39.2",
     "eslint-import-resolver-typescript": "^4.4.4",
     "eslint-plugin-import": "^2.32.0",

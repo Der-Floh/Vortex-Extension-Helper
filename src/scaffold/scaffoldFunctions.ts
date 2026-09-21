@@ -3,6 +3,7 @@ import { IRequiredFile } from '../constants/requiredFile';
 import { runInstallDeps } from '../utils/shellUtils';
 import { getRequiredFiles, getWorkspaceRootUri, VortexWorkspaceType } from '../workspace/vortexWorkspaceUtils';
 import { Logger } from '../utils/logger';
+import { fileExists } from '../utils/fileSystemUtils';
 import { GLOBAL_STATE } from '../constants/strings';
 
 export type PendingScaffoldState = {
@@ -129,14 +130,5 @@ async function writeFileIfMissing(uri: vscode.Uri, content: string) {
         await vscode.workspace.fs.writeFile(uri, Buffer.from(base64, 'base64'));
     } else {
         await vscode.workspace.fs.writeFile(uri, Buffer.from(content, 'utf8'));
-    }
-}
-
-async function fileExists(uri: vscode.Uri): Promise<boolean> {
-    try {
-        await vscode.workspace.fs.stat(uri);
-        return true;
-    } catch {
-        return false;
     }
 }

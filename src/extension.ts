@@ -7,6 +7,7 @@ import { getRequiredFilesForWorkspace, getVortexCompletionProvider, getVortexWor
 import { checkPendingScaffold, scaffoldGameExtension } from './scaffold/scaffoldFunctions';
 import { COMMANDS, MISCELLANEOUS } from './constants/strings';
 import { Logger } from './utils/logger';
+import { fileExists } from './utils/fileSystemUtils';
 
 export async function activate(context: vscode.ExtensionContext) {
 	Logger.debug(`Activating extension`);
@@ -217,13 +218,4 @@ async function scaffoldGameExtensionLocal() {
 
 async function openDocumentationLocal() {
 	await vscode.env.openExternal(vscode.Uri.parse(MISCELLANEOUS.NEXUS_DOCS_URL));
-}
-
-async function fileExists(uri: vscode.Uri): Promise<boolean> {
-	try {
-		await vscode.workspace.fs.stat(uri);
-		return true;
-	} catch {
-		return false;
-	}
 }

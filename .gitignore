@@ -139,6 +139,6 @@ vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 
 # Custom
-_helper
 *.vsix
 TODO
+CLAUDE.md
