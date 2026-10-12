@@ -1,0 +1,32 @@
+/** @import { types } from 'vortex-api' */
+import * as path from 'path';
+import { findModFiles } from '../archive/inspection.js';
+import { GAME } from '../common/constants.js';
+import { copyInstruction } from './instructions.js';
+
+/**
+ * Test function for archives that contain {{gameName}} mod files.
+ *
+ * @param {string[]} files - List of files contained in the archive.
+ * @param {string} gameId - ID of the game the archive is being installed for.
+ * @returns {Promise<types.ISupportedResult>} A promise resolving to the support state and required files.
+ */
+export async function testSupportedMods(files, gameId) {
+    return {
+        supported: gameId === GAME.id && findModFiles(files).length > 0,
+        requiredFiles: [],
+    };
+}
+
+/**
+ * Installer implementation for {{gameName}} mods: copies each mod file into
+ * the mods folder, without the folders it was packed in.
+ *
+ * @param {string[]} files - Files contained in the archive.
+ * @returns {Promise<types.IInstallResult>} A promise resolving to installer instructions.
+ */
+export async function installMods(files) {
+    return {
+        instructions: findModFiles(files).map(file => copyInstruction(file, path.basename(file))),
+    };
+}

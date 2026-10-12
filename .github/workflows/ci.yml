@@ -1,0 +1,26 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  extension:
+    uses: Der-Floh/Der-Floh/.github/workflows/vscode-extension-ci.yml@v1
+    with:
+      test-command: npm test
+
+  automerge:
+    needs: extension
+    permissions:
+      contents: write
+      pull-requests: write
+    uses: Der-Floh/Der-Floh/.github/workflows/dependabot-automerge.yml@v1

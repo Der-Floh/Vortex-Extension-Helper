@@ -1,0 +1,37 @@
+import typescript from '@rollup/plugin-typescript';
+import { readFileSync } from 'node:fs';
+import { builtinModules } from 'node:module';
+
+const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'));
+
+const RUNTIME_PROVIDED_MODULES = ['vortex-api', 'bluebird', ...(pkg.vortex?.externals ?? [])];
+
+const SOURCE_URL_PREFIX = `${pkg.name}:///`;
+
+const toSourceUrl = (relativeSourcePath) =>
+    SOURCE_URL_PREFIX + relativeSourcePath.replace(/\\/g, '/').replace(/^(\.\.\/)+/, '');
+
+export default {
+    input: 'src/index.ts',
+    output: {
+        file: '.pack/index.js',
+        format: 'cjs',
+        sourcemap: 'inline',
+        sourcemapPathTransform: toSourceUrl,
+        exports: 'named',
+    },
+    external: [
+        ...RUNTIME_PROVIDED_MODULES,
+        ...builtinModules,
+        ...builtinModules.map((name) => `node:${name}`),
+    ],
+    plugins: [
+        typescript({
+            module: 'esnext',
+            sourceMap: true,
+            inlineSourceMap: false,
+            inlineSources: true,
+            noEmitOnError: true,
+        }),
+    ],
+};

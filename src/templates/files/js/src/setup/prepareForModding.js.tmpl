@@ -1,0 +1,18 @@
+/** @import { types } from 'vortex-api' */
+import { GAME } from '../common/constants.js';
+import { ensureWritableDirOrWarn } from '../common/notifications.js';
+import { resolveGamePath } from '../detection/discovery.js';
+
+/**
+ * Prepares the game installation for modding. Vortex calls this every time
+ * the game mode is activated.
+ *
+ * Ensures the mods folder exists and is writable.
+ *
+ * @param {types.IDiscoveryResult} discovery - The game discovery result from Vortex.
+ * @param {types.IExtensionApi} api - Vortex extension API.
+ * @returns {Promise<void>} A promise that resolves once preparation is complete.
+ */
+export async function prepareForModding(discovery, api) {
+    await ensureWritableDirOrWarn(api, resolveGamePath(discovery, GAME.modsDir));
+}

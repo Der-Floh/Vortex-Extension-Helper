@@ -1,32 +1,24 @@
+name: Publish Release
+
 on:
-    release:
-        types: [published]
+  release:
+    types: [published]
 
-name: Deploy Extension
+concurrency:
+  group: vscode-extension-publish
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
 jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Publish to Open VSX Registry
-        uses: HaaLeo/publish-vscode-extension@v2
-        id: publishToOpenVSX
-        with:
-          pat: ${{ secrets.OPEN_VSX_TOKEN }}
-          
-      - name: Publish to Visual Studio Marketplace
-        uses: HaaLeo/publish-vscode-extension@v2
-        with:
-          pat: ${{ secrets.VS_MARKETPLACE_TOKEN }}
-          registryUrl: https://marketplace.visualstudio.com
-          extensionFile: ${{ steps.publishToOpenVSX.outputs.vsixPath }}
+  publish:
+    uses: Der-Floh/Der-Floh/.github/workflows/vscode-extension-publish.yml@v1
+    with:
+      test-command: npm test
+      vs-marketplace: true
+      open-vsx: true
+    secrets:
+      OPEN_VSX_TOKEN: ${{ secrets.OPEN_VSX_TOKEN }}

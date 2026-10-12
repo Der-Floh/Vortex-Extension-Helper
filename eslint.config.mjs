@@ -1,52 +1,33 @@
-import typescriptEslint from "typescript-eslint";
-import importPlugin from "eslint-plugin-import";
+import typescriptEslint from '@typescript-eslint/eslint-plugin';
+import tsParser from '@typescript-eslint/parser';
 
-export default [
-    {
-        files: ["./src/**/*.ts"],
+export default [{
+    files: ['**/*.ts'],
+    languageOptions: {
+        parser: tsParser,
+        ecmaVersion: 2022,
+        sourceType: 'module',
+    },
+    plugins: {
+        '@typescript-eslint': typescriptEslint,
+    },
 
-        ignores: ["dist/**", "out/**", "node_modules/**"],
+    rules: {
+        '@typescript-eslint/naming-convention': ['warn',
+            { selector: 'import', format: ['camelCase', 'PascalCase'] },
+            { selector: 'variable', format: ['camelCase', 'UPPER_CASE', 'PascalCase'], leadingUnderscore: 'allow' },
+            { selector: 'function', format: ['camelCase', 'PascalCase'] },
+            { selector: 'typeLike', format: ['PascalCase'] },
+            { selector: 'classProperty', format: ['camelCase'], leadingUnderscore: 'allow' },
+        ],
 
-        plugins: {
-            "@typescript-eslint": typescriptEslint.plugin,
-            "import": importPlugin,
-        },
-
-        languageOptions: {
-            parser: typescriptEslint.parser,
-            ecmaVersion: 2022,
-            sourceType: "module",
-        },
-
-        settings: {
-            "import/resolver": {
-                typescript: {
-                    project: "./tsconfig.json",
-                },
-                node: {
-                    extensions: [".js", ".jsx", ".ts", ".tsx"],
-                },
-            },
-        },
-
-        rules: {
-            "@typescript-eslint/naming-convention": ["warn", {
-                selector: "import",
-                format: ["camelCase", "PascalCase"],
-            }],
-
-            "@typescript-eslint/no-unused-vars": ["error", {
-                argsIgnorePattern: "^_",
-                varsIgnorePattern: "^_",
-            }],
-
-            curly: "warn",
-            eqeqeq: "warn",
-            "no-throw-literal": "warn",
-            semi: "warn",
-
-            "import/no-cycle": ["error", { maxDepth: 10 }],
-            "import/no-unresolved": "error",
-        },
-    }
-];
+        '@typescript-eslint/no-explicit-any': 'warn',
+        'brace-style': ['warn', '1tbs'],
+        curly: 'warn',
+        eqeqeq: 'warn',
+        indent: ['warn', 4, { SwitchCase: 1 }],
+        'no-throw-literal': 'warn',
+        quotes: ['warn', 'single', { avoidEscape: true }],
+        semi: 'warn',
+    },
+}];

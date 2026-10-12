@@ -1,0 +1,28 @@
+version: 2
+
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: ci
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: deps
+    ignore:
+      # vsce refuses to pack when @types/vscode is newer than engines.vscode, so both move together by hand
+      - dependency-name: "@types/vscode"
+    groups:
+      npm-minor-and-patch:
+        update-types:
+          - minor
+          - patch

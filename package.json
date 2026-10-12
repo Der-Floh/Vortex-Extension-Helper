@@ -1,110 +1,172 @@
 {
-  "name": "vortex-extension-helper",
-  "displayName": "Vortex Extension Helper",
-  "description": "Helps create and validate Vortex game support extensions",
-  "version": "0.1.1",
-  "publisher": "der-floh",
-  "license": "MIT",
-  "icon": "./assets/vortex-icon-x512.png",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/Der-Floh/Vortex-Extension-Helper"
-  },
-  "bugs": {
-    "url": "https://github.com/Der-Floh/Vortex-Extension-Helper/issues"
-  },
-  "homepage": "https://github.com/Der-Floh/Vortex-Extension-Helper",
-  "keywords": [
-    "vortex",
-    "vortex-api",
-    "nexusmods",
-    "nexus-mods",
-    "modding",
-    "game-mods",
-    "mod-manager",
-    "game-extension",
-    "vortex-extension",
-    "javascript",
-    "typescript",
-    "intellisense",
-    "scaffolding"
-  ],
-  "engines": {
-    "vscode": "^1.108.0"
-  },
-  "categories": [
-    "Programming Languages",
-    "Linters",
-    "Snippets"
-  ],
-  "extensionKind": [
-    "ui",
-    "workspace"
-  ],
-  "activationEvents": [
-    "onStartupFinished",
-    "workspaceContains:info.json",
-    "onLanguage:javascript",
-    "onLanguage:typescript"
-  ],
-  "main": "./out/extension.js",
-  "types": "./src/types/vortex-api.d.ts",
-  "contributes": {
-    "configuration": {
-      "title": "Vortex Extension Helper",
-      "properties": {
-        "vortexHelper.useNexusApi": {
-          "type": "boolean",
-          "default": true,
-          "description": "Whether to use the Nexus Mods Api for fetching game data when creating new game support extensions."
-        }
-      }
+    "name": "vortex-extension-helper",
+    "displayName": "Vortex Extension Helper",
+    "description": "Helps create and validate Vortex game support extensions",
+    "version": "0.2.0",
+    "publisher": "der-floh",
+    "license": "MIT",
+    "icon": "assets/vortex-icon-x512.png",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/Der-Floh/Vortex-Extension-Helper"
     },
-    "commands": [
-      {
-        "command": "vortexHelper.newGameSupportExtension",
-        "title": "Vortex: New Game Support Extension"
-      },
-      {
-        "command": "vortexHelper.setupVortexApi",
-        "title": "Vortex: Setup Vortex API in Workspace"
-      },
-      {
-        "command": "vortexHelper.scaffoldGameExtension",
-        "title": "Vortex: Scaffold Game Extension in Workspace"
-      },
-      {
-        "command": "vortexHelper.runWorkspaceChecks",
-        "title": "Vortex: Run Workspace Checks"
-      },
-      {
-        "command": "vortexHelper.openDocumentation",
-        "title": "Vortex: Open Extension Documentation"
-      }
-    ]
-  },
-  "scripts": {
-    "vscode:prepublish": "npm run compile",
-    "compile": "tsc -p ./",
-    "watch": "tsc -watch -p ./",
-    "pretest": "npm run compile && npm run lint",
-    "lint": "eslint src",
-    "package": "npx -y @vscode/vsce package"
-  },
-  "devDependencies": {
-    "@nexusmods/nexus-api": "github:Nexus-Mods/node-nexus-api",
-    "@types/bluebird": "^3.5.42",
-    "@types/degit": "^2.8.6",
-    "@types/mocha": "^10.0.10",
-    "@types/node": "25.x",
-    "@types/vscode": "^1.108.1",
-    "eslint": "^9.39.2",
-    "eslint-import-resolver-typescript": "^4.4.4",
-    "eslint-plugin-import": "^2.32.0",
-    "typescript": "^5.9.3",
-    "typescript-eslint": "^8.54.0"
-  },
-  "dependencies": {
-    "sanitize-filename": "^1.6.3"
-  }
+    "bugs": {
+        "url": "https://github.com/Der-Floh/Vortex-Extension-Helper/issues"
+    },
+    "homepage": "https://github.com/Der-Floh/Vortex-Extension-Helper",
+    "markdown": "github",
+    "qna": "https://github.com/Der-Floh/Vortex-Extension-Helper/issues",
+    "keywords": [
+        "vortex",
+        "vortex-api",
+        "nexusmods",
+        "nexus-mods",
+        "modding",
+        "game-mods",
+        "mod-manager",
+        "game-extension",
+        "vortex-extension",
+        "javascript",
+        "typescript",
+        "intellisense",
+        "scaffolding"
+    ],
+    "engines": {
+        "vscode": "^1.105.0"
+    },
+    "categories": [
+        "Snippets",
+        "Linters",
+        "Other"
+    ],
+    "extensionKind": [
+        "workspace"
+    ],
+    "capabilities": {
+        "untrustedWorkspaces": {
+            "supported": "limited",
+            "description": "In Restricted Mode the extension only detects and checks Vortex game extensions. Installing dependencies and libraries runs npm, which needs a trusted workspace."
+        },
+        "virtualWorkspaces": {
+            "supported": false,
+            "description": "Vortex game extensions are built with npm, which needs a real file system."
+        }
+    },
+    "activationEvents": [
+        "workspaceContains:package.json"
+    ],
+    "main": "./out/extension.js",
+    "contributes": {
+        "commands": [
+            {
+                "command": "vortexHelper.newGameSupportExtension",
+                "title": "New Game Support Extension",
+                "category": "Vortex"
+            },
+            {
+                "command": "vortexHelper.setupVortexApi",
+                "title": "Install Dependencies",
+                "category": "Vortex"
+            },
+            {
+                "command": "vortexHelper.scaffoldGameExtension",
+                "title": "Create Missing Files",
+                "category": "Vortex"
+            },
+            {
+                "command": "vortexHelper.runWorkspaceChecks",
+                "title": "Run Workspace Checks",
+                "category": "Vortex"
+            },
+            {
+                "command": "vortexHelper.openDocumentation",
+                "title": "Open Extension Documentation",
+                "category": "Vortex"
+            },
+            {
+                "command": "vortexHelper.addVortexLibrary",
+                "title": "Add Vortex Library",
+                "category": "Vortex"
+            }
+        ],
+        "menus": {
+            "commandPalette": [
+                {
+                    "command": "vortexHelper.setupVortexApi",
+                    "when": "vortexHelper.isVortexWorkspace && isWorkspaceTrusted"
+                },
+                {
+                    "command": "vortexHelper.scaffoldGameExtension",
+                    "when": "vortexHelper.isVortexWorkspace"
+                },
+                {
+                    "command": "vortexHelper.runWorkspaceChecks",
+                    "when": "workspaceFolderCount > 0"
+                },
+                {
+                    "command": "vortexHelper.addVortexLibrary",
+                    "when": "vortexHelper.isVortexWorkspace && isWorkspaceTrusted"
+                }
+            ]
+        },
+        "configuration": {
+            "title": "Vortex Extension Helper",
+            "properties": {
+                "vortexHelper.useNexusApi": {
+                    "type": "boolean",
+                    "default": true,
+                    "order": 0,
+                    "markdownDescription": "Pick the game from the public Nexus Mods game list when creating a game support extension. When off, or when the list can't be loaded, **Vortex: New Game Support Extension** asks for the game's name and Nexus Mods domain."
+                },
+                "vortexHelper.author": {
+                    "type": "string",
+                    "default": "",
+                    "order": 1,
+                    "markdownDescription": "Author written to `package.json` of new game support extensions. When empty, **Vortex: New Game Support Extension** asks for it."
+                },
+                "vortexHelper.askSteamAppId": {
+                    "type": "boolean",
+                    "default": true,
+                    "order": 2,
+                    "markdownDescription": "Ask for the game's Steam app id when creating a game support extension. When off, `src/common/constants` gets the placeholder `STEAM_APP_ID`, which **Vortex: Run Workspace Checks** reports."
+                },
+                "vortexHelper.askExecutable": {
+                    "type": "boolean",
+                    "default": true,
+                    "order": 3,
+                    "markdownDescription": "Ask for the game's executable, relative to the game folder, when creating a game support extension. When off, the placeholder `GAME_EXECUTABLE.exe` is used."
+                }
+            }
+        }
+    },
+    "scripts": {
+        "vscode:prepublish": "npm run compile",
+        "compile": "npm run check-types && npm run lint && node esbuild.mjs",
+        "watch": "node ./node_modules/npm-run-all/bin/npm-run-all/index.js -p watch:*",
+        "watch:esbuild": "node esbuild.mjs --watch",
+        "watch:tsc": "node ./node_modules/typescript/bin/tsc --noEmit --watch --project tsconfig.json",
+        "package": "node ./node_modules/@vscode/vsce/vsce package --no-dependencies",
+        "compile-tests": "node esbuild.mjs --tests",
+        "pretest": "npm run check-types && npm run compile-tests",
+        "check-types": "node ./node_modules/typescript/bin/tsc --noEmit",
+        "lint": "node ./node_modules/eslint/bin/eslint.js src",
+        "test": "node ./out/test/runTests.js"
+    },
+    "devDependencies": {
+        "@types/mocha": "^10.0.10",
+        "@types/node": "26.x",
+        "@types/vscode": "~1.105.0",
+        "@typescript-eslint/eslint-plugin": "^8.71.1",
+        "@typescript-eslint/parser": "^8.71.1",
+        "@vscode/test-electron": "^3.1.0",
+        "@vscode/vsce": "^4.0.0",
+        "esbuild": "^0.28.2",
+        "eslint": "^10.12.0",
+        "mocha": "^12.0.3",
+        "npm-run-all": "^4.1.5",
+        "typescript": "~6.0.3"
+    },
+    "dependencies": {
+        "jsonc-parser": "^3.3.1"
+    }
 }
