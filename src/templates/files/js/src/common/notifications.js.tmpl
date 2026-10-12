@@ -24,7 +24,7 @@ export async function ensureWritableDirOrWarn(api, absPath) {
             title: 'Directory Permissions Warning',
             message: `Directory "${absPath}" is not writable. Please ensure you have the necessary permissions to write to this directory.`,
             actions: [
-                apiMakeOpenUrlFunction('Open folder', absPath),
+                apiMakeOpenPathFunction('Open folder', absPath),
             ],
         });
         return false;
@@ -32,16 +32,40 @@ export async function ensureWritableDirOrWarn(api, absPath) {
 }
 
 /**
- * Creates a Vortex notification action that opens a URL using `util.opn`.
+ * Creates a Vortex notification action that opens a URL in the default browser.
  *
  * @param {string} title - Display title of the action button.
  * @param {string} url - URL to open when the action is invoked.
  * @returns {types.INotificationAction} A notification action descriptor.
  */
 export function apiMakeOpenUrlFunction(title, url) {
+    return apiMakeOpenTargetFunction(title, url);
+}
+
+/**
+ * Creates a Vortex notification action that opens a file or folder in its default application.
+ *
+ * @param {string} title - Display title of the action button.
+ * @param {string} absPath - Absolute path to open when the action is invoked.
+ * @returns {types.INotificationAction} A notification action descriptor.
+ */
+export function apiMakeOpenPathFunction(title, absPath) {
+    return apiMakeOpenTargetFunction(title, absPath);
+}
+
+/**
+ * Creates a Vortex notification action that opens a URL or a path.
+ *
+ * `util.opn` is deprecated, but it is the only opener vortex-api exposes and it takes both URLs and paths.
+ *
+ * @param {string} title - Display title of the action button.
+ * @param {string} target - URL or absolute path to open when the action is invoked.
+ * @returns {types.INotificationAction} A notification action descriptor.
+ */
+function apiMakeOpenTargetFunction(title, target) {
     return {
         title,
-        action: () => util.opn(url).catch(() => undefined),
+        action: () => util.opn(target).catch(() => undefined),
     };
 }
 

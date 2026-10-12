@@ -23,7 +23,7 @@ export async function ensureWritableDirOrWarn(api: types.IExtensionApi, absPath:
             title: 'Directory Permissions Warning',
             message: `Directory "${absPath}" is not writable. Please ensure you have the necessary permissions to write to this directory.`,
             actions: [
-                apiMakeOpenUrlFunction('Open folder', absPath),
+                apiMakeOpenPathFunction('Open folder', absPath),
             ],
         });
         return false;
@@ -31,16 +31,40 @@ export async function ensureWritableDirOrWarn(api: types.IExtensionApi, absPath:
 }
 
 /**
- * Creates a Vortex notification action that opens a URL using `util.opn`.
+ * Creates a Vortex notification action that opens a URL in the default browser.
  *
  * @param title - Display title of the action button.
  * @param url - URL to open when the action is invoked.
  * @returns A notification action descriptor.
  */
 export function apiMakeOpenUrlFunction(title: string, url: string): types.INotificationAction {
+    return apiMakeOpenTargetFunction(title, url);
+}
+
+/**
+ * Creates a Vortex notification action that opens a file or folder in its default application.
+ *
+ * @param title - Display title of the action button.
+ * @param absPath - Absolute path to open when the action is invoked.
+ * @returns A notification action descriptor.
+ */
+export function apiMakeOpenPathFunction(title: string, absPath: string): types.INotificationAction {
+    return apiMakeOpenTargetFunction(title, absPath);
+}
+
+/**
+ * Creates a Vortex notification action that opens a URL or a path.
+ *
+ * `util.opn` is deprecated, but it is the only opener vortex-api exposes and it takes both URLs and paths.
+ *
+ * @param title - Display title of the action button.
+ * @param target - URL or absolute path to open when the action is invoked.
+ * @returns A notification action descriptor.
+ */
+function apiMakeOpenTargetFunction(title: string, target: string): types.INotificationAction {
     return {
         title,
-        action: () => util.opn(url).catch(() => undefined),
+        action: () => util.opn(target).catch(() => undefined),
     };
 }
 
