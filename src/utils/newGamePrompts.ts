@@ -1,6 +1,5 @@
 import * as vscode from 'vscode';
 import { MANIFEST, PLACEHOLDER_EXECUTABLE, PLACEHOLDER_STEAM_APP_ID } from '../constants';
-import type { ProjectLanguage } from '../types/project';
 import { errorMessage } from './errors';
 import { pickNexusGame, type GameIdentity } from './gameQuickPick';
 import {
@@ -17,10 +16,6 @@ import {
 import type { NexusGame } from './nexusGames';
 import { getTargetState, TargetNotEmptyError } from './projectWriter';
 
-interface LanguageQuickPickItem extends vscode.QuickPickItem {
-    readonly language: ProjectLanguage;
-}
-
 /** Every prompt returns undefined when the user cancels it */
 export async function pickBaseFolder(): Promise<vscode.Uri | undefined> {
     const picked = await vscode.window.showOpenDialog({
@@ -31,15 +26,6 @@ export async function pickBaseFolder(): Promise<vscode.Uri | undefined> {
         canSelectMany: false,
     });
     return picked?.[0];
-}
-
-export async function pickLanguage(): Promise<ProjectLanguage | undefined> {
-    const items: LanguageQuickPickItem[] = [
-        { label: 'TypeScript', description: 'Type checked, recommended', language: 'typescript' },
-        { label: 'JavaScript', description: 'Types only through JSDoc', language: 'javascript' },
-    ];
-    const picked = await vscode.window.showQuickPick(items, { title: 'Select the language', ignoreFocusOut: true });
-    return picked?.language;
 }
 
 /**

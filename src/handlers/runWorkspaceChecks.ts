@@ -42,7 +42,7 @@ export async function handleRunWorkspaceChecks(tracker: VortexWorkspaceTracker, 
 }
 
 function logFindings(project: VortexProject, findings: readonly Finding[]): void {
-    Logger.info(`${project.folder.name} (${project.language}): ${summarize(findings)}.`);
+    Logger.info(`${project.folder.name}: ${summarize(findings)}.`);
     for (const finding of [...findings].sort((a, b) => SEVERITY_ORDER.indexOf(a.severity) - SEVERITY_ORDER.indexOf(b.severity))) {
         Logger.info(`[${finding.severity}] ${project.folder.name}/${finding.file}: ${finding.message} (${finding.rule})`);
     }

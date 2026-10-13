@@ -1,8 +1,8 @@
 import * as vscode from 'vscode';
 import { CONTEXT_IS_VORTEX_WORKSPACE, REVALIDATE_DEBOUNCE_MS } from '../constants';
-import { PACKAGE_JSON_PATH } from '../templates/registry';
+import { CONSTANTS_PATH, PACKAGE_JSON_PATH } from '../templates/registry';
 import type { VortexProject } from '../types/project';
-import { detectLanguage, isVortexManifest } from './detection';
+import { isVortexManifest } from './detection';
 import { errorMessage } from './errors';
 import { fileExists, readTextIfExists } from './fileSystemUtils';
 import { parseLenientJson } from './jsonUtils';
@@ -12,9 +12,9 @@ const LEGACY_INFO_JSON = 'info.json';
 
 /** Root-level patterns only: a `**` pattern would fire for every file npm writes to node_modules */
 const WATCHED_PATTERNS = [
-    `{${PACKAGE_JSON_PATH},package-lock.json,${LEGACY_INFO_JSON},rollup.config.mjs,tsconfig.json,jsconfig.json}`,
-    'src/index.{ts,js}',
-    'src/common/constants.{ts,js}',
+    `{${PACKAGE_JSON_PATH},package-lock.json,${LEGACY_INFO_JSON},rollup.config.mjs,tsconfig.json}`,
+    'src/index.ts',
+    CONSTANTS_PATH,
     '.vscode/build/*.mjs',
     'assets/**',
 ];
@@ -92,7 +92,7 @@ export class VortexWorkspaceTracker implements vscode.Disposable {
 
         if (wasProject !== !!detection.project) {
             Logger.info(detection.project
-                ? `Detected a Vortex game extension (${detection.project.language}) in ${folder.uri.fsPath}.`
+                ? `Detected a Vortex game extension in ${folder.uri.fsPath}.`
                 : `${folder.uri.fsPath} is no longer a Vortex game extension.`);
         }
         await this.updateContextKey();
@@ -163,6 +163,5 @@ async function detectFolder(folder: vscode.WorkspaceFolder): Promise<Detection> 
         return { legacy: true };
     }
 
-    const [indexTs, indexJs, tsconfig, jsconfig] = await Promise.all(['src/index.ts', 'src/index.js', 'tsconfig.json', 'jsconfig.json'].map(file => fileExists(at(file))));
-    return { project: { folder, language: detectLanguage({ indexTs, indexJs, tsconfig, jsconfig }) }, legacy: false };
+    return { project: { folder }, legacy: false };
 }

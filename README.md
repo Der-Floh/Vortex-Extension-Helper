@@ -10,12 +10,12 @@ Create, check and extend game support extensions for [Vortex](https://www.nexusm
 
 ## ✨ Features
 
-- **New game support extension** — pick the game from the Nexus Mods game list (or enter it by hand), choose TypeScript or JavaScript, and get a project that installs, builds and packages right away
+- **New game support extension** — pick the game from the Nexus Mods game list (or enter it by hand) and get a TypeScript project that installs, builds and packages right away
 - **One standard layout** — metadata and the game art path in `package.json`, rollup bundling straight into `.pack/`, and Node-only build scripts that generate `info.json` and zip the release
 - **Live checks** — missing fields, a wrong game art, missing generated files, a mismatched `@types/bluebird`, TypeScript 7 and lockfiles that break CI are reported in the Problems panel while you edit
 - **Create Missing Files** — restores generated files you deleted, without touching any file that exists
 - **Vortex libraries** — installs the libraries Vortex provides at runtime, such as `winapi-bindings`, and tells rollup to leave their imports to Vortex
-- **Snippets** — `t…` snippets for registering the game, installers, deployment events, start hooks and toolbar actions, in TypeScript and JavaScript, offered only in the `src` folder of a game extension
+- **Snippets** — `t…` snippets for registering the game, installers, deployment events, start hooks and toolbar actions, offered only in the `src` folder of a game extension
 - **Multi-root aware** — every workspace folder is checked on its own, without prompts
 
 ---
@@ -27,15 +27,14 @@ Create, check and extend game support extensions for [Vortex](https://www.nexusm
 Run **Vortex: New Game Support Extension** from the command palette (`Ctrl+Shift+P` / `Cmd+Shift+P`) and answer the questions:
 
 1. The folder to create the extension in
-2. TypeScript or JavaScript
-3. The game, from the Nexus Mods list or entered by hand (name and Nexus Mods domain)
-4. A short name; the extension is created in `<short name>-support`
-5. The game's Steam app id and executable (optional, see the settings)
-6. The author, unless `vortexHelper.author` is set
+2. The game, from the Nexus Mods list or entered by hand (name and Nexus Mods domain)
+3. A short name; the extension is created in `<short name>-support`
+4. The game's Steam app id and executable (optional, see the settings)
+5. The author, unless `vortexHelper.author` is set
 
 The helper writes every file, opens the new folder and runs `npm run install-deps` there. In a folder you haven't trusted yet, the install waits until you trust it. Cancelling any question creates nothing.
 
-A TypeScript extension looks like this (the JavaScript one has `.js` sources and a `jsconfig.json`):
+A generated extension looks like this:
 
 ```text
 <short name>-support/
@@ -88,7 +87,7 @@ A workspace folder is a game extension when its `package.json` has `vortex-api` 
 | Error       | `rollup.config.mjs`, a build script, `tsconfig.json` or the entry file `src/index.*` is missing                                                  |
 | Error       | `@types/bluebird` differs from the version the installed `vortex-api` requires; npm refuses to install then                                     |
 | Error       | A TypeScript extension uses TypeScript 7 or later, which has no compiler API for the rollup plugin                                              |
-| Warning     | `displayName` doesn't start with `Game: `, `version` isn't a release version like `1.0.0`, `jsconfig.json` is missing, or `vortex-api` doesn't come from GitHub |
+| Warning     | `displayName` doesn't start with `Game: `, `version` isn't a release version like `1.0.0`, or `vortex-api` doesn't come from GitHub |
 | Information | `vortex-api` isn't installed yet, there is no lockfile, the lockfile lacks rollup's Linux binary or has an old version                            |
 | Information | A Vortex library is installed but missing from `vortex.externals`, or `src/common/constants` still has the `STEAM_APP_ID` or `GAME_EXECUTABLE.exe` placeholder |
 
@@ -188,7 +187,7 @@ npm run watch
 # Run the unit and integration tests (downloads VS Code on first run)
 npm test
 
-# Also install, build and package a generated TypeScript and JavaScript project (needs network)
+# Also install, build and package a generated project (needs network)
 VORTEX_HELPER_BUILD_TEST=1 npm test
 
 # Package the extension as a .vsix

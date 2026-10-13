@@ -26,7 +26,7 @@ export async function handleCreateMissingFiles(tracker: VortexWorkspaceTracker, 
         return;
     }
 
-    const outputs = restorableOutputs(project.language, restoreValues(manifest.name, gameNameOf(manifest)))
+    const outputs = restorableOutputs(restoreValues(manifest.name, gameNameOf(manifest)))
         .map(output => withGameartPath(output, manifest.gameart));
     let written: string[];
     try {
@@ -37,7 +37,7 @@ export async function handleCreateMissingFiles(tracker: VortexWorkspaceTracker, 
         return;
     }
 
-    const notRestored = await missingFiles(root, unrestorablePaths(project.language));
+    const notRestored = await missingFiles(root, unrestorablePaths());
     const created = written.length > 0
         ? `Created ${written.length} missing file${written.length === 1 ? '' : 's'} in ${project.folder.name}: ${written.join(', ')}.`
         : `No generated files are missing in ${project.folder.name}.`;

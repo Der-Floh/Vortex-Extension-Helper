@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { DIAGNOSTIC_COLLECTION, DIAGNOSTIC_SOURCE, REVALIDATE_DEBOUNCE_MS } from '../constants';
-import { CONSTANTS_MODULE, PACKAGE_JSON_PATH, sourcePath } from '../templates/registry';
+import { CONSTANTS_PATH, PACKAGE_JSON_PATH } from '../templates/registry';
 import type { Finding, Severity, VortexProject } from '../types/project';
 import { errorMessage } from './errors';
 import { offsetToPosition } from './jsonUtils';
@@ -124,7 +124,7 @@ export class VortexDiagnostics implements vscode.Disposable {
 }
 
 function isLiveValidated(project: VortexProject, uri: vscode.Uri): boolean {
-    return [PACKAGE_JSON_PATH, sourcePath(project.language, CONSTANTS_MODULE)]
+    return [PACKAGE_JSON_PATH, CONSTANTS_PATH]
         .some(file => vscode.Uri.joinPath(project.folder.uri, file).toString() === uri.toString());
 }
 

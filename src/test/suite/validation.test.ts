@@ -1,15 +1,14 @@
 import * as assert from 'assert';
 import { renderProject, requiredFiles } from '../../templates/registry';
-import type { Finding, ProjectLanguage } from '../../types/project';
+import type { Finding } from '../../types/project';
 import { validateProject, type ProjectSnapshot } from '../../utils/validation';
-import { JS_FIXTURE_VALUES, TS_FIXTURE_VALUES } from '../fixtures/createFixtureWorkspace';
+import { TS_FIXTURE_VALUES } from '../fixtures/createFixtureWorkspace';
 
 const WINAPI_BINDINGS = 'git+https://github.com/Nexus-Mods/node-winapi-bindings.git';
 const VORTEX_API_MANIFEST = JSON.stringify({ name: 'vortex-api', version: '2.3.0-beta.1', peerDependencies: { '@types/bluebird': '3.5.20' } });
 
-function generatedPackageJson(language: ProjectLanguage): Record<string, unknown> {
-    const values = language === 'typescript' ? TS_FIXTURE_VALUES : JS_FIXTURE_VALUES;
-    const output = renderProject(values).find(candidate => candidate.path === 'package.json');
+function generatedPackageJson(): Record<string, unknown> {
+    const output = renderProject(TS_FIXTURE_VALUES).find(candidate => candidate.path === 'package.json');
     return JSON.parse(output?.content as string);
 }
 
@@ -19,17 +18,15 @@ function lockFor(manifest: Record<string, unknown>, extraPackages: Record<string
 
 /** A healthy, installed project; each test breaks one thing */
 function snapshot(overrides: Partial<ProjectSnapshot> & { manifest?: Record<string, unknown> } = {}): ProjectSnapshot {
-    const language = overrides.language ?? 'typescript';
-    const manifest = overrides.manifest ?? generatedPackageJson(language);
+    const manifest = overrides.manifest ?? generatedPackageJson();
     return {
-        language,
         packageJsonText: JSON.stringify(manifest, null, 4),
-        existingFiles: new Set(requiredFiles(language).map(file => file.path)),
+        existingFiles: new Set(requiredFiles().map(file => file.path)),
         gameartExists: true,
         packageLockText: lockFor(manifest),
         vortexApiManifestText: VORTEX_API_MANIFEST,
-        installedTypeScriptVersion: language === 'typescript' ? '6.0.3' : undefined,
-        constants: { path: `src/common/constants.${language === 'typescript' ? 'ts' : 'js'}`, text: 'export const GAME = { steamAppId: \'123\', exe: \'Game.exe\' };' },
+        installedTypeScriptVersion: '6.0.3',
+        constants: { path: 'src/common/constants.ts', text: 'export const GAME = { steamAppId: \'123\', exe: \'Game.exe\' };' },
         ...overrides,
     };
 }
@@ -38,10 +35,10 @@ function rules(findings: readonly Finding[]): string[] {
     return findings.map(finding => finding.rule);
 }
 
-function withManifest(change: (manifest: Record<string, unknown>) => void, language: ProjectLanguage = 'typescript'): ProjectSnapshot {
-    const manifest = generatedPackageJson(language);
+function withManifest(change: (manifest: Record<string, unknown>) => void): ProjectSnapshot {
+    const manifest = generatedPackageJson();
     change(manifest);
-    return snapshot({ language, manifest, packageLockText: lockFor(manifest) });
+    return snapshot({ manifest, packageLockText: lockFor(manifest) });
 }
 
 function withField(field: string, value: unknown): ProjectSnapshot {
@@ -68,7 +65,6 @@ function anchoredText(text: string | undefined, finding: Finding): string | unde
 suite('Validation', () => {
     test('a generated, installed project has no findings', () => {
         assert.deepStrictEqual(validateProject(snapshot()), []);
-        assert.deepStrictEqual(validateProject(snapshot({ language: 'javascript' })), []);
     });
 
     test('syntax errors are reported at their offset, and stop the package.json rules', () => {
@@ -120,11 +116,9 @@ suite('Validation', () => {
         assert.deepStrictEqual(rules(validateProject(snapshot({ gameartExists: false }))), ['gameart-missing']);
     });
 
-    test('missing generated files are reported per language', () => {
-        const ts = validateProject(snapshot({ existingFiles: new Set(['rollup.config.mjs']) }));
-        assert.deepStrictEqual(ts.map(finding => finding.message.split(' ')[0]).sort(), ['.vscode/build/package-zip.mjs', '.vscode/build/populate-pack.mjs', 'src/index.ts', 'tsconfig.json']);
-        const js = validateProject(snapshot({ language: 'javascript', existingFiles: new Set(requiredFiles('javascript').map(file => file.path).filter(file => file !== 'jsconfig.json')) }));
-        assert.deepStrictEqual(js.map(finding => [finding.rule, finding.severity]), [['required-file', 'warning']]);
+    test('missing generated files are reported', () => {
+        const findings = validateProject(snapshot({ existingFiles: new Set(['rollup.config.mjs']) }));
+        assert.deepStrictEqual(findings.map(finding => finding.message.split(' ')[0]).sort(), ['.vscode/build/package-zip.mjs', '.vscode/build/populate-pack.mjs', 'src/index.ts', 'tsconfig.json']);
     });
 
     test('@types/bluebird must equal the peer of the installed vortex-api', () => {
@@ -138,7 +132,6 @@ suite('Validation', () => {
         assert.deepStrictEqual(rules(validateProject(withDependency('typescript', '^7.0.0'))), ['typescript-major']);
         assert.deepStrictEqual(rules(validateProject(withDependency('typescript', undefined))), ['typescript-major']);
         assert.deepStrictEqual(rules(validateProject(snapshot({ installedTypeScriptVersion: '7.0.2' }))), ['typescript-major']);
-        assert.deepStrictEqual(rules(validateProject(snapshot({ language: 'javascript', installedTypeScriptVersion: '7.0.2' }))), []);
     });
 
     test('vortex-api from npm is the wrong package', () => {
@@ -148,7 +141,7 @@ suite('Validation', () => {
 
     test('lockfile notes: missing, without the Linux rollup binary, and an old version', () => {
         assert.deepStrictEqual(rules(validateProject(snapshot({ packageLockText: undefined }))), ['lockfile-missing']);
-        const manifest = generatedPackageJson('typescript');
+        const manifest = generatedPackageJson();
         const withoutLinux = validateProject(snapshot({ packageLockText: lockFor(manifest, {}) }));
         assert.deepStrictEqual(withoutLinux.map(finding => [finding.rule, finding.file, finding.severity]), [['lockfile-rollup-linux', 'package-lock.json', 'information']]);
         const v1 = JSON.stringify({ version: '1.0.0', lockfileVersion: 1, dependencies: { rollup: {} } });

@@ -1,16 +1,12 @@
 import type * as vscode from 'vscode';
 
-export type ProjectLanguage = 'typescript' | 'javascript';
-
 /** A workspace folder that holds a Vortex game extension */
 export interface VortexProject {
     readonly folder: vscode.WorkspaceFolder;
-    readonly language: ProjectLanguage;
 }
 
 /** The answers of the New Game Support Extension wizard */
 export interface ProjectValues {
-    readonly language: ProjectLanguage;
     readonly shortName: string;
     readonly gameId: string;
     readonly gameName: string;

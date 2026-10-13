@@ -1,5 +1,5 @@
 import * as assert from 'assert';
-import { detectLanguage, isVortexManifest } from '../../utils/detection';
+import { isVortexManifest } from '../../utils/detection';
 
 suite('Detection', () => {
     test('a manifest with vortex-api in devDependencies is a Vortex project', () => {
@@ -13,15 +13,5 @@ suite('Detection', () => {
         assert.ok(!isVortexManifest([]));
         assert.ok(!isVortexManifest('vortex-api'));
         assert.ok(!isVortexManifest(undefined));
-    });
-
-    test('the entry file decides the language, then the config file', () => {
-        const none = { indexTs: false, indexJs: false, tsconfig: false, jsconfig: false };
-        assert.strictEqual(detectLanguage({ ...none, indexTs: true }), 'typescript');
-        assert.strictEqual(detectLanguage({ ...none, indexJs: true, tsconfig: true }), 'javascript');
-        assert.strictEqual(detectLanguage({ ...none, indexTs: true, indexJs: true }), 'typescript');
-        assert.strictEqual(detectLanguage({ ...none, jsconfig: true }), 'javascript');
-        assert.strictEqual(detectLanguage({ ...none, jsconfig: true, tsconfig: true }), 'typescript');
-        assert.strictEqual(detectLanguage(none), 'typescript');
     });
 });

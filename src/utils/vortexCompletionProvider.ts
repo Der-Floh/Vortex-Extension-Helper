@@ -1,25 +1,22 @@
 import * as vscode from 'vscode';
-import type { ProjectLanguage } from '../types/project';
-import type { Snippet, SnippetMap } from '../types/snippet';
-import { SNIPPETS_JS } from './snippetsJs';
+import type { Snippet } from '../types/snippet';
 import { SNIPPETS_TS } from './snippetsTs';
 import type { VortexWorkspaceTracker } from './vortexWorkspaceTracker';
 
-export const COMPLETION_SELECTOR: vscode.DocumentSelector = [{ language: 'typescript' }, { language: 'javascript' }];
+export const COMPLETION_SELECTOR: vscode.DocumentSelector = [{ language: 'typescript' }];
 
-const SNIPPETS: Readonly<Record<ProjectLanguage, SnippetMap>> = { typescript: SNIPPETS_TS, javascript: SNIPPETS_JS };
 const SOURCE_FOLDER = 'src';
 
-/** Offers the snippets only in the src folder of a detected project, in the project's language */
+/** Offers the snippets only in the src folder of a detected project */
 export class VortexCompletionProvider implements vscode.CompletionItemProvider {
     constructor(private readonly tracker: VortexWorkspaceTracker) { }
 
     provideCompletionItems(document: vscode.TextDocument): vscode.CompletionItem[] | undefined {
         const project = this.tracker.find(document.uri);
-        if (!project || document.languageId !== project.language || !isInside(vscode.Uri.joinPath(project.folder.uri, SOURCE_FOLDER), document.uri)) {
+        if (!project || document.languageId !== 'typescript' || !isInside(vscode.Uri.joinPath(project.folder.uri, SOURCE_FOLDER), document.uri)) {
             return undefined;
         }
-        return Object.entries(SNIPPETS[project.language]).map(([label, snippet]) => toCompletionItem(label, snippet));
+        return Object.entries(SNIPPETS_TS).map(([label, snippet]) => toCompletionItem(label, snippet));
     }
 }
 

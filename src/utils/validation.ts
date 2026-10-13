@@ -12,7 +12,7 @@ import {
     VORTEX_API_SOURCE,
 } from '../constants';
 import { PACKAGE_JSON_PATH, requiredFiles } from '../templates/registry';
-import type { Finding, ProjectLanguage, Severity } from '../types/project';
+import type { Finding, Severity } from '../types/project';
 import { commandLabel } from './commandLabel';
 import { describeParseError, isRecord, keyNodeAt, nodeAt, parseStrictJson } from './jsonUtils';
 import { VORTEX_LIBRARIES } from './vortexLibraries';
@@ -28,7 +28,6 @@ const FIRST_UNSUPPORTED_TYPESCRIPT_MAJOR = 7;
 
 /** Everything the rules read from a project, so validation needs no IO */
 export interface ProjectSnapshot {
-    readonly language: ProjectLanguage;
     readonly packageJsonText: string;
     /** The required files that exist, relative to the project folder */
     readonly existingFiles: ReadonlySet<string>;
@@ -38,7 +37,7 @@ export interface ProjectSnapshot {
     readonly vortexApiManifestText?: string;
     /** The version in node_modules/typescript/package.json */
     readonly installedTypeScriptVersion?: string;
-    /** src/common/constants.(ts|js) */
+    /** src/common/constants.ts */
     readonly constants?: { readonly path: string; readonly text: string };
 }
 
@@ -133,7 +132,7 @@ function gameartFindings({ snapshot, root, manifest }: RuleContext): Finding[] {
 }
 
 function requiredFileFindings(snapshot: ProjectSnapshot, root: Node | undefined): Finding[] {
-    return requiredFiles(snapshot.language)
+    return requiredFiles()
         .filter(file => !snapshot.existingFiles.has(file.path))
         .map(file => packageJsonFinding(
             'required-file', file.severity,
@@ -170,9 +169,6 @@ function bluebirdFindings({ snapshot, root, manifest }: RuleContext): Finding[] 
 }
 
 function typescriptFindings({ snapshot, root, manifest }: RuleContext): Finding[] {
-    if (snapshot.language !== 'typescript') {
-        return [];
-    }
     const declared = dependencySpec(manifest, 'typescript');
     if (declared === undefined) {
         return [packageJsonFinding('typescript-major', 'error', 'TypeScript projects need typescript in devDependencies for @rollup/plugin-typescript. Add "typescript": "^6.0.3".', anchorOf(nodeAt(root, ['devDependencies']) ?? root))];

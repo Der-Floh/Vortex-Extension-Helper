@@ -26,7 +26,6 @@
         "mod-manager",
         "game-extension",
         "vortex-extension",
-        "javascript",
         "typescript",
         "intellisense",
         "scaffolding"

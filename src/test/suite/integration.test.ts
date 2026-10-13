@@ -9,7 +9,7 @@ import { resumePendingInstall, savePendingInstall, type PendingInstall } from '.
 import { TargetNotEmptyError, writeNewProject } from '../../utils/projectWriter';
 import { runTask } from '../../utils/taskUtils';
 import type { VortexDiagnostics } from '../../utils/vortexDiagnostics';
-import { FIXTURE_FOLDERS, JS_FIXTURE_VALUES, TS_FIXTURE_VALUES } from '../fixtures/createFixtureWorkspace';
+import { FIXTURE_FOLDERS, TS_FIXTURE_VALUES } from '../fixtures/createFixtureWorkspace';
 
 class MemoryState implements vscode.Memento {
     private readonly values = new Map<string, unknown>();
@@ -46,15 +46,13 @@ suite('Vortex Extension Helper integration', () => {
         await vscode.commands.executeCommand('workbench.action.closeAllEditors');
     });
 
-    test('writes a new TypeScript and JavaScript project', async () => {
-        for (const values of [TS_FIXTURE_VALUES, JS_FIXTURE_VALUES]) {
-            const target = path.join(scratch, `new-${values.language}`);
-            const outputs = renderProject(values);
-            await writeNewProject(vscode.Uri.file(target), outputs);
-            assert.deepStrictEqual(listFiles(target).sort(), outputs.map(output => output.path).sort());
-            assert.strictEqual(fs.readFileSync(path.join(target, 'package.json'), 'utf8'), outputs[0].content);
-            assert.deepStrictEqual([...fs.readFileSync(path.join(target, 'assets/gameart.jpg')).subarray(0, 3)], [0xFF, 0xD8, 0xFF]);
-        }
+    test('writes a new project', async () => {
+        const target = path.join(scratch, 'new-typescript');
+        const outputs = renderProject(TS_FIXTURE_VALUES);
+        await writeNewProject(vscode.Uri.file(target), outputs);
+        assert.deepStrictEqual(listFiles(target).sort(), outputs.map(output => output.path).sort());
+        assert.strictEqual(fs.readFileSync(path.join(target, 'package.json'), 'utf8'), outputs[0].content);
+        assert.deepStrictEqual([...fs.readFileSync(path.join(target, 'assets/gameart.jpg')).subarray(0, 3)], [0xFF, 0xD8, 0xFF]);
     });
 
     test('refuses a folder that has content and leaves it untouched', async () => {
@@ -84,7 +82,6 @@ suite('Vortex Extension Helper integration', () => {
     test('detects the projects without prompts and reports their findings', async () => {
         const tsPackageJson = fixtureUri(FIXTURE_FOLDERS.typescript, 'package.json');
         await waitFor(() => codes(tsPackageJson).includes('vortex-api-not-installed'), 'ts-project got no diagnostics');
-        await waitFor(() => codes(fixtureUri(FIXTURE_FOLDERS.javascript, 'package.json')).includes('vortex-api-not-installed'), 'js-project got no diagnostics');
         assert.deepStrictEqual(codes(fixtureUri(FIXTURE_FOLDERS.legacy, 'package.json')), []);
         assert.deepStrictEqual(codes(fixtureUri(FIXTURE_FOLDERS.plain, 'package.json')), []);
         assert.ok(!codes(tsPackageJson).some(code => code === 'required-field' || code === 'required-file'));
@@ -113,23 +110,22 @@ suite('Vortex Extension Helper integration', () => {
         await waitFor(() => !codes(uri).includes('required-field'), 'reverting did not clear the diagnostic');
     });
 
-    test('offers the snippets only in the src folder of a project, in its language', async () => {
+    test('offers the snippets only in the src folder of a project', async () => {
         assert.ok((await completionLabels(fixtureUri(FIXTURE_FOLDERS.typescript, 'src/index.ts'))).includes('tregisterGame'));
-        assert.ok((await completionLabels(fixtureUri(FIXTURE_FOLDERS.javascript, 'src/index.js'))).includes('tregisterGame'));
         assert.ok(!(await completionLabels(fixtureUri(FIXTURE_FOLDERS.plain, 'index.ts'))).includes('tregisterGame'));
         assert.ok(!(await completionLabels(fixtureUri(FIXTURE_FOLDERS.legacy, 'src/index.ts'))).includes('tregisterGame'));
     });
 
     test('Create Missing Files restores a deleted file of the active project', async () => {
-        const rollupConfig = fixtureUri(FIXTURE_FOLDERS.javascript, 'rollup.config.mjs');
+        const rollupConfig = fixtureUri(FIXTURE_FOLDERS.typescript, 'rollup.config.mjs');
         const original = fs.readFileSync(rollupConfig.fsPath, 'utf8');
         fs.rmSync(rollupConfig.fsPath);
-        await waitFor(() => codes(fixtureUri(FIXTURE_FOLDERS.javascript, 'package.json')).includes('required-file'), 'the deletion produced no required-file diagnostic');
+        await waitFor(() => codes(fixtureUri(FIXTURE_FOLDERS.typescript, 'package.json')).includes('required-file'), 'the deletion produced no required-file diagnostic');
 
-        await vscode.window.showTextDocument(fixtureUri(FIXTURE_FOLDERS.javascript, 'src/index.js'));
+        await vscode.window.showTextDocument(fixtureUri(FIXTURE_FOLDERS.typescript, 'src/index.ts'));
         await vscode.commands.executeCommand(COMMAND_CREATE_MISSING_FILES);
         assert.strictEqual(fs.readFileSync(rollupConfig.fsPath, 'utf8'), original);
-        await waitFor(() => !codes(fixtureUri(FIXTURE_FOLDERS.javascript, 'package.json')).includes('required-file'), 'the restore did not clear the diagnostic');
+        await waitFor(() => !codes(fixtureUri(FIXTURE_FOLDERS.typescript, 'package.json')).includes('required-file'), 'the restore did not clear the diagnostic');
         await vscode.commands.executeCommand('workbench.action.closeAllEditors');
     });
 

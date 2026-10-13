@@ -6,7 +6,7 @@ import { getConfiguration, type HelperConfiguration } from '../utils/configurati
 import { errorMessage } from '../utils/errors';
 import { Logger } from '../utils/logger';
 import { packageNameFor } from '../utils/naming';
-import { askAuthor, askExecutable, askShortName, askSteamAppId, pickBaseFolder, pickGameIdentity, pickLanguage } from '../utils/newGamePrompts';
+import { askAuthor, askExecutable, askShortName, askSteamAppId, pickBaseFolder, pickGameIdentity } from '../utils/newGamePrompts';
 import { fetchNexusGames, type NexusGame } from '../utils/nexusGames';
 import { savePendingInstall } from '../utils/pendingInstall';
 import { writeNewProject } from '../utils/projectWriter';
@@ -37,10 +37,6 @@ async function askProjectValues(games: Promise<NexusGame[] | Error> | undefined,
     if (!baseFolder) {
         return undefined;
     }
-    const language = await pickLanguage();
-    if (!language) {
-        return undefined;
-    }
     const game = await pickGameIdentity(games);
     if (!game) {
         return undefined;
@@ -61,7 +57,7 @@ async function askProjectValues(games: Promise<NexusGame[] | Error> | undefined,
     if (!author) {
         return undefined;
     }
-    return { baseFolder, project: { language, shortName, ...game, author, steamAppId, executable } };
+    return { baseFolder, project: { shortName, ...game, author, steamAppId, executable } };
 }
 
 async function createProject(baseFolder: vscode.Uri, values: ProjectValues, state: vscode.Memento): Promise<void> {
@@ -77,7 +73,7 @@ async function createProject(baseFolder: vscode.Uri, values: ProjectValues, stat
         return;
     }
 
-    Logger.info(`Created ${target.fsPath} for ${values.gameName} (${values.language}).`);
+    Logger.info(`Created ${target.fsPath} for ${values.gameName}.`);
     await savePendingInstall(state, target);
     vscode.window.showInformationMessage(`${MANIFEST.displayName}: Created ${target.fsPath}. Its dependencies are installed once it is open.`);
     await vscode.commands.executeCommand('vscode.openFolder', target, false);

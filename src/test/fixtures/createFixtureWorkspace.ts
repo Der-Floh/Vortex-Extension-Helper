@@ -13,13 +13,11 @@ export interface FixtureWorkspace {
 
 export const FIXTURE_FOLDERS = {
     typescript: 'ts-project',
-    javascript: 'js-project',
     legacy: 'legacy-project',
     plain: 'plain-folder',
 } as const;
 
 export const TS_FIXTURE_VALUES: ProjectValues = {
-    language: 'typescript',
     shortName: 'tsgame',
     gameId: 'tsgame',
     gameName: 'TS Game',
@@ -28,24 +26,15 @@ export const TS_FIXTURE_VALUES: ProjectValues = {
     executable: 'TS Game.exe',
 };
 
-export const JS_FIXTURE_VALUES: ProjectValues = {
-    ...TS_FIXTURE_VALUES,
-    language: 'javascript',
-    shortName: 'jsgame',
-    gameId: 'jsgame',
-    gameName: 'JS Game',
-};
-
 /**
  * Creates a multi-root workspace with:
- * - ts-project and js-project: generated game extensions;
+ * - ts-project: a generated game extension;
  * - legacy-project: vortex-api with a root info.json, the old layout;
  * - plain-folder: a Node project without vortex-api.
  */
 export function createFixtureWorkspace(): FixtureWorkspace {
     const rootPath = fs.mkdtempSync(path.join(os.tmpdir(), 'vortex-extension-helper-'));
     writeOutputs(path.join(rootPath, FIXTURE_FOLDERS.typescript), renderProject(TS_FIXTURE_VALUES));
-    writeOutputs(path.join(rootPath, FIXTURE_FOLDERS.javascript), renderProject(JS_FIXTURE_VALUES));
     writeOutputs(path.join(rootPath, FIXTURE_FOLDERS.legacy), [
         { path: 'package.json', content: JSON.stringify({ name: 'legacy-support', devDependencies: { 'vortex-api': 'git+https://github.com/Nexus-Mods/vortex-api.git' } }, null, 4) },
         { path: 'info.json', content: JSON.stringify({ name: 'Game: Legacy', author: 'Tests', version: '1.0.0', description: 'Old layout' }, null, 4) },
