@@ -6,6 +6,9 @@ const watch = process.argv.includes('--watch');
 const tests = process.argv.includes('--tests');
 
 const loader = { '.jpg': 'binary' };
+// Without a target esbuild assumes esnext and decodes the binary loader's base64 with
+// Uint8Array.fromBase64, which neither CI's Node nor an older extension host has
+const target = 'node20';
 const TEXT_SUFFIX = '?text';
 
 /**
@@ -58,6 +61,7 @@ async function buildTests() {
         sourcemap: true,
         sourcesContent: false,
         platform: 'node',
+        target,
         logLevel: 'silent',
         loader,
         mainFields,
@@ -98,6 +102,7 @@ async function main() {
         sourcemap: true,
         sourcesContent: false,
         platform: 'node',
+        target,
         outfile: 'out/extension.js',
         external: ['vscode'],
         logLevel: 'silent',
