@@ -43,6 +43,7 @@ function assertPack(folder: string, values: ProjectValues): void {
     const info = JSON.parse(fs.readFileSync(path.join(folder, '.pack/info.json'), 'utf8'));
     assert.strictEqual(info.id, packageName);
     assert.strictEqual(info.name, `Game: ${values.gameName}`);
+    assert.strictEqual(info.gameId, values.nexusGameId);
     assert.ok(fs.existsSync(path.join(folder, '.pack/index.js')));
     assert.ok(fs.existsSync(path.join(folder, '.pack/gameart.jpg')));
     assert.ok(fs.existsSync(path.join(folder, 'dist', `${packageName}-1.0.0.zip`)));

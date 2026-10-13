@@ -75,13 +75,14 @@ suite('Templates', () => {
     test('package.json has the coalllc-support key order and 4 spaces', () => {
         const text = textOf(outputs, 'package.json');
         const manifest = JSON.parse(text);
-        assert.deepStrictEqual(Object.keys(manifest), ['name', 'displayName', 'version', 'description', 'author', 'gameart', 'private', 'devDependencies', 'scripts']);
+        assert.deepStrictEqual(Object.keys(manifest), ['name', 'displayName', 'version', 'description', 'author', 'gameId', 'gameart', 'private', 'devDependencies', 'scripts']);
         assert.ok(text.startsWith('{\n    "name"'));
         assert.ok(text.endsWith('}\n'));
         assert.strictEqual(manifest.name, `${TS_FIXTURE_VALUES.shortName}-support`);
         assert.strictEqual(manifest.displayName, `Game: ${TS_FIXTURE_VALUES.gameName}`);
         assert.strictEqual(manifest.version, '1.0.0');
         assert.strictEqual(manifest.gameart, 'assets/gameart.jpg');
+        assert.strictEqual(manifest.gameId, TS_FIXTURE_VALUES.nexusGameId);
         assert.strictEqual(manifest.devDependencies['@types/bluebird'], '3.5.20');
         assert.deepStrictEqual(Object.keys(manifest.devDependencies), [...Object.keys(manifest.devDependencies)].sort());
         assert.ok(!('docs' in manifest.scripts));
@@ -117,6 +118,11 @@ suite('Templates', () => {
         assert.ok(restored.some(output => output.path === 'src/index.ts'));
         assert.ok(restored.some(output => output.path === 'assets/gameart.jpg'));
         assert.deepStrictEqual(unrestorablePaths(), ['package.json', 'README.md', 'src/common/constants.ts']);
+    });
+
+    test('a game that is not on Nexus Mods yet leaves gameId out', () => {
+        const manifest = JSON.parse(textOf(renderProject({ ...TS_FIXTURE_VALUES, nexusGameId: undefined }), 'package.json'));
+        assert.ok(!('gameId' in manifest));
     });
 
     test('skipped questions write the placeholders', () => {

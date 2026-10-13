@@ -6,6 +6,7 @@ import {
     COMMAND_INSTALL_DEPENDENCIES,
     DISPLAY_NAME_PREFIX,
     GAMEART_EXTENSION,
+    NEXUS_GAMES_URL,
     PLACEHOLDER_EXECUTABLE,
     PLACEHOLDER_STEAM_APP_ID,
     VERSION_PATTERN,
@@ -20,7 +21,7 @@ import { VORTEX_LIBRARIES } from './vortexLibraries';
 export const PACKAGE_LOCK_PATH = 'package-lock.json';
 
 /** The fields populate-pack.mjs reads; it fails the build when one is missing or empty */
-const REQUIRED_FIELDS = ['name', 'displayName', 'author', 'version', 'description', 'gameart'];
+const REQUIRED_FIELDS = ['name', 'displayName', 'author', 'version', 'description', 'gameart', 'gameId'];
 const LINUX_ROLLUP_PACKAGE = '@rollup/rollup-linux-x64-gnu';
 const NEXUS_VORTEX_API = /Nexus-Mods\/vortex-api(\.git)?(#.*)?$/i;
 const EXACT_VERSION = /^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/;
@@ -85,11 +86,20 @@ function syntaxFindings(root: Node | undefined, errors: readonly ParseError[]): 
 function requiredFieldFindings({ root, manifest }: RuleContext): Finding[] {
     return REQUIRED_FIELDS.filter(field => !manifest[field]).map(field => packageJsonFinding(
         'required-field', 'error',
-        field === 'gameart'
-            ? 'package.json has no "gameart". The build copies that file into .pack as the game\'s logo.'
-            : `package.json has no "${field}". The build generates .pack/info.json from it.`,
+        requiredFieldMessage(field),
         anchorOf(nodeAt(root, [field]) ?? root)
     ));
+}
+
+function requiredFieldMessage(field: string): string {
+    switch (field) {
+        case 'gameart':
+            return 'package.json has no "gameart". The build copies that file into .pack as the game\'s logo.';
+        case 'gameId':
+            return `package.json has no "gameId". Vortex only lists an extension whose info.json carries the game's numerical Nexus Mods id, which ${NEXUS_GAMES_URL} lists next to the game's name.`;
+        default:
+            return `package.json has no "${field}". The build generates .pack/info.json from it.`;
+    }
 }
 
 function displayNameFindings({ root, manifest }: RuleContext): Finding[] {

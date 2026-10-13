@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 const ROOT = fileURLToPath(new URL('../..', import.meta.url));
 const PACK_DIR = join(ROOT, '.pack');
 const GAMEART_NAME = 'gameart.jpg';
-const INFO_FIELDS = ['name', 'displayName', 'author', 'version', 'description'];
+const INFO_FIELDS = ['name', 'displayName', 'author', 'version', 'description', 'gameId'];
 
 const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
 
@@ -38,12 +38,16 @@ function writeInfo() {
             throw new Error(`package.json has no '${field}', which info.json is generated from.`);
         }
     }
+    if (!Number.isInteger(pkg.gameId)) {
+        throw new Error(`package.json has 'gameId' set to '${pkg.gameId}'; info.json needs the game's numerical Nexus Mods id.`);
+    }
     const info = {
         id: pkg.name,
         name: pkg.displayName,
         author: pkg.author,
         version: pkg.version,
         description: pkg.description,
+        gameId: pkg.gameId,
     };
     writeFileSync(join(PACK_DIR, 'info.json'), `${JSON.stringify(info, null, 4)}\n`);
     console.log(`info.json: generated from package.json (v${pkg.version})`);

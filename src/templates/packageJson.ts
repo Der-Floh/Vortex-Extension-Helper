@@ -33,6 +33,7 @@ export function buildPackageJson(values: ProjectValues): string {
         version: PROJECT_VERSION,
         description: `Support for ${values.gameName}`,
         author: values.author,
+        ...(values.nexusGameId === undefined ? {} : { gameId: values.nexusGameId }),
         gameart: GAMEART_PATH,
         private: true,
         devDependencies: DEV_DEPENDENCIES,

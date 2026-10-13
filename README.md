@@ -57,7 +57,7 @@ A generated extension looks like this:
 │   ├── setup/prepareForModding.ts
 │   └── index.ts
 ├── .gitignore
-├── package.json                  # name, displayName, version, description, author, gameart
+├── package.json                  # name, displayName, version, description, author, gameId, gameart
 ├── README.md
 ├── rollup.config.mjs             # bundles src/ into .pack/index.js
 └── tsconfig.json
@@ -82,7 +82,7 @@ A workspace folder is a game extension when its `package.json` has `vortex-api` 
 
 | Severity    | Reported when                                                                                                                                  |
 | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| Error       | `package.json` isn't valid JSON, or lacks `name`, `displayName`, `author`, `version`, `description` or `gameart`                                 |
+| Error       | `package.json` isn't valid JSON, or lacks `name`, `displayName`, `author`, `version`, `description`, `gameart` or `gameId`                       |
 | Error       | The game art isn't a `.jpg` or doesn't exist                                                                                                     |
 | Error       | `rollup.config.mjs`, a build script, `tsconfig.json` or the entry file `src/index.*` is missing                                                  |
 | Error       | `@types/bluebird` differs from the version the installed `vortex-api` requires; npm refuses to install then                                     |

@@ -2,8 +2,11 @@ import * as vscode from 'vscode';
 import type { NexusGame } from './nexusGames';
 
 export interface GameIdentity {
+    /** The Nexus Mods domain, which Vortex uses as the game id */
     readonly gameId: string;
     readonly gameName: string;
+    /** The game's numerical Nexus Mods id, which info.json needs; undefined when it isn't known */
+    readonly nexusGameId?: number;
 }
 
 interface GameQuickPickItem extends vscode.QuickPickItem {
@@ -44,7 +47,9 @@ export async function pickNexusGame(games: readonly NexusGame[]): Promise<GameId
     if (!picked) {
         return undefined;
     }
-    return picked.game ? { gameId: picked.game.domainName, gameName: picked.game.name } : 'manual';
+    return picked.game
+        ? { gameId: picked.game.domainName, gameName: picked.game.name, nexusGameId: picked.game.id || undefined }
+        : 'manual';
 }
 
 export function formatNumberShort(value: number, decimals = 1): string {

@@ -21,6 +21,7 @@ export const TS_FIXTURE_VALUES: ProjectValues = {
     shortName: 'tsgame',
     gameId: 'tsgame',
     gameName: 'TS Game',
+    nexusGameId: 4187,
     author: 'Vortex Extension Helper Tests',
     steamAppId: '123456',
     executable: 'TS Game.exe',

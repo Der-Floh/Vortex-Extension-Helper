@@ -10,6 +10,7 @@ import {
     toShortName,
     validateExecutable,
     validateGameId,
+    validateNexusGameId,
     validateShortName,
     validateSteamAppId,
 } from './naming';
@@ -110,7 +111,22 @@ async function askGameManually(): Promise<GameIdentity | undefined> {
         ignoreFocusOut: true,
         validateInput: validateGameId,
     }))?.trim();
-    return gameId ? { gameId, gameName } : undefined;
+    if (!gameId) {
+        return undefined;
+    }
+    const nexusGameId = await askNexusGameId();
+    return nexusGameId === undefined ? undefined : { gameId, gameName, nexusGameId: nexusGameId || undefined };
+}
+
+/** @returns The id, 0 when it is left empty, or undefined if the user cancels */
+async function askNexusGameId(): Promise<number | undefined> {
+    const value = await vscode.window.showInputBox({
+        title: 'Nexus Mods game id',
+        prompt: 'The game\'s numerical id, which info.json needs. Leave it empty if the game is not on Nexus Mods yet; the checks then remind you to add it.',
+        ignoreFocusOut: true,
+        validateInput: validateNexusGameId,
+    });
+    return value === undefined ? undefined : Number(value.trim() || 0);
 }
 
 async function validateTarget(baseFolder: vscode.Uri, shortName: string): Promise<string | undefined> {

@@ -52,6 +52,15 @@ export function validateSteamAppId(value: string): string | undefined {
     return value.trim() === '' || /^\d+$/.test(value.trim()) ? undefined : 'A Steam app id contains only digits.';
 }
 
+/** @returns An error message, or undefined if the value is valid. An empty value leaves the id out. */
+export function validateNexusGameId(value: string): string | undefined {
+    const trimmed = value.trim();
+    if (trimmed === '') {
+        return undefined;
+    }
+    return /^\d+$/.test(trimmed) && Number(trimmed) > 0 ? undefined : 'A Nexus Mods game id is a positive number.';
+}
+
 /** @returns An error message, or undefined if the value is valid. An empty value selects the placeholder. */
 export function validateExecutable(value: string): string | undefined {
     const normalized = normalizeExecutable(value);
