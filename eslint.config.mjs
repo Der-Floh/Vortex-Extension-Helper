@@ -2,6 +2,9 @@ import typescriptEslint from '@typescript-eslint/eslint-plugin';
 import tsParser from '@typescript-eslint/parser';
 
 export default [{
+    // The templates are sources of the generated project, not of this extension
+    ignores: ['src/templates/files/**'],
+}, {
     files: ['**/*.ts'],
     languageOptions: {
         parser: tsParser,

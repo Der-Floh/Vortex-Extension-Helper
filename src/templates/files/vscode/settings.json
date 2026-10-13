@@ -1,12 +1,12 @@
 {
 	"files.exclude": {
 		".pack": false,
-		"node_modules": true,
+		"node_modules": true
 	},
 	"search.exclude": {
 		".pack": true,
 		"dist": true,
-		"node_modules": true,
+		"node_modules": true
 	},
 	"js/ts.tsc.autoDetect": "off"
 }

@@ -1,4 +1,4 @@
-declare module '*.tmpl' {
+declare module '*?text' {
     const content: string;
     export default content;
 }

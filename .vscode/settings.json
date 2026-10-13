@@ -9,5 +9,8 @@
 		"node_modules": true,
 		".vscode-test": true,
 	},
+	"files.associations": {
+		"**/templates/files/gitignore": "ignore",
+	},
 	"js/ts.tsc.autoDetect": "off"
 }

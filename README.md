@@ -168,7 +168,7 @@ Also available on [Open VSX](https://open-vsx.org/extension/der-floh/vortex-exte
 | -------------------------------------- | ------------------------------------------------------------------------------------------- |
 | `src/extension.ts`                     | Activation: creates the tracker and diagnostics, registers the commands and completions     |
 | `src/handlers/`                        | Command handlers                                                                            |
-| `src/templates/`                       | The generated project: `.tmpl` files, the `package.json` builder and the file registry       |
+| `src/templates/`                       | The generated project: its files, the `package.json` builder and the file registry           |
 | `src/utils/vortexWorkspaceTracker.ts`  | Detects the game extensions among the workspace folders and watches their files             |
 | `src/utils/validation.ts`              | The checks, as a pure function of a project snapshot                                        |
 | `src/utils/vortexDiagnostics.ts`       | Shows the findings in the Problems panel and keeps them current                            |

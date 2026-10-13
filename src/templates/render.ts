@@ -20,14 +20,13 @@ export function renderTemplate(template: string, values: TemplateValues): string
     });
 }
 
-/** Quotes a value as a single-quoted JavaScript string literal */
-export function jsLiteral(value: string): string {
-    const escaped = value
+/** Makes a value safe to use inside the single quotes it is written between in a template */
+export function jsStringBody(value: string): string {
+    return value
         .replace(/\\/g, '\\\\')
         .replace(/'/g, "\\'")
         .replace(/\r/g, '\\r')
         .replace(/\n/g, '\\n');
-    return `'${escaped}'`;
 }
 
 /** Makes a value safe to use inside a block comment */
@@ -41,10 +40,10 @@ export function placeholderValues(values: ProjectValues): TemplateValues {
         packageName: packageNameFor(values.shortName),
         idPrefix: values.shortName,
         gameName: commentText(values.gameName),
-        gameIdLiteral: jsLiteral(values.gameId),
-        gameNameLiteral: jsLiteral(values.gameName),
-        steamAppIdLiteral: jsLiteral(values.steamAppId || PLACEHOLDER_STEAM_APP_ID),
-        exeLiteral: jsLiteral(values.executable || PLACEHOLDER_EXECUTABLE),
+        gameIdValue: jsStringBody(values.gameId),
+        gameNameValue: jsStringBody(values.gameName),
+        steamAppIdValue: jsStringBody(values.steamAppId || PLACEHOLDER_STEAM_APP_ID),
+        exeValue: jsStringBody(values.executable || PLACEHOLDER_EXECUTABLE),
     };
 }
 

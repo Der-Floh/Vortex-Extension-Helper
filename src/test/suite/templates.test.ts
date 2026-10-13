@@ -1,7 +1,7 @@
 import * as assert from 'assert';
 import { buildPackageJson } from '../../templates/packageJson';
 import { GENERATED_FILES, renderProject, restorableOutputs, unrestorablePaths } from '../../templates/registry';
-import { commentText, jsLiteral, renderTemplate, restoreValues } from '../../templates/render';
+import { commentText, jsStringBody, renderTemplate, restoreValues } from '../../templates/render';
 import type { GeneratedOutput, ProjectValues } from '../../types/project';
 import { TS_FIXTURE_VALUES } from '../fixtures/createFixtureWorkspace';
 
@@ -53,8 +53,8 @@ suite('Templates', () => {
         assert.strictEqual(renderTemplate('{{x}}', { x: '$& $1 $$' }), '$& $1 $$');
     });
 
-    test('jsLiteral and commentText escape what would break the code', () => {
-        assert.strictEqual(jsLiteral('Baldur\'s \\ Gate'), '\'Baldur\\\'s \\\\ Gate\'');
+    test('jsStringBody and commentText escape what would break the code', () => {
+        assert.strictEqual(jsStringBody('Baldur\'s \\ Gate'), 'Baldur\\\'s \\\\ Gate');
         assert.ok(!commentText('a */ b').includes('*/'));
     });
 

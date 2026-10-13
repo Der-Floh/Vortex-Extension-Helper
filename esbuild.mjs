@@ -1,10 +1,34 @@
 import * as esbuild from 'esbuild';
 import * as fs from 'fs';
+import * as path from 'path';
 
 const watch = process.argv.includes('--watch');
 const tests = process.argv.includes('--tests');
 
-const loader = { '.tmpl': 'text', '.jpg': 'binary' };
+const loader = { '.jpg': 'binary' };
+const TEXT_SUFFIX = '?text';
+
+/**
+ * Inlines a file as a string for an import ending in `?text`, so the templates can keep the
+ * extension of the file they generate and stay readable for the editor's language service.
+ *
+ * @type {import('esbuild').Plugin}
+ */
+const templateTextPlugin = {
+    name: 'template-text',
+
+    setup(build) {
+        build.onResolve({ filter: /\?text$/ }, (args) => ({
+            path: path.resolve(args.resolveDir, args.path.slice(0, -TEXT_SUFFIX.length)),
+            namespace: 'template-text',
+        }));
+        build.onLoad({ filter: /.*/, namespace: 'template-text' }, async (args) => ({
+            contents: await fs.promises.readFile(args.path, 'utf8'),
+            loader: 'text',
+            watchFiles: [args.path],
+        }));
+    },
+};
 // jsonc-parser's UMD entry hides its internal requires from the bundler; its ESM entry doesn't
 const mainFields = ['module', 'main'];
 
@@ -37,7 +61,7 @@ async function buildTests() {
         logLevel: 'silent',
         loader,
         mainFields,
-        plugins: [esbuildProblemMatcherPlugin],
+        plugins: [templateTextPlugin, esbuildProblemMatcherPlugin],
     };
     const testFiles = fs.readdirSync('src/test/suite')
         .filter((file) => file.endsWith('.test.ts'))
@@ -80,6 +104,7 @@ async function main() {
         loader,
         mainFields,
         plugins: [
+            templateTextPlugin,
             esbuildProblemMatcherPlugin,
         ],
     });

@@ -5,14 +5,14 @@
  * mods from.
  */
 export const GAME = {
-    id: {{gameIdLiteral}},
-    name: {{gameNameLiteral}},
+    id: '{{gameIdValue}}',
+    name: '{{gameNameValue}}',
     logo: 'gameart.jpg',
-    steamAppId: {{steamAppIdLiteral}},
-    exe: {{exeLiteral}},
+    steamAppId: '{{steamAppIdValue}}',
+    exe: '{{exeValue}}',
     modsDir: 'mods',
     requiredFiles: [
-        {{exeLiteral}},
+        '{{exeValue}}',
     ],
 };
 

@@ -21,6 +21,8 @@ updates:
     ignore:
       # vsce refuses to pack when @types/vscode is newer than engines.vscode, so both move together by hand
       - dependency-name: "@types/vscode"
+      # Has to stay at vortex-api's peer version, the same exact version the templates install
+      - dependency-name: "@types/bluebird"
     groups:
       npm-minor-and-patch:
         update-types:
