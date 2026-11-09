@@ -158,7 +158,8 @@
             "vortexHelper": [
                 {
                     "id": "vortexHelper.sidebar",
-                    "name": "Vortex"
+                    "name": "Vortex",
+                    "icon": "assets/vortex-activitybar.svg"
                 }
             ]
         },

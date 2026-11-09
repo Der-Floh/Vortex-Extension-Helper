@@ -129,6 +129,7 @@ suite('Manifest', () => {
         const [container] = pkg.contributes.viewsContainers.activitybar;
         assert.deepStrictEqual(Object.keys(pkg.contributes.views), [container.id]);
         assert.strictEqual(VIEW_SIDEBAR, pkg.contributes.views.vortexHelper[0].id);
+        assert.strictEqual(pkg.contributes.views.vortexHelper[0].icon, container.icon, 'the manifest schema requires an icon on the view too');
         assert.ok(!container.icon.startsWith('assets/meta/'), 'assets/meta is left out of the VSIX');
 
         const extension = vscode.extensions.getExtension(`${pkg.publisher}.${pkg.name}`);
