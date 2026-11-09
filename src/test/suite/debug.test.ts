@@ -1,11 +1,14 @@
 import * as assert from 'assert';
 import * as fs from 'fs';
+import * as http from 'http';
+import * as inspector from 'inspector';
+import type { AddressInfo } from 'net';
 import * as path from 'path';
 import * as vscode from 'vscode';
 import { buildBlockers, validateProject } from '../../checks/validation';
 import { DEBUG_PORT_DEFAULT, DEBUG_SESSION_TYPE } from '../../constants';
 import { topLevelBreakpointHint, vortexAttachConfiguration } from '../../debug/attachConfiguration';
-import { CdpTimeoutError, ForeignPortError, pickPageTarget, vortexWindowState, waitForPageTarget, type CdpProbe, type CdpTarget } from '../../debug/cdpProbe';
+import { CdpTimeoutError, ForeignPortError, HTTP_CDP, pickPageTarget, vortexWindowState, waitForPageTarget, type CdpProbe, type CdpTarget } from '../../debug/cdpProbe';
 import { buildAndDeploy, runAttachFlow, runDebugFlow, type DebugFlowUi, type DebugOutcome } from '../../debug/debugFlow';
 import { watchVortexDebugSessions, type DebugHost } from '../../debug/debugSessionWatcher';
 import { deployPack, InvalidPackIdError, isDeployedCurrent, PackMissingError, readDeploymentState, readPackId } from '../../debug/packDeployment';
@@ -220,6 +223,28 @@ suite('Debug in Vortex', () => {
         );
     });
 
+    // An Extension Development Host runs like this, and Node's network inspection then empties string chunks
+    test('the port is read correctly while a debugger inspects the extension host', async function () {
+        const server = http.createServer((_request, response) => {
+            response.setHeader('content-type', 'application/json');
+            response.end(JSON.stringify({ Browser: 'Chrome/152' }));
+        });
+        await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+        const session = new inspector.Session();
+        session.connect();
+        try {
+            const enabled = await new Promise<boolean>(resolve => session.post('Network.enable', error => resolve(!error)));
+            if (!enabled) {
+                this.skip();
+            }
+            const { port } = server.address() as AddressInfo;
+            assert.deepStrictEqual(await HTTP_CDP.version(port), { status: 'ok', value: { browser: 'Chrome/152' } });
+        } finally {
+            session.disconnect();
+            server.close();
+        }
+    });
+
     test('waitForPageTarget honours cancellation', async () => {
         const source = new vscode.CancellationTokenSource();
         source.cancel();
@@ -289,6 +314,22 @@ suite('Debug in Vortex', () => {
             // the child is watched by nobody, so the session that holds the configuration is stopped once
             assert.deepStrictEqual(host.stopped, ['session-0'], 'the outer session is stopped, exactly once');
             assert.strictEqual(child.id, 'child');
+        } finally {
+            watcher.dispose();
+        }
+    });
+
+    test('a port that still answers keeps the session, whatever it answers', async () => {
+        const host = new StubDebugHost();
+        const probe: CdpProbe = {
+            version: async () => ({ status: 'foreign', detail: 'a web server' }),
+            targets: async () => ({ status: 'ok', value: [] }),
+        };
+        const watcher = watchVortexDebugSessions({ probe, host, intervalMs: 2, misses: 3 });
+        try {
+            host.start({ ...vortexAttachConfiguration({ packId: 'odd-support', folder: vscode.Uri.file(path.join(scratch, 'odd')), port: 9298 }), type: 'pwa-chrome' });
+            await wait(40);
+            assert.deepStrictEqual(host.stopped, []);
         } finally {
             watcher.dispose();
         }

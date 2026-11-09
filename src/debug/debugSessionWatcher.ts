@@ -66,7 +66,7 @@ export function watchVortexDebugSessions(options: WatchOptions = {}): vscode.Dis
         let misses = 0;
         timers.set(session.id, setInterval(() => {
             void probe.version(port).then(async result => {
-                if (result.status === 'ok') {
+                if (result.status !== 'closed') {
                     misses = 0;
                     return;
                 }

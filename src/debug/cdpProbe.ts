@@ -1,9 +1,11 @@
 import * as http from 'http';
 import * as vscode from 'vscode';
 import { SETTING_DEBUG_PORT, VORTEX_PROBE_INTERVAL_MS, VORTEX_READY_TIMEOUT_MS } from '../constants';
+import { Logger } from '../utils/logger';
 
 const REQUEST_TIMEOUT_MS = 3_000;
 const MAX_BODY_BYTES = 1024 * 1024;
+const LOGGED_ANSWER_CHARS = 500;
 /** The target types js-debug can attach to */
 const ATTACHABLE_TYPES = new Set(['page', 'iframe']);
 /** Vortex's splash screen is a page target of its own, and it closes once the main window shows */
@@ -24,10 +26,12 @@ export interface CdpVersion {
     readonly browser: string;
 }
 
+type ForeignAnswer = { readonly status: 'foreign'; readonly detail: string; readonly answer?: string };
+
 export type ProbeResult<T> =
     | { readonly status: 'ok'; readonly value: T }
     | { readonly status: 'closed' }
-    | { readonly status: 'foreign'; readonly detail: string };
+    | ForeignAnswer;
 
 export type VortexWindowState = 'starting' | 'ready' | 'other';
 
@@ -58,22 +62,25 @@ function requestJson(port: number, path: string): Promise<ProbeResult<unknown>> 
     return new Promise(resolve => {
         // 127.0.0.1, not localhost, because Chromium binds the debugging port to IPv4 only
         const request = http.request({ host: '127.0.0.1', port, path, agent: new http.Agent({ keepAlive: false }) }, response => {
-            let body = '';
-            response.setEncoding('utf8');
-            response.on('data', (chunk: string) => {
-                if (body.length < MAX_BODY_BYTES) {
-                    body += chunk;
+            const chunks: Buffer[] = [];
+            let received = 0;
+            // buffers rather than setEncoding: under a debugger, Node's network inspection throws on string chunks and the body is lost
+            response.on('data', (chunk: Buffer) => {
+                if (received < MAX_BODY_BYTES) {
+                    chunks.push(chunk);
+                    received += chunk.length;
                 }
             });
             response.on('end', () => {
+                const body = Buffer.concat(chunks).toString('utf8');
                 if (response.statusCode !== 200) {
-                    resolve({ status: 'foreign', detail: `an HTTP server answering ${response.statusCode}` });
+                    resolve({ status: 'foreign', detail: `an HTTP server answering ${response.statusCode}`, answer: body.slice(0, LOGGED_ANSWER_CHARS) });
                     return;
                 }
                 try {
                     resolve({ status: 'ok', value: JSON.parse(body) });
                 } catch {
-                    resolve({ status: 'foreign', detail: NOT_DEVTOOLS });
+                    resolve(notDevTools(body));
                 }
             });
             response.on('error', () => resolve({ status: 'closed' }));
@@ -84,11 +91,15 @@ function requestJson(port: number, path: string): Promise<ProbeResult<unknown>> 
     });
 }
 
+function notDevTools(answer: string): ForeignAnswer {
+    return { status: 'foreign', detail: NOT_DEVTOOLS, answer: answer.slice(0, LOGGED_ANSWER_CHARS) };
+}
+
 function asVersion(value: unknown): ProbeResult<CdpVersion> {
     const browser = (value as { Browser?: unknown } | undefined)?.Browser;
     return typeof browser === 'string'
         ? { status: 'ok', value: { browser } }
-        : { status: 'foreign', detail: NOT_DEVTOOLS };
+        : notDevTools(JSON.stringify(value));
 }
 
 export const HTTP_CDP: CdpProbe = {
@@ -103,7 +114,7 @@ export const HTTP_CDP: CdpProbe = {
         }
         return Array.isArray(result.value)
             ? { status: 'ok', value: result.value as readonly CdpTarget[] }
-            : { status: 'foreign', detail: NOT_DEVTOOLS };
+            : notDevTools(JSON.stringify(result.value));
     },
 };
 
@@ -160,7 +171,7 @@ export async function waitForPageTarget(probe: CdpProbe, port: number, options: 
         }
         const version = await probe.version(port);
         if (version.status === 'foreign') {
-            throw new ForeignPortError(port, version.detail);
+            throw foreignPortError(port, version);
         }
         if (version.status === 'ok') {
             if (!sawBrowser) {
@@ -169,7 +180,7 @@ export async function waitForPageTarget(probe: CdpProbe, port: number, options: 
             }
             const targets = await probe.targets(port);
             if (targets.status === 'foreign') {
-                throw new ForeignPortError(port, targets.detail);
+                throw foreignPortError(port, targets);
             }
             if (targets.status === 'ok') {
                 const page = pickPageTarget(targets.value);
@@ -184,4 +195,9 @@ export async function waitForPageTarget(probe: CdpProbe, port: number, options: 
     }
 
     throw new CdpTimeoutError(sawBrowser ? 'browser-only' : 'nothing', port, timeoutMs);
+}
+
+function foreignPortError(port: number, { detail, answer }: ForeignAnswer): ForeignPortError {
+    Logger.warn(`Port ${port} answered: ${answer ?? '(nothing recorded)'}`);
+    return new ForeignPortError(port, detail);
 }

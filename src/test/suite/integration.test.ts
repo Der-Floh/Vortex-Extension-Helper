@@ -148,6 +148,44 @@ suite('Vortex Extension Helper integration', () => {
         assert.ok(![0, undefined].includes(await runTask(folder, 'probe', new vscode.ShellExecution('node', [failing]))));
     });
 
+    test('running a task again reuses its terminal, and another task gets its own', async () => {
+        const folder = vscode.workspace.workspaceFolders?.find(candidate => candidate.name === FIXTURE_FOLDERS.plain);
+        assert.ok(folder);
+        const version = () => new vscode.ShellExecution('node', ['--version']);
+        const settle = () => new Promise(resolve => setTimeout(resolve, 300));
+
+        assert.strictEqual(await runTask(folder, 'reuse probe', version()), 0);
+        await settle();
+        const afterFirstRun = vscode.window.terminals.length;
+
+        assert.strictEqual(await runTask(folder, 'reuse probe', version()), 0);
+        await settle();
+        assert.strictEqual(vscode.window.terminals.length, afterFirstRun);
+
+        assert.strictEqual(await runTask(folder, 'another probe', version()), 0);
+        await settle();
+        assert.strictEqual(vscode.window.terminals.length, afterFirstRun + 1);
+    });
+
+    test('Vortex is started without what makes an Electron app run as plain Node', async () => {
+        const output = path.join(scratch, 'vortex-environment.json');
+        const inherited = process.env.ELECTRON_RUN_AS_NODE;
+        process.env.ELECTRON_RUN_AS_NODE = '1';
+        try {
+            const launched = SYSTEM_LAUNCHER.launch('node', ['-e', 'require("fs").writeFileSync(process.argv[1], JSON.stringify(process.env))', output]);
+            assert.strictEqual(await launched.exited, 0);
+        } finally {
+            if (inherited === undefined) {
+                delete process.env.ELECTRON_RUN_AS_NODE;
+            } else {
+                process.env.ELECTRON_RUN_AS_NODE = inherited;
+            }
+        }
+        const environment = JSON.parse(fs.readFileSync(output, 'utf8')) as Record<string, string>;
+        assert.strictEqual(environment.ELECTRON_RUN_AS_NODE, undefined);
+        assert.ok(Object.keys(environment).some(name => name.toUpperCase() === 'PATH'), 'the rest of the environment is kept');
+    });
+
     // Whether VS Code substitutes variables inside sourceMapPathOverrides keys decides whether the
     // source map prefix can be derived instead of written into the generated launch.json.
     test('variables are resolved inside a sourceMapPathOverrides key', async function () {

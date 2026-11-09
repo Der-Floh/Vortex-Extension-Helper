@@ -1,4 +1,3 @@
-import { randomUUID } from 'crypto';
 import * as vscode from 'vscode';
 import { MANIFEST, TASK_START_TIMEOUT_MS, TASK_TYPE } from '../constants';
 import { WORKSPACE_TRUST, UntrustedWorkspaceError, type TrustGate } from './trust';
@@ -19,6 +18,9 @@ export class TaskStartError extends Error {
 /**
  * Runs a shell command as a task of a workspace folder and waits for it to end.
  *
+ * VS Code picks a task's terminal by its definition, so the definition has to stay the same from
+ * run to run for a task to get its old terminal back.
+ *
  * @returns The exit code, or undefined if the task ended without reporting one.
  * @throws UntrustedWorkspaceError in Restricted Mode, where VS Code would wait for a trust prompt and never start the task.
  * @throws TaskStartError if the task doesn't start, for example because another trust prompt was dismissed.
@@ -32,10 +34,12 @@ export async function runTask(folder: vscode.WorkspaceFolder, name: string, exec
         throw new vscode.CancellationError();
     }
 
-    const runId = randomUUID();
-    const task = new vscode.Task({ type: TASK_TYPE, task: name, runId }, folder, name, MANIFEST.displayName, execution, []);
+    const task = new vscode.Task({ type: TASK_TYPE, task: name }, folder, name, MANIFEST.displayName, execution, []);
     task.presentationOptions = { reveal: options.reveal ?? vscode.TaskRevealKind.Silent, panel: vscode.TaskPanelKind.Dedicated, clear: true };
-    const isThisRun = (candidate: vscode.Task) => candidate.definition.runId === runId;
+    const isThisTask = (candidate: vscode.Task) => candidate.definition.type === TASK_TYPE
+        && candidate.definition.task === name
+        && typeof candidate.scope === 'object'
+        && candidate.scope.uri.toString() === folder.uri.toString();
 
     return new Promise<number | undefined>((resolve, reject) => {
         let settled = false;
@@ -61,19 +65,20 @@ export async function runTask(folder: vscode.WorkspaceFolder, name: string, exec
             }
         }, TASK_START_TIMEOUT_MS);
 
+        // an end only counts after this run's start: a cancelled earlier run of the same task can still be ending
         disposables.push(
             vscode.tasks.onDidStartTask(event => {
-                if (isThisRun(event.execution.task)) {
+                if (isThisTask(event.execution.task)) {
                     started = true;
                 }
             }),
             vscode.tasks.onDidEndTaskProcess(event => {
-                if (isThisRun(event.execution.task)) {
+                if (started && isThisTask(event.execution.task)) {
                     exitCode = event.exitCode;
                 }
             }),
             vscode.tasks.onDidEndTask(event => {
-                if (isThisRun(event.execution.task)) {
+                if (started && isThisTask(event.execution.task)) {
                     settle(() => resolve(exitCode));
                 }
             }),

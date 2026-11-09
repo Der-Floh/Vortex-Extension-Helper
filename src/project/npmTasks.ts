@@ -92,10 +92,15 @@ async function runScript(folder: vscode.WorkspaceFolder, script: string, token?:
 
 async function runNpm(folder: vscode.WorkspaceFolder, args: string[], hint?: string, token?: vscode.CancellationToken): Promise<void> {
     const commandLine = ['npm', ...args].join(' ');
-    const exitCode = await runTask(folder, commandLine, new vscode.ShellExecution('npm', args), { reveal: vscode.TaskRevealKind.Always, token });
+    const exitCode = await runTask(folder, terminalNameOf(args), new vscode.ShellExecution('npm', args), { reveal: vscode.TaskRevealKind.Always, token });
     if (exitCode !== 0) {
         throw new CommandFailedError(commandLine, exitCode, ['See the terminal for npm\'s output.', hint].filter(Boolean).join(' '));
     }
+}
+
+/** A terminal per script and one for each other npm command, so installing another library doesn't open another terminal */
+function terminalNameOf(args: readonly string[]): string {
+    return ['npm', ...args.slice(0, args[0] === 'run' ? 2 : 1)].join(' ');
 }
 
 async function hasScript(folder: vscode.WorkspaceFolder, script: string): Promise<boolean> {

@@ -3,6 +3,8 @@ import { Logger } from '../utils/logger';
 
 const PROCESS_NAME = 'Vortex';
 const WINDOWS_IMAGE = 'Vortex.exe';
+/** VS Code's terminals drop these too. ELECTRON_RUN_AS_NODE would make Vortex plain Node, which exits with 9 on the debugging switches */
+const EXTENSION_HOST_VARIABLES = /^(ELECTRON_|VSCODE_)/i;
 
 export interface LaunchedVortex {
     readonly pid: number | undefined;
@@ -41,7 +43,8 @@ function run(command: string, args: readonly string[]): Promise<{ code: number; 
 export const SYSTEM_LAUNCHER: VortexLauncher = {
     launch(exe, args) {
         // detached so closing VS Code doesn't take Vortex down, and never shell: the path has spaces
-        const child = spawn(exe, [...args], { detached: true, stdio: 'ignore', windowsHide: false });
+        const env = Object.fromEntries(Object.entries(process.env).filter(([name]) => !EXTENSION_HOST_VARIABLES.test(name)));
+        const child = spawn(exe, [...args], { detached: true, stdio: 'ignore', windowsHide: false, env });
         const exited = new Promise<number | null>(resolve => {
             child.once('exit', code => resolve(code));
             child.once('error', () => resolve(null));
