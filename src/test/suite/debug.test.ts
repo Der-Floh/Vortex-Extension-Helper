@@ -595,6 +595,92 @@ suite('Debug in Vortex', () => {
             assert.deepStrictEqual(outcome, { kind: 'declined' });
         });
 
+        test('a debug port owned by something else stops the flow before anything is built', async () => {
+            const run = runDebugFlow(
+                {
+                    project: project('flow-foreign'),
+                    install: { exe: 'x', pluginsFolder: vscode.Uri.file(path.join(scratch, 'flow-foreign-plugins')) },
+                    port: 9222,
+                    ui: NEVER_ASKED,
+                    report: () => { },
+                    token: NO_TOKEN,
+                },
+                {
+                    cdp: stubProbe(['foreign'], [[]]),
+                    launcher: stubLauncher({
+                        launch: () => assert.fail('should not have started Vortex'),
+                        isVortexRunning: () => assert.fail('should not have looked for Vortex'),
+                    }),
+                    build: async () => assert.fail('should not have built'),
+                    startDebugging: async () => assert.fail('should not have attached'),
+                }
+            );
+
+            await assert.rejects(run, ForeignPortError);
+        });
+
+        test('Vortex is let go of when waiting for its window is cancelled', async () => {
+            const source = new vscode.CancellationTokenSource();
+            let released = false;
+            const run = runDebugFlow(
+                {
+                    project: project('flow-let-go'),
+                    install: { exe: 'x', pluginsFolder: vscode.Uri.file(path.join(scratch, 'flow-let-go-plugins')) },
+                    port: 9222,
+                    ui: NEVER_ASKED,
+                    report: () => { },
+                    token: source.token,
+                },
+                {
+                    cdp: stubProbe(['closed'], [[]]),
+                    launcher: stubLauncher({
+                        launch: () => {
+                            source.cancel();
+                            return {
+                                pid: 3,
+                                exited: new Promise<number | null>(() => { }),
+                                release: () => {
+                                    released = true;
+                                },
+                            };
+                        },
+                    }),
+                    build: async folder => buildablePack(folder.uri, 'let-go-support'),
+                    startDebugging: async () => assert.fail('should not have attached'),
+                }
+            );
+
+            await assert.rejects(run, vscode.CancellationError);
+            assert.ok(released);
+        });
+
+        test('a cancel during the build stops before anything is deployed', async () => {
+            const source = new vscode.CancellationTokenSource();
+            const plugins = vscode.Uri.file(path.join(scratch, 'flow-cancelled-plugins'));
+            const outcome = await runDebugFlow(
+                {
+                    project: project('flow-cancelled'),
+                    install: { exe: 'x', pluginsFolder: plugins },
+                    port: 9222,
+                    ui: NEVER_ASKED,
+                    report: () => { },
+                    token: source.token,
+                },
+                {
+                    cdp: stubProbe(['closed'], [[]]),
+                    launcher: stubLauncher({ launch: () => assert.fail('should not have started Vortex') }),
+                    build: async folder => {
+                        await buildablePack(folder.uri, 'cancelled-support');
+                        source.cancel();
+                    },
+                    startDebugging: async () => assert.fail('should not have attached'),
+                }
+            );
+
+            assert.deepStrictEqual(outcome, { kind: 'cancelled' });
+            assert.ok(!await fileExists(vscode.Uri.joinPath(plugins, 'cancelled-support', 'index.js')));
+        });
+
         test('Rebuild and Restart closes Vortex and starts it again', async () => {
             const launcher = closingLauncher('close');
             const outcome = await runAgainstRunningVortex('flow-restart', launcher, 'ok', { confirmPortInUse: async () => 'restart' });

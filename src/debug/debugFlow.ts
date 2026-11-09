@@ -5,7 +5,7 @@ import type { VortexProject } from '../types/project';
 import { fileExists, saveDirtyDocuments } from '../utils/fileSystemUtils';
 import { Logger } from '../utils/logger';
 import { vortexAttachConfiguration } from './attachConfiguration';
-import { HTTP_CDP, type CdpProbe, waitForPageTarget } from './cdpProbe';
+import { ForeignPortError, HTTP_CDP, type CdpProbe, waitForPageTarget } from './cdpProbe';
 import { deployPack, isDeployedCurrent, readPackId } from './packDeployment';
 import type { VortexInstall } from './vortexInstall';
 import { debugArguments, SYSTEM_LAUNCHER, type VortexLauncher } from './vortexLauncher';
@@ -66,6 +66,9 @@ export async function runDebugFlow(options: DebugFlowOptions, deps: DebugFlowDep
 
     report('Checking Vortex...');
     const running = await cdp.version(port);
+    if (running.status === 'foreign') {
+        throw new ForeignPortError(port, running.detail);
+    }
     let attachOnly = false;
 
     if (running.status === 'ok') {
@@ -130,8 +133,7 @@ export async function runDebugFlow(options: DebugFlowOptions, deps: DebugFlowDep
             waitForPageTarget(cdp, port, { token, onProgress: phase => report(phase === 'browser' ? 'Waiting for Vortex\'s window...' : 'Waiting for Vortex to start...') })
                 .then(() => ({ ready: true as const })),
             launched.exited.then(code => ({ ready: false as const, code })),
-        ]);
-        launched.release();
+        ]).finally(() => launched.release());
         if (!outcome.ready) {
             // an Electron second instance fails the single instance lock and quits within seconds
             return {
