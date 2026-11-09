@@ -1,6 +1,39 @@
 import typescriptEslint from '@typescript-eslint/eslint-plugin';
 import tsParser from '@typescript-eslint/parser';
 
+const HANDLERS = { group: ['**/handlers/**'], message: 'Only extension.ts may import a command handler.' };
+const NO_VSCODE = { name: 'vscode', message: 'This module has to load without a VS Code host.' };
+
+/** The folders each folder must not import */
+const LAYERS = {
+    utils: ['templates', 'project', 'checks', 'wizard', 'debug', 'snippets'],
+    templates: ['project', 'checks', 'wizard', 'debug', 'snippets'],
+    project: ['templates', 'checks', 'wizard', 'debug', 'snippets'],
+    checks: ['wizard', 'debug', 'snippets'],
+    wizard: ['checks', 'debug', 'snippets'],
+    debug: ['templates', 'wizard', 'snippets'],
+    snippets: ['templates', 'checks', 'wizard', 'debug'],
+};
+
+/** Pure logic, and what out/test/runTests.js loads in plain Node */
+const HOST_FREE = [
+    'src/constants.ts',
+    'src/checks/validation.ts',
+    'src/project/projectManifest.ts',
+    'src/project/vortexLibraries.ts',
+    'src/templates/packageJson.ts',
+    'src/templates/registry.ts',
+    'src/templates/render.ts',
+    'src/test/runTests.ts',
+    'src/test/fixtures/createFixtureWorkspace.ts',
+    'src/utils/commandLabel.ts',
+    'src/utils/jsonUtils.ts',
+    'src/wizard/naming.ts',
+];
+
+const layerBan = folder => (LAYERS[folder] ? [{ group: LAYERS[folder].map(name => `**/${name}/**`), message: `src/${folder} must not depend on this folder.` }] : []);
+const restrict = (patterns, paths = []) => ({ 'no-restricted-imports': ['error', { paths, patterns }] });
+
 export default [{
     // The templates are sources of the generated project, not of this extension
     ignores: ['src/templates/files/**'],
@@ -33,4 +66,9 @@ export default [{
         quotes: ['warn', 'single', { avoidEscape: true }],
         semi: 'warn',
     },
-}];
+},
+// A later block replaces a rule's options instead of merging them, so each block states all of its bans
+{ files: ['src/**/*.ts'], ignores: ['src/extension.ts'], rules: restrict([HANDLERS]) },
+...Object.keys(LAYERS).map(folder => ({ files: [`src/${folder}/**/*.ts`], rules: restrict([HANDLERS, ...layerBan(folder)]) })),
+...HOST_FREE.map(file => ({ files: [file], rules: restrict([HANDLERS, ...layerBan(file.split('/')[1])], [NO_VSCODE]) })),
+];
