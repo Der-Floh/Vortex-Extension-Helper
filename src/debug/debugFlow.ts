@@ -45,6 +45,10 @@ export interface DebugFlowOptions {
     readonly token: vscode.CancellationToken;
 }
 
+type Flow = DebugFlowOptions & Required<DebugFlowDeps>;
+type LaunchPlan = 'launch' | 'attach' | 'declined';
+type Stopped = Exclude<DebugOutcome, { readonly kind: 'attached' }>;
+
 const wait = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
 
 /**
@@ -55,116 +59,69 @@ const wait = (ms: number): Promise<void> => new Promise(resolve => setTimeout(re
  * running Vortex has to be closed, or attached to as it is.
  */
 export async function runDebugFlow(options: DebugFlowOptions, deps: DebugFlowDeps = {}): Promise<DebugOutcome> {
-    const { project, install, port, ui, report, token } = options;
-    const launcher = deps.launcher ?? SYSTEM_LAUNCHER;
-    const cdp = deps.cdp ?? HTTP_CDP;
-    const build = deps.build ?? runBuild;
-    const startDebugging = deps.startDebugging ?? ((folder, configuration) => vscode.debug.startDebugging(folder, configuration));
-    const quitTimeoutMs = deps.quitTimeoutMs ?? VORTEX_QUIT_TIMEOUT_MS;
+    const flow: Flow = {
+        ...options,
+        launcher: deps.launcher ?? SYSTEM_LAUNCHER,
+        cdp: deps.cdp ?? HTTP_CDP,
+        build: deps.build ?? runBuild,
+        startDebugging: deps.startDebugging ?? ((folder, configuration) => vscode.debug.startDebugging(folder, configuration)),
+        quitTimeoutMs: deps.quitTimeoutMs ?? VORTEX_QUIT_TIMEOUT_MS,
+    };
 
-    const cancelled = (): boolean => token.isCancellationRequested;
-
-    report('Checking Vortex...');
-    const running = await cdp.version(port);
-    if (running.status === 'foreign') {
-        throw new ForeignPortError(port, running.detail);
+    flow.report('Checking Vortex...');
+    const plan = await planForRunningVortex(flow);
+    if (plan === 'declined') {
+        return { kind: 'declined' };
     }
-    let attachOnly = false;
-
-    if (running.status === 'ok') {
-        const deployedId = await readPackId(project.folder.uri).catch(() => undefined);
-        const stale = deployedId === undefined
-            || !await isDeployedCurrent(project.folder.uri, install.pluginsFolder, deployedId);
-        const choice = await ui.confirmPortInUse(stale);
-        if (choice === 'cancel') {
-            return { kind: 'declined' };
-        }
-        if (choice === 'attach') {
-            attachOnly = true;
-        } else {
-            const closed = await closeVortex(launcher, ui, quitTimeoutMs);
-            if (!closed) {
-                return { kind: 'declined' };
-            }
-        }
-    } else if (running.status === 'closed') {
-        const isRunning = await launcher.isVortexRunning();
-        if (isRunning === true) {
-            const choice = await ui.confirmVortexRunning();
-            if (choice === 'cancel') {
-                return { kind: 'declined' };
-            }
-            if (choice === 'close' && !await closeVortex(launcher, ui, quitTimeoutMs)) {
-                return { kind: 'declined' };
-            }
-        }
-    }
-
-    if (cancelled()) {
+    if (flow.token.isCancellationRequested) {
         return { kind: 'cancelled' };
     }
-
-    let packId: string;
-    if (attachOnly) {
-        packId = await readPackId(project.folder.uri);
-    } else {
-        if (!await saveDirtyDocuments(project.folder.uri)) {
-            return { kind: 'failed', reason: 'Some of the project\'s files couldn\'t be saved, so the build would not match the editor.' };
-        }
-        report(`Building ${project.folder.name}...`);
-        await build(project.folder, token);
-        if (cancelled()) {
-            return { kind: 'cancelled' };
-        }
-
-        packId = await readPackId(project.folder.uri);
-        report(`Deploying ${packId}...`);
-        const files = await deployPack(project.folder.uri, install.pluginsFolder, packId, token);
-        Logger.info(`Deployed ${files} files of ${packId} to ${install.pluginsFolder.fsPath}`);
-        if (cancelled()) {
-            return { kind: 'cancelled' };
-        }
-
-        report('Starting Vortex...');
-        const launched = launcher.launch(install.exe, debugArguments(port));
-        Logger.info(`Started ${install.exe} on port ${port} as pid ${launched.pid ?? 'unknown'}`);
-        report('Waiting for Vortex\'s window...');
-        const outcome = await Promise.race([
-            waitForPageTarget(cdp, port, { token, onProgress: phase => report(phase === 'browser' ? 'Waiting for Vortex\'s window...' : 'Waiting for Vortex to start...') })
-                .then(() => ({ ready: true as const })),
-            launched.exited.then(code => ({ ready: false as const, code })),
-        ]).finally(() => launched.release());
-        if (!outcome.ready) {
-            // an Electron second instance fails the single instance lock and quits within seconds
-            return {
-                kind: 'failed',
-                reason: outcome.code === 0
-                    ? 'Vortex quit right after starting, which happens when another Vortex already holds its single instance lock. Close every Vortex window and try again.'
-                    : `Vortex exited with code ${outcome.code ?? 'unknown'} before its window appeared.`,
-            };
-        }
-
-        // Vortex deletes extension folders while it starts, for a removal that is still pending or
-        // for an id a bundled extension claims, so what was just deployed may be gone again
-        if (!await fileExists(vscode.Uri.joinPath(install.pluginsFolder, packId, PACK_ENTRY))) {
-            return { kind: 'removed', packId };
-        }
+    if (plan === 'attach') {
+        return attach(flow, await readPackId(flow.project.folder.uri), true);
     }
 
-    if (cancelled()) {
-        return { kind: 'cancelled' };
+    const packId = await buildAndDeploy(flow);
+    if (typeof packId !== 'string') {
+        return packId;
     }
-
-    report('Attaching...');
-    const configuration = vortexAttachConfiguration({ packId, folder: project.folder.uri, port });
-    Logger.info(`Attaching with ${JSON.stringify(configuration)}`);
-    const started = await startDebugging(project.folder, configuration);
-    return started
-        ? { kind: 'attached', packId, reused: attachOnly }
-        : { kind: 'failed', reason: 'VS Code refused to start the debug session. The log holds the configuration that was used.' };
+    return await launchAndWait(flow, packId) ?? attach(flow, packId, false);
 }
 
-async function closeVortex(launcher: VortexLauncher, ui: DebugFlowUi, quitTimeoutMs: number): Promise<boolean> {
+async function planForRunningVortex(flow: Flow): Promise<LaunchPlan> {
+    const running = await flow.cdp.version(flow.port);
+    if (running.status === 'foreign') {
+        throw new ForeignPortError(flow.port, running.detail);
+    }
+    return running.status === 'ok' ? planForOpenPort(flow) : planForClosedPort(flow);
+}
+
+async function planForOpenPort(flow: Flow): Promise<LaunchPlan> {
+    const { project, install, ui } = flow;
+    const deployedId = await readPackId(project.folder.uri).catch(() => undefined);
+    const stale = deployedId === undefined
+        || !await isDeployedCurrent(project.folder.uri, install.pluginsFolder, deployedId);
+    const choice = await ui.confirmPortInUse(stale);
+    if (choice === 'cancel') {
+        return 'declined';
+    }
+    if (choice === 'attach') {
+        return 'attach';
+    }
+    return await closeVortex(flow) ? 'launch' : 'declined';
+}
+
+async function planForClosedPort(flow: Flow): Promise<LaunchPlan> {
+    if (await flow.launcher.isVortexRunning() !== true) {
+        return 'launch';
+    }
+    const choice = await flow.ui.confirmVortexRunning();
+    if (choice === 'cancel' || (choice === 'close' && !await closeVortex(flow))) {
+        return 'declined';
+    }
+    return 'launch';
+}
+
+async function closeVortex({ launcher, ui, quitTimeoutMs }: Flow): Promise<boolean> {
     await launcher.requestClose(false);
     const deadline = Date.now() + quitTimeoutMs;
     while (Date.now() < deadline) {
@@ -179,4 +136,61 @@ async function closeVortex(launcher: VortexLauncher, ui: DebugFlowUi, quitTimeou
     await launcher.requestClose(true);
     await wait(VORTEX_PROBE_INTERVAL_MS);
     return await launcher.isVortexRunning() !== true;
+}
+
+/** @returns The id of the deployed extension, or why the flow stopped */
+async function buildAndDeploy({ project, install, report, build, token }: Flow): Promise<string | Stopped> {
+    if (!await saveDirtyDocuments(project.folder.uri)) {
+        return { kind: 'failed', reason: 'Some of the project\'s files couldn\'t be saved, so the build would not match the editor.' };
+    }
+    report(`Building ${project.folder.name}...`);
+    await build(project.folder, token);
+    if (token.isCancellationRequested) {
+        return { kind: 'cancelled' };
+    }
+
+    const packId = await readPackId(project.folder.uri);
+    report(`Deploying ${packId}...`);
+    const files = await deployPack(project.folder.uri, install.pluginsFolder, packId, token);
+    Logger.info(`Deployed ${files} files of ${packId} to ${install.pluginsFolder.fsPath}`);
+    return token.isCancellationRequested ? { kind: 'cancelled' } : packId;
+}
+
+/** @returns Why the flow stopped, or undefined once Vortex's window can be attached to */
+async function launchAndWait({ install, port, launcher, cdp, report, token }: Flow, packId: string): Promise<Stopped | undefined> {
+    report('Starting Vortex...');
+    const launched = launcher.launch(install.exe, debugArguments(port));
+    Logger.info(`Started ${install.exe} on port ${port} as pid ${launched.pid ?? 'unknown'}`);
+    report('Waiting for Vortex\'s window...');
+    const outcome = await Promise.race([
+        waitForPageTarget(cdp, port, { token, onProgress: phase => report(phase === 'browser' ? 'Waiting for Vortex\'s window...' : 'Waiting for Vortex to start...') })
+            .then(() => ({ ready: true as const })),
+        launched.exited.then(code => ({ ready: false as const, code })),
+    ]).finally(() => launched.release());
+    if (!outcome.ready) {
+        // an Electron second instance fails the single instance lock and quits within seconds
+        return {
+            kind: 'failed',
+            reason: outcome.code === 0
+                ? 'Vortex quit right after starting, which happens when another Vortex already holds its single instance lock. Close every Vortex window and try again.'
+                : `Vortex exited with code ${outcome.code ?? 'unknown'} before its window appeared.`,
+        };
+    }
+
+    // Vortex deletes extension folders while it starts, for a removal that is still pending or
+    // for an id a bundled extension claims, so what was just deployed may be gone again
+    return await fileExists(vscode.Uri.joinPath(install.pluginsFolder, packId, PACK_ENTRY)) ? undefined : { kind: 'removed', packId };
+}
+
+async function attach({ project, port, report, startDebugging, token }: Flow, packId: string, reused: boolean): Promise<DebugOutcome> {
+    if (token.isCancellationRequested) {
+        return { kind: 'cancelled' };
+    }
+    report('Attaching...');
+    const configuration = vortexAttachConfiguration({ packId, folder: project.folder.uri, port });
+    Logger.info(`Attaching with ${JSON.stringify(configuration)}`);
+    const started = await startDebugging(project.folder, configuration);
+    return started
+        ? { kind: 'attached', packId, reused }
+        : { kind: 'failed', reason: 'VS Code refused to start the debug session. The log holds the configuration that was used.' };
 }
