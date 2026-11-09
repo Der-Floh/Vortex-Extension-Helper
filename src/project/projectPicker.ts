@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
-import { MANIFEST } from '../constants';
 import type { VortexProject } from '../types/project';
+import { showInfo } from '../utils/notifications';
 import type { VortexWorkspaceTracker } from './vortexWorkspaceTracker';
 
 export const NO_PROJECT_MESSAGE = 'No Vortex game extension is open. A workspace folder is one when its package.json has vortex-api in devDependencies.';
@@ -13,7 +13,7 @@ interface ProjectQuickPickItem extends vscode.QuickPickItem {
 export async function pickVortexProject(tracker: VortexWorkspaceTracker): Promise<VortexProject | undefined> {
     const projects = tracker.projects;
     if (projects.length === 0) {
-        vscode.window.showInformationMessage(`${MANIFEST.displayName}: ${NO_PROJECT_MESSAGE}`);
+        showInfo(NO_PROJECT_MESSAGE);
         return undefined;
     }
     if (projects.length === 1) {

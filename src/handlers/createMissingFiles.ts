@@ -1,7 +1,7 @@
 import * as path from 'path';
 import * as vscode from 'vscode';
 import type { VortexDiagnostics } from '../checks/vortexDiagnostics';
-import { DISPLAY_NAME_PREFIX, GAMEART_EXTENSION, GAMEART_PATH, MANIFEST, PACKAGE_JSON_PATH } from '../constants';
+import { DISPLAY_NAME_PREFIX, GAMEART_EXTENSION, GAMEART_PATH, PACKAGE_JSON_PATH } from '../constants';
 import { pickVortexProject } from '../project/projectPicker';
 import type { VortexWorkspaceTracker } from '../project/vortexWorkspaceTracker';
 import { writeMissingFiles } from '../templates/projectWriter';
@@ -12,6 +12,7 @@ import { errorMessage } from '../utils/errors';
 import { fileExists, readCurrentText } from '../utils/fileSystemUtils';
 import { isRecord, parseLenientJson } from '../utils/jsonUtils';
 import { Logger } from '../utils/logger';
+import { showError, showInfo } from '../utils/notifications';
 
 /** Restores the generated files a project lacks from the templates; never overwrites a file */
 export async function handleCreateMissingFiles(tracker: VortexWorkspaceTracker, diagnostics: VortexDiagnostics): Promise<void> {
@@ -22,7 +23,7 @@ export async function handleCreateMissingFiles(tracker: VortexWorkspaceTracker, 
     const root = project.folder.uri;
     const manifest = parseLenientJson(await readCurrentText(vscode.Uri.joinPath(root, PACKAGE_JSON_PATH)) ?? '');
     if (!isRecord(manifest) || typeof manifest.name !== 'string' || !manifest.name) {
-        vscode.window.showErrorMessage(`${MANIFEST.displayName}: ${project.folder.name}/package.json needs a "name" before missing files can be created.`);
+        showError(`${project.folder.name}/package.json needs a "name" before missing files can be created.`);
         return;
     }
 
@@ -33,7 +34,7 @@ export async function handleCreateMissingFiles(tracker: VortexWorkspaceTracker, 
         written = await writeMissingFiles(root, outputs);
     } catch (e) {
         Logger.error(`Failed to create missing files in ${root.fsPath}: ${errorMessage(e)}`);
-        vscode.window.showErrorMessage(`${MANIFEST.displayName}: Failed to create the missing files. ${errorMessage(e)}`);
+        showError(`Failed to create the missing files. ${errorMessage(e)}`);
         return;
     }
 
@@ -43,7 +44,7 @@ export async function handleCreateMissingFiles(tracker: VortexWorkspaceTracker, 
         : `No generated files are missing in ${project.folder.name}.`;
     const manual = notRestored.length > 0 ? ` Create ${notRestored.join(' and ')} yourself, since they hold the game's details.` : '';
     Logger.info(`${created}${manual}`);
-    vscode.window.showInformationMessage(`${MANIFEST.displayName}: ${created}${manual}`);
+    showInfo(`${created}${manual}`);
     await diagnostics.validateFolder(project.folder);
 }
 

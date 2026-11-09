@@ -1,5 +1,4 @@
 import * as vscode from 'vscode';
-import { MANIFEST } from '../constants';
 import { packageNameFor } from '../templates/packageJson';
 import { writeNewProject } from '../templates/projectWriter';
 import { renderProject } from '../templates/registry';
@@ -7,6 +6,7 @@ import type { ProjectValues } from '../types/project';
 import { getConfiguration, type HelperConfiguration } from '../utils/configuration';
 import { errorMessage } from '../utils/errors';
 import { Logger } from '../utils/logger';
+import { showError, showInfo, withNotificationProgress } from '../utils/notifications';
 import { askAuthor, askExecutable, askShortName, askSteamAppId, pickBaseFolder, pickGameIdentity } from '../wizard/newGamePrompts';
 import { fetchNexusGames, type NexusGame } from '../wizard/nexusGames';
 import { savePendingInstall } from '../wizard/pendingInstall';
@@ -63,18 +63,15 @@ async function askProjectValues(games: Promise<NexusGame[] | Error> | undefined,
 async function createProject(baseFolder: vscode.Uri, values: ProjectValues, state: vscode.Memento): Promise<void> {
     const target = vscode.Uri.joinPath(baseFolder, packageNameFor(values.shortName));
     try {
-        await vscode.window.withProgress(
-            { location: vscode.ProgressLocation.Notification, title: `${MANIFEST.displayName}: Creating ${packageNameFor(values.shortName)}…` },
-            () => writeNewProject(target, renderProject(values))
-        );
+        await withNotificationProgress(`Creating ${packageNameFor(values.shortName)}…`, () => writeNewProject(target, renderProject(values)));
     } catch (e) {
         Logger.error(`Failed to create ${target.fsPath}: ${errorMessage(e)}`);
-        vscode.window.showErrorMessage(`${MANIFEST.displayName}: Failed to create the extension. ${errorMessage(e)}`);
+        showError(`Failed to create the extension. ${errorMessage(e)}`);
         return;
     }
 
     Logger.info(`Created ${target.fsPath} for ${values.gameName}.`);
     await savePendingInstall(state, target);
-    vscode.window.showInformationMessage(`${MANIFEST.displayName}: Created ${target.fsPath}. Its dependencies are installed once it is open.`);
+    showInfo(`Created ${target.fsPath}. Its dependencies are installed once it is open.`);
     await vscode.commands.executeCommand('vscode.openFolder', target, false);
 }

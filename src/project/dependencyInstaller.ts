@@ -1,8 +1,9 @@
 import * as vscode from 'vscode';
-import { COMMAND_INSTALL_DEPENDENCIES, MANIFEST } from '../constants';
+import { COMMAND_INSTALL_DEPENDENCIES } from '../constants';
 import type { FolderValidator } from '../types/project';
 import { errorMessage } from '../utils/errors';
 import { Logger } from '../utils/logger';
+import { showError, showInfo, withNotificationProgress } from '../utils/notifications';
 import { ensureToolsAvailable, installDependencies } from './npmTasks';
 
 const RETRY = 'Retry';
@@ -10,18 +11,15 @@ const RETRY = 'Retry';
 /** Checks the tools, installs the project's dependencies and reports the outcome */
 export async function installProjectDependencies(folder: vscode.WorkspaceFolder, validator: FolderValidator): Promise<boolean> {
     try {
-        await vscode.window.withProgress(
-            { location: vscode.ProgressLocation.Notification, title: `${MANIFEST.displayName}: Installing the dependencies of ${folder.name}…` },
-            async () => {
-                await ensureToolsAvailable(folder);
-                await installDependencies(folder);
-            }
-        );
-        vscode.window.showInformationMessage(`${MANIFEST.displayName}: Installed the dependencies of ${folder.name}.`);
+        await withNotificationProgress(`Installing the dependencies of ${folder.name}…`, async () => {
+            await ensureToolsAvailable(folder);
+            await installDependencies(folder);
+        });
+        showInfo(`Installed the dependencies of ${folder.name}.`);
         return true;
     } catch (e) {
         Logger.error(`Failed to install the dependencies of ${folder.uri.fsPath}: ${errorMessage(e)}`);
-        vscode.window.showErrorMessage(`${MANIFEST.displayName}: Failed to install the dependencies of ${folder.name}. ${errorMessage(e)}`, RETRY)
+        showError(`Failed to install the dependencies of ${folder.name}. ${errorMessage(e)}`, RETRY)
             .then(choice => choice === RETRY && vscode.commands.executeCommand(COMMAND_INSTALL_DEPENDENCIES));
         return false;
     } finally {

@@ -1,10 +1,10 @@
 import * as vscode from 'vscode';
 import type { VortexDiagnostics } from '../checks/vortexDiagnostics';
-import { MANIFEST } from '../constants';
 import { NO_PROJECT_MESSAGE } from '../project/projectPicker';
 import type { VortexWorkspaceTracker } from '../project/vortexWorkspaceTracker';
 import type { Finding, Severity, VortexProject } from '../types/project';
 import { Logger } from '../utils/logger';
+import { showInfo, showWarning } from '../utils/notifications';
 
 const SHOW_PROBLEMS = 'Show Problems';
 const SHOW_LOG = 'Show Log';
@@ -16,11 +16,11 @@ export async function handleRunWorkspaceChecks(tracker: VortexWorkspaceTracker, 
     for (const folder of tracker.legacyFolders) {
         const message = `${folder.name} has a root info.json, the old layout, which is no longer recognised. Move its fields into package.json (name, displayName, version, description, author and gameart); the build generates .pack/info.json from them.`;
         Logger.warn(message);
-        vscode.window.showWarningMessage(`${MANIFEST.displayName}: ${message}`);
+        showWarning(message);
     }
     if (tracker.projects.length === 0) {
         if (tracker.legacyFolders.length === 0) {
-            vscode.window.showInformationMessage(`${MANIFEST.displayName}: ${NO_PROJECT_MESSAGE}`);
+            showInfo(NO_PROJECT_MESSAGE);
         }
         return;
     }
@@ -31,7 +31,7 @@ export async function handleRunWorkspaceChecks(tracker: VortexWorkspaceTracker, 
     }
 
     const all = [...results.values()].flat();
-    vscode.window.showInformationMessage(`${MANIFEST.displayName}: ${summarize(all)} in ${pluralize(results.size, 'project')}.`, SHOW_PROBLEMS, SHOW_LOG)
+    showInfo(`${summarize(all)} in ${pluralize(results.size, 'project')}.`, SHOW_PROBLEMS, SHOW_LOG)
         .then(choice => {
             if (choice === SHOW_PROBLEMS) {
                 void vscode.commands.executeCommand('workbench.actions.view.problems');

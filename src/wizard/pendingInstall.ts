@@ -1,7 +1,8 @@
 import * as vscode from 'vscode';
-import { MANIFEST, PENDING_INSTALL_KEY, PENDING_INSTALL_MAX_AGE_MS } from '../constants';
+import { PENDING_INSTALL_KEY, PENDING_INSTALL_MAX_AGE_MS } from '../constants';
 import { installProjectDependencies } from '../project/dependencyInstaller';
 import type { FolderValidator } from '../types/project';
+import { showInfo } from '../utils/notifications';
 import { WORKSPACE_TRUST, whenTrusted, type TrustGate } from '../utils/trust';
 
 /** A project the wizard created; its dependencies are installed once VS Code has opened it */
@@ -35,7 +36,7 @@ export async function resumePendingInstall(state: vscode.Memento, validator: Fol
     await state.update(PENDING_INSTALL_KEY, undefined);
 
     if (!trust.isTrusted) {
-        vscode.window.showInformationMessage(`${MANIFEST.displayName}: Trust ${folder.name} to install its dependencies.`);
+        showInfo(`Trust ${folder.name} to install its dependencies.`);
         await whenTrusted(trust);
     }
     await installProjectDependencies(folder, validator);

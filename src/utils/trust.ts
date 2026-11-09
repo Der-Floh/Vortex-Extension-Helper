@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { MANIFEST } from '../constants';
+import { showWarning } from './notifications';
 
 /** Workspace trust behind an interface, so tests can run the trust checks without changing VS Code's state */
 export interface TrustGate {
@@ -26,7 +26,7 @@ export function requireTrust(gate: TrustGate = WORKSPACE_TRUST): boolean {
     if (gate.isTrusted) {
         return true;
     }
-    vscode.window.showWarningMessage(`${MANIFEST.displayName}: ${new UntrustedWorkspaceError().message}`, 'Manage Workspace Trust')
+    showWarning(new UntrustedWorkspaceError().message, 'Manage Workspace Trust')
         .then(choice => choice && vscode.commands.executeCommand('workbench.trust.manage'));
     return false;
 }

@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import type { VortexDiagnostics } from '../checks/vortexDiagnostics';
-import { MANIFEST, PACKAGE_JSON_PATH } from '../constants';
+import { PACKAGE_JSON_PATH } from '../constants';
 import { installDevDependency } from '../project/npmTasks';
 import { addExternal, dependencyNames, readExternals } from '../project/projectManifest';
 import { pickVortexProject } from '../project/projectPicker';
@@ -10,6 +10,7 @@ import { errorMessage } from '../utils/errors';
 import { findOpenDocument, readCurrentText, readTextIfExists, writeText } from '../utils/fileSystemUtils';
 import { parseLenientJson } from '../utils/jsonUtils';
 import { Logger } from '../utils/logger';
+import { showError, showInfo, showWarning } from '../utils/notifications';
 import { requireTrust } from '../utils/trust';
 
 const SAVE_AND_CONTINUE = 'Save and Continue';
@@ -35,7 +36,7 @@ export async function handleAddVortexLibrary(tracker: VortexWorkspaceTracker, di
 
     const originalText = await readTextIfExists(packageJsonUri);
     if (originalText === undefined) {
-        vscode.window.showErrorMessage(`${MANIFEST.displayName}: ${project.folder.name}/package.json can't be read.`);
+        showError(`${project.folder.name}/package.json can't be read.`);
         return;
     }
     const editedText = addExternal(originalText, library.name);
@@ -49,13 +50,13 @@ export async function handleAddVortexLibrary(tracker: VortexWorkspaceTracker, di
             await writeText(packageJsonUri, originalText);
         }
         Logger.error(`Failed to add ${library.name} to ${project.folder.uri.fsPath}: ${errorMessage(e)}`);
-        vscode.window.showErrorMessage(`${MANIFEST.displayName}: Failed to add ${library.name}. ${errorMessage(e)}`);
+        showError(`Failed to add ${library.name}. ${errorMessage(e)}`);
         return;
     } finally {
         await diagnostics.validateFolder(project.folder);
     }
 
-    vscode.window.showInformationMessage(`${MANIFEST.displayName}: Added ${library.name}. Rollup leaves its import to Vortex, which provides it at runtime.`);
+    showInfo(`Added ${library.name}. Rollup leaves its import to Vortex, which provides it at runtime.`);
 }
 
 async function pickLibrary(packageJsonText: string): Promise<VortexLibrary | undefined> {
@@ -83,6 +84,6 @@ async function saveOpenPackageJson(uri: vscode.Uri): Promise<boolean> {
     if (!document?.isDirty) {
         return true;
     }
-    const choice = await vscode.window.showWarningMessage(`${MANIFEST.displayName}: package.json has unsaved changes. npm rewrites it, so save it first.`, { modal: true }, SAVE_AND_CONTINUE);
+    const choice = await showWarning('package.json has unsaved changes. npm rewrites it, so save it first.', { modal: true }, SAVE_AND_CONTINUE);
     return choice === SAVE_AND_CONTINUE && await document.save();
 }

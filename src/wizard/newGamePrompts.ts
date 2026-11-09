@@ -1,8 +1,9 @@
 import * as vscode from 'vscode';
-import { MANIFEST, PLACEHOLDER_EXECUTABLE, PLACEHOLDER_STEAM_APP_ID, SETTING_AUTHOR } from '../constants';
+import { PLACEHOLDER_EXECUTABLE, PLACEHOLDER_STEAM_APP_ID, SETTING_AUTHOR } from '../constants';
 import { packageNameFor } from '../templates/packageJson';
 import { getTargetState, TargetNotEmptyError } from '../templates/projectWriter';
 import { errorMessage } from '../utils/errors';
+import { showWarning } from '../utils/notifications';
 import { pickNexusGame, type GameIdentity } from './gameQuickPick';
 import {
     normalizeExecutable,
@@ -42,7 +43,7 @@ export async function pickGameIdentity(games: Promise<NexusGame[] | Error> | und
         () => games
     );
     if (loaded instanceof Error) {
-        vscode.window.showWarningMessage(`${MANIFEST.displayName}: ${errorMessage(loaded)} Enter the game by hand instead.`);
+        showWarning(`${errorMessage(loaded)} Enter the game by hand instead.`);
         return askGameManually();
     }
     const picked = await pickNexusGame(loaded);

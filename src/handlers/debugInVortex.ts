@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { readProjectSnapshot } from '../checks/projectSnapshot';
 import { buildBlockers, validateProject } from '../checks/validation';
 import type { VortexDiagnostics } from '../checks/vortexDiagnostics';
-import { COMMAND_DEBUG_IN_VORTEX, COMMAND_RUN_WORKSPACE_CHECKS, DEBUG_PORT_DEFAULT, JS_DEBUG_EXTENSION_ID, MANIFEST, PACKAGE_JSON_PATH, SETTING_VORTEX_EXECUTABLE, SETTING_VORTEX_PLUGINS_FOLDER } from '../constants';
+import { COMMAND_DEBUG_IN_VORTEX, COMMAND_RUN_WORKSPACE_CHECKS, DEBUG_PORT_DEFAULT, JS_DEBUG_EXTENSION_ID, PACKAGE_JSON_PATH, SETTING_VORTEX_EXECUTABLE, SETTING_VORTEX_PLUGINS_FOLDER } from '../constants';
 import { topLevelBreakpointHint } from '../debug/attachConfiguration';
 import { runDebugFlow, type DebugFlowUi } from '../debug/debugFlow';
 import { PluginsFolderMissingError, resolveVortexInstall, VortexNotFoundError } from '../debug/vortexInstall';
@@ -14,6 +14,7 @@ import { commandLabel } from '../utils/commandLabel';
 import { getConfiguration } from '../utils/configuration';
 import { errorMessage } from '../utils/errors';
 import { Logger } from '../utils/logger';
+import { showError, showInfo, showWarning, withNotificationProgress } from '../utils/notifications';
 import { requireTrust } from '../utils/trust';
 
 const ATTACH_ONLY = 'Attach Only';
@@ -40,7 +41,7 @@ export async function handleDebugInVortex(tracker: VortexWorkspaceTracker, diagn
         return;
     }
     if (vscode.extensions.getExtension(JS_DEBUG_EXTENSION_ID) === undefined) {
-        vscode.window.showErrorMessage(`${MANIFEST.displayName}: The built-in JavaScript Debugger is disabled, and it is what attaches to Vortex's renderer.`, 'Manage Extensions')
+        showError('The built-in JavaScript Debugger is disabled, and it is what attaches to Vortex\'s renderer.', 'Manage Extensions')
             .then(choice => choice && vscode.commands.executeCommand('workbench.extensions.action.showEnabledExtensions'));
         return;
     }
@@ -59,17 +60,14 @@ export async function handleDebugInVortex(tracker: VortexWorkspaceTracker, diagn
     }
 
     try {
-        const outcome = await vscode.window.withProgress(
-            { location: vscode.ProgressLocation.Notification, title: `${MANIFEST.displayName}: Debugging ${project.folder.name}`, cancellable: true },
-            (progress, token) => runDebugFlow({
-                project,
-                install,
-                port,
-                ui: WINDOW_UI,
-                report: message => progress.report({ message }),
-                token,
-            })
-        );
+        const outcome = await withNotificationProgress(`Debugging ${project.folder.name}`, (progress, token) => runDebugFlow({
+            project,
+            install,
+            port,
+            ui: WINDOW_UI,
+            report: message => progress.report({ message }),
+            token,
+        }), true);
         reportOutcome(outcome);
     } catch (e) {
         if (e instanceof vscode.CancellationError) {
@@ -79,7 +77,7 @@ export async function handleDebugInVortex(tracker: VortexWorkspaceTracker, diagn
         const message = e instanceof MissingScriptError
             ? `${errorMessage(e)} A generated project builds with "rollup -c rollup.config.mjs && node .vscode/build/populate-pack.mjs".`
             : errorMessage(e);
-        vscode.window.showErrorMessage(`${MANIFEST.displayName}: ${message}`, OPEN_LOG)
+        showError(message, OPEN_LOG)
             .then(choice => choice === OPEN_LOG && Logger.show());
     } finally {
         await diagnostics.validateFolder(project.folder);
@@ -91,8 +89,8 @@ const WINDOW_UI: DebugFlowUi = {
         const detail = stale
             ? 'The build Vortex has loaded differs from the one that was just built, so breakpoints may bind to the wrong lines. Restarting Vortex loads the current build.'
             : 'Vortex already has the current build loaded.';
-        const choice = await vscode.window.showInformationMessage(
-            `${MANIFEST.displayName}: Vortex is already running with its debugging port open.`,
+        const choice = await showInfo(
+            'Vortex is already running with its debugging port open.',
             { modal: true, detail },
             ATTACH_ONLY,
             REBUILD_AND_RESTART
@@ -103,8 +101,8 @@ const WINDOW_UI: DebugFlowUi = {
         return choice === REBUILD_AND_RESTART ? 'restart' : 'cancel';
     },
     async confirmVortexRunning() {
-        const choice = await vscode.window.showWarningMessage(
-            `${MANIFEST.displayName}: Vortex is running without its debugging port.`,
+        const choice = await showWarning(
+            'Vortex is running without its debugging port.',
             {
                 modal: true,
                 detail: 'A release Vortex only opens the port when it is started with it, and a second instance quits instead of opening a window. Vortex has to be closed first.',
@@ -118,8 +116,8 @@ const WINDOW_UI: DebugFlowUi = {
         return choice === RETRY ? 'retry' : 'cancel';
     },
     async confirmForceClose() {
-        const choice = await vscode.window.showWarningMessage(
-            `${MANIFEST.displayName}: Vortex didn't close.`,
+        const choice = await showWarning(
+            'Vortex didn\'t close.',
             {
                 modal: true,
                 detail: 'Forcing it can lose whatever Vortex hasn\'t written to its state database yet. It may also be minimized to the tray rather than closed.',
@@ -137,8 +135,8 @@ async function reportBlockers(project: VortexProject, diagnostics: VortexDiagnos
         return true;
     }
     await diagnostics.validateFolder(project.folder);
-    const choice = await vscode.window.showWarningMessage(
-        `${MANIFEST.displayName}: ${project.folder.name} can't be built yet.`,
+    const choice = await showWarning(
+        `${project.folder.name} can't be built yet.`,
         { modal: true, detail: blockers.map(finding => `• ${finding.message}`).join('\n') },
         OPEN_PACKAGE_JSON,
         commandLabel(COMMAND_RUN_WORKSPACE_CHECKS)
@@ -161,7 +159,7 @@ async function resolveInstall() {
             const remote = vscode.env.remoteName === undefined
                 ? ''
                 : ' This window is connected to a remote, so Vortex has to be installed where the extension host runs.';
-            const choice = await vscode.window.showErrorMessage(`${MANIFEST.displayName}: ${errorMessage(e)}${remote}`, BROWSE, OPEN_LOG);
+            const choice = await showError(`${errorMessage(e)}${remote}`, BROWSE, OPEN_LOG);
             if (choice === BROWSE) {
                 await browseForVortex();
             } else if (choice === OPEN_LOG) {
@@ -170,7 +168,7 @@ async function resolveInstall() {
             return undefined;
         }
         const buttons = e instanceof PluginsFolderMissingError ? [OPEN_SETTINGS] : [];
-        const choice = await vscode.window.showErrorMessage(`${MANIFEST.displayName}: ${errorMessage(e)}`, ...buttons);
+        const choice = await showError(errorMessage(e), ...buttons);
         if (choice === OPEN_SETTINGS) {
             await vscode.commands.executeCommand('workbench.action.openSettings', SETTING_VORTEX_PLUGINS_FOLDER);
         }
@@ -187,7 +185,7 @@ async function browseForVortex(): Promise<void> {
     });
     if (picked?.[0]) {
         await vscode.workspace.getConfiguration().update(SETTING_VORTEX_EXECUTABLE, picked[0].fsPath, vscode.ConfigurationTarget.Global);
-        vscode.window.showInformationMessage(`${MANIFEST.displayName}: Vortex set to ${picked[0].fsPath}. Run the command again.`);
+        showInfo(`Vortex set to ${picked[0].fsPath}. Run the command again.`);
     }
 }
 
@@ -197,14 +195,14 @@ async function confirmTopLevelBreakpoints(project: VortexProject): Promise<boole
     if (hint === undefined) {
         return true;
     }
-    const choice = await vscode.window.showWarningMessage(`${MANIFEST.displayName}: That breakpoint won't hit.`, { modal: true, detail: hint }, CONTINUE);
+    const choice = await showWarning('That breakpoint won\'t hit.', { modal: true, detail: hint }, CONTINUE);
     return choice === CONTINUE;
 }
 
 function reportOutcome(outcome: Awaited<ReturnType<typeof runDebugFlow>>): void {
     if (outcome.kind === 'removed') {
-        vscode.window.showWarningMessage(
-            `${MANIFEST.displayName}: Vortex deleted ${outcome.packId} while it started, so there was nothing to debug.`,
+        showWarning(
+            `Vortex deleted ${outcome.packId} while it started, so there was nothing to debug.`,
             {
                 modal: true,
                 detail: 'Vortex finishes a removal from its Extensions page at its next start, and it also drops an extension whose id a bundled one already claims. The removal is done now, so running this again deploys it for good; pick "Rebuild and Restart Vortex" when it asks about the running Vortex.',
@@ -213,9 +211,9 @@ function reportOutcome(outcome: Awaited<ReturnType<typeof runDebugFlow>>): void 
         ).then(choice => choice === TRY_AGAIN && vscode.commands.executeCommand(COMMAND_DEBUG_IN_VORTEX));
     } else if (outcome.kind === 'attached') {
         const prefix = outcome.reused ? `Attached to the running Vortex (${outcome.packId}).` : `Attached to Vortex (${outcome.packId}).`;
-        vscode.window.showInformationMessage(`${MANIFEST.displayName}: ${prefix} Breakpoints in callbacks hit; the module top level and main() already ran while Vortex started.`);
+        showInfo(`${prefix} Breakpoints in callbacks hit; the module top level and main() already ran while Vortex started.`);
     } else if (outcome.kind === 'failed') {
-        vscode.window.showErrorMessage(`${MANIFEST.displayName}: ${outcome.reason}`, OPEN_LOG)
+        showError(outcome.reason, OPEN_LOG)
             .then(choice => choice === OPEN_LOG && Logger.show());
     }
 }
