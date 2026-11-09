@@ -26,7 +26,7 @@ function snapshot(overrides: Partial<ProjectSnapshot> & { manifest?: Record<stri
         packageLockText: lockFor(manifest),
         vortexApiManifestText: VORTEX_API_MANIFEST,
         installedTypeScriptVersion: '6.0.3',
-        constants: { path: 'src/common/constants.ts', text: 'export const GAME = { steamAppId: \'123\', exe: \'Game.exe\' };' },
+        constants: { path: 'src/common/constants.ts', text: 'export const GAME = { steamAppId: \'123\', exePath: \'Game.exe\' };' },
         ...overrides,
     };
 }
@@ -164,7 +164,7 @@ suite('Validation', () => {
     });
 
     test('placeholders in the constants are noted at each occurrence', () => {
-        const text = 'steamAppId: \'STEAM_APP_ID\',\nexe: \'GAME_EXECUTABLE.exe\',\nrequiredFiles: [\'GAME_EXECUTABLE.exe\'],';
+        const text = 'steamAppId: \'STEAM_APP_ID\',\nexePath: \'GAME_EXECUTABLE.exe\',\nrequiredFilePaths: [\'GAME_EXECUTABLE.exe\'],';
         const findings = validateProject(snapshot({ constants: { path: 'src/common/constants.ts', text } }));
         assert.deepStrictEqual(findings.map(finding => [finding.rule, finding.file, anchoredText(text, finding)]), [
             ['placeholder', 'src/common/constants.ts', 'STEAM_APP_ID'],

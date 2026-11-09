@@ -5,6 +5,7 @@ import { isRecord, parseLenientJson } from './jsonUtils';
 import { runTask } from './taskUtils';
 
 const INSTALL_DEPS_SCRIPT = 'install-deps';
+const BUILD_SCRIPT = 'build';
 
 interface RequiredTool {
     readonly command: string;
@@ -16,6 +17,13 @@ const REQUIRED_TOOLS: readonly RequiredTool[] = [
     { command: 'node', name: 'Node.js', reason: 'Node.js and npm install the dependencies and build the extension' },
     { command: 'git', name: 'Git', reason: 'npm installs vortex-api from GitHub' },
 ];
+
+export class MissingScriptError extends Error {
+    constructor(readonly script: string, folderName: string) {
+        super(`${folderName} has no "${script}" script in its package.json.`);
+        this.name = 'MissingScriptError';
+    }
+}
 
 export class CommandFailedError extends Error {
     constructor(readonly commandLine: string, readonly exitCode: number | undefined, hint?: string) {
@@ -45,15 +53,23 @@ export async function installDevDependency(folder: vscode.WorkspaceFolder, sourc
     await runNpm(folder, ['install', '--ignore-scripts', '--save-dev', source]);
 }
 
-async function runNpm(folder: vscode.WorkspaceFolder, args: string[], hint?: string): Promise<void> {
+/** Runs `npm run build`, which bundles src into .pack and generates .pack/info.json */
+export async function runBuild(folder: vscode.WorkspaceFolder, token?: vscode.CancellationToken): Promise<void> {
+    if (!await hasScript(folder, BUILD_SCRIPT)) {
+        throw new MissingScriptError(BUILD_SCRIPT, folder.name);
+    }
+    await runNpm(folder, ['run', BUILD_SCRIPT], undefined, token);
+}
+
+async function runNpm(folder: vscode.WorkspaceFolder, args: string[], hint?: string, token?: vscode.CancellationToken): Promise<void> {
     const commandLine = ['npm', ...args].join(' ');
-    const exitCode = await runTask(folder, commandLine, new vscode.ShellExecution('npm', args), { reveal: vscode.TaskRevealKind.Always });
+    const exitCode = await runTask(folder, commandLine, new vscode.ShellExecution('npm', args), { reveal: vscode.TaskRevealKind.Always, token });
     if (exitCode !== 0) {
         throw new CommandFailedError(commandLine, exitCode, ['See the terminal for npm\'s output.', hint].filter(Boolean).join(' '));
     }
 }
 
-async function hasScript(folder: vscode.WorkspaceFolder, script: string): Promise<boolean> {
+export async function hasScript(folder: vscode.WorkspaceFolder, script: string): Promise<boolean> {
     const text = await readTextIfExists(vscode.Uri.joinPath(folder.uri, PACKAGE_JSON_PATH));
     const manifest = text === undefined ? undefined : parseLenientJson(text);
     return isRecord(manifest) && isRecord(manifest.scripts) && typeof manifest.scripts[script] === 'string';

@@ -4,7 +4,7 @@ import { SNIPPETS_TS } from '../../utils/snippetsTs';
 suite('Snippets', () => {
     test('no snippet uses the patterns of the old template', () => {
         for (const [label, snippet] of Object.entries(SNIPPETS_TS)) {
-            assert.ok(!/bluebird|Bloodstained|substr\(|findByAppId\(\[/.test(snippet.body), label);
+            assert.ok(!/bluebird|Bloodstained|substr\(|findByAppId\(\[|\bGAME\.(exe|modsDir|requiredFiles)\b/.test(snippet.body), label);
             assert.ok(snippet.description, label);
         }
     });

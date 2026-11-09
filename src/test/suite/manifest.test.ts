@@ -3,6 +3,7 @@ import pkg from '../../../package.json';
 import {
     COMMAND_ADD_VORTEX_LIBRARY,
     COMMAND_CREATE_MISSING_FILES,
+    COMMAND_DEBUG_IN_VORTEX,
     COMMAND_INSTALL_DEPENDENCIES,
     COMMAND_NEW_GAME_EXTENSION,
     COMMAND_OPEN_DOCUMENTATION,
@@ -13,7 +14,7 @@ import {
 suite('Manifest', () => {
     test('the command constants match the contributed order', () => {
         assert.deepStrictEqual(
-            [COMMAND_NEW_GAME_EXTENSION, COMMAND_INSTALL_DEPENDENCIES, COMMAND_CREATE_MISSING_FILES, COMMAND_RUN_WORKSPACE_CHECKS, COMMAND_OPEN_DOCUMENTATION, COMMAND_ADD_VORTEX_LIBRARY],
+            [COMMAND_NEW_GAME_EXTENSION, COMMAND_INSTALL_DEPENDENCIES, COMMAND_CREATE_MISSING_FILES, COMMAND_RUN_WORKSPACE_CHECKS, COMMAND_OPEN_DOCUMENTATION, COMMAND_ADD_VORTEX_LIBRARY, COMMAND_DEBUG_IN_VORTEX],
             [
                 'vortexHelper.newGameSupportExtension',
                 'vortexHelper.setupVortexApi',
@@ -21,6 +22,7 @@ suite('Manifest', () => {
                 'vortexHelper.runWorkspaceChecks',
                 'vortexHelper.openDocumentation',
                 'vortexHelper.addVortexLibrary',
+                'vortexHelper.debugInVortex',
             ]
         );
     });
@@ -38,6 +40,7 @@ suite('Manifest', () => {
             [COMMAND_CREATE_MISSING_FILES]: CONTEXT_IS_VORTEX_WORKSPACE,
             [COMMAND_RUN_WORKSPACE_CHECKS]: 'workspaceFolderCount > 0',
             [COMMAND_ADD_VORTEX_LIBRARY]: `${CONTEXT_IS_VORTEX_WORKSPACE} && isWorkspaceTrusted`,
+            [COMMAND_DEBUG_IN_VORTEX]: `${CONTEXT_IS_VORTEX_WORKSPACE} && isWorkspaceTrusted`,
         });
     });
 

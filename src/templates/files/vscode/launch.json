@@ -1,0 +1,36 @@
+{
+	// Debugging this extension: press F5. The prelaunch step builds it, copies the build into
+	// Vortex's plugins folder and starts Vortex with its DevTools port open; this attaches to
+	// Vortex's renderer, which is where a game extension runs.
+	//
+	// Breakpoints hit in the callbacks main() registers: findGame, prepareForModding,
+	// queryModPath, executable, testSupported and install. They do not hit in the top level of
+	// src/index.ts or in main() itself, because Vortex requires the extension while it starts,
+	// before a debugger can attach. Vortex loads extensions once, so a code change needs
+	// another F5 rather than just a rebuild.
+	//
+	// The override below is the source map prefix rollup.config.mjs builds from this project's
+	// folder name, which ${workspaceFolderBasename} resolves to as well, so neither has to be
+	// kept in step by hand.
+	"version": "0.2.0",
+	"configurations": [
+		{
+			"name": "Debug in Vortex",
+			"type": "chrome",
+			"request": "attach",
+			"address": "127.0.0.1",
+			"port": {{debugPort}},
+			"timeout": 30000,
+			// Vortex's splash screen is attachable too, so this names the main window. There is no
+			// slash before index.html on purpose: the debugger turns a file url into a path first,
+			// and on Windows that path has backslashes, so "*/index.html" would match nothing.
+			"urlFilter": "*index.html",
+			"webRoot": "${workspaceFolder}",
+			"sourceMaps": true,
+			"sourceMapPathOverrides": {
+				"${workspaceFolderBasename}:///*": "${workspaceFolder}/*"
+			},
+			"preLaunchTask": "Build+Deploy+Start Vortex"
+		}
+	]
+}

@@ -1,8 +1,10 @@
 import * as assert from 'assert';
+import { DEBUG_PORT_DEFAULT } from '../../constants';
 import { buildPackageJson } from '../../templates/packageJson';
 import { GENERATED_FILES, renderProject, restorableOutputs, unrestorablePaths } from '../../templates/registry';
 import { commentText, jsStringBody, renderTemplate, restoreValues } from '../../templates/render';
 import type { GeneratedOutput, ProjectValues } from '../../types/project';
+import { parseLenientJson } from '../../utils/jsonUtils';
 import { TS_FIXTURE_VALUES } from '../fixtures/createFixtureWorkspace';
 
 const ROOT_PATHS = [
@@ -13,8 +15,12 @@ const ROOT_PATHS = [
     'README.md',
     '.vscode/tasks.json',
     '.vscode/settings.json',
+    '.vscode/launch.json',
     '.vscode/build/populate-pack.mjs',
     '.vscode/build/package-zip.mjs',
+    '.vscode/build/deploy-to-vortex.mjs',
+    '.vscode/build/start-vortex.mjs',
+    '.vscode/build/vortex-paths.mjs',
     'assets/gameart.jpg',
 ];
 const SOURCE_MODULES = [
@@ -58,7 +64,7 @@ suite('Templates', () => {
         assert.ok(!commentText('a */ b').includes('*/'));
     });
 
-    test('generates the 19 files of the standard', () => {
+    test('generates the 23 files of the standard', () => {
         assert.deepStrictEqual([...outputs.map(output => output.path)].sort(), [...ROOT_PATHS, ...SOURCE_MODULES].sort());
     });
 
@@ -89,7 +95,7 @@ suite('Templates', () => {
     });
 
     test('.vscode json files are indented with tabs', () => {
-        for (const path of ['.vscode/tasks.json', '.vscode/settings.json']) {
+        for (const path of ['.vscode/tasks.json', '.vscode/settings.json', '.vscode/launch.json']) {
             assert.ok(textOf(outputs, path).split('\n').slice(1, -2).every(line => line === '' || line.startsWith('\t')), path);
         }
     });
@@ -120,6 +126,31 @@ suite('Templates', () => {
         assert.deepStrictEqual(unrestorablePaths(), ['package.json', 'README.md', 'src/common/constants.ts']);
     });
 
+    test('the debug files agree on the name and the port that tie them together', () => {
+        const manifest = JSON.parse(textOf(outputs, 'package.json'));
+        const launch = parseLenientJson(textOf(outputs, '.vscode/launch.json')) as { configurations: Record<string, unknown>[] };
+        const configuration = launch.configurations[0];
+        // nothing of package.json is copied in here: both sides derive the prefix from the folder
+        assert.deepStrictEqual({ ...configuration.sourceMapPathOverrides as Record<string, string> }, { '${workspaceFolderBasename}:///*': '${workspaceFolder}/*' });
+        assert.strictEqual(configuration.port, DEBUG_PORT_DEFAULT);
+        // A preLaunchTask VS Code can't resolve from tasks.json makes it ask every task provider
+        // for that label, which is slow and silently does nothing when none of them has it
+        const tasks = parseLenientJson(textOf(outputs, '.vscode/tasks.json')) as { tasks: { label: string; type: string }[] };
+        const prelaunch = tasks.tasks.find(task => task.label === configuration.preLaunchTask);
+        assert.ok(prelaunch, `${String(configuration.preLaunchTask)} is declared in tasks.json`);
+        assert.strictEqual(prelaunch.type, 'shell', 'a shell task needs no task provider to resolve');
+        assert.ok(textOf(outputs, '.vscode/build/start-vortex.mjs').includes(`?? ${DEBUG_PORT_DEFAULT}`));
+        assert.strictEqual(manifest.scripts.deploy, 'node .vscode/build/deploy-to-vortex.mjs');
+        assert.ok(manifest.scripts.debug.includes('deploy-to-vortex.mjs') || manifest.scripts.debug.includes('npm run deploy'));
+        assert.ok(manifest.scripts.debug.includes('start-vortex.mjs'));
+    });
+
+    test('the source map prefix the debugger maps back is the one rollup writes', () => {
+        const config = textOf(outputs, 'rollup.config.mjs');
+        assert.ok(config.includes('basename(dirname(fileURLToPath(import.meta.url)))'), 'rollup derives the prefix from the project folder');
+        assert.ok(!config.includes('${pkg.name}:///'), 'and not from a name that can be edited independently');
+    });
+
     test('a game that is not on Nexus Mods yet leaves gameId out', () => {
         const manifest = JSON.parse(textOf(renderProject({ ...TS_FIXTURE_VALUES, nexusGameId: undefined }), 'package.json'));
         assert.ok(!('gameId' in manifest));
@@ -129,7 +160,18 @@ suite('Templates', () => {
         const values: ProjectValues = { ...TS_FIXTURE_VALUES, steamAppId: '', executable: undefined };
         const constants = textOf(renderProject(values), 'src/common/constants.ts');
         assert.ok(constants.includes('steamAppId: \'STEAM_APP_ID\''));
-        assert.ok(constants.includes('exe: \'GAME_EXECUTABLE.exe\''));
+        assert.ok(constants.includes('exePath: \'GAME_EXECUTABLE.exe\''));
+    });
+
+    test('the game paths are named as paths, so nobody mistakes them for bare file names', () => {
+        const constants = textOf(outputs, 'src/common/constants.ts');
+        for (const key of ['exePath', 'modsPath', 'requiredFilePaths']) {
+            assert.ok(constants.includes(`${key}:`), `GAME defines ${key}`);
+        }
+        // the registerGame fields keep Vortex's own names; only GAME's keys changed
+        for (const output of outputs.filter(candidate => typeof candidate.content === 'string')) {
+            assert.ok(!/\bGAME\.(exe|modsDir|requiredFiles)\b/.test(output.content as string), `${output.path} uses an old GAME key`);
+        }
     });
 
     test('names with quotes stay valid code', () => {
@@ -137,10 +179,8 @@ suite('Templates', () => {
         assert.ok(constants.includes('name: \'Baldur\\\'s Gate 3\''));
     });
 
-    test('the rollup config reads the externals and the source map prefix from package.json', () => {
-        const config = textOf(outputs, 'rollup.config.mjs');
-        assert.ok(config.includes('...(pkg.vortex?.externals ?? [])'));
-        assert.ok(config.includes('const SOURCE_URL_PREFIX = `${pkg.name}:///`;'));
+    test('the rollup config reads the externals from package.json', () => {
+        assert.ok(textOf(outputs, 'rollup.config.mjs').includes('...(pkg.vortex?.externals ?? [])'));
     });
 
     test('the .gitignore ignores .pack but none of the reference project\'s personal folders', () => {

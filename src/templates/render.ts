@@ -1,4 +1,4 @@
-import { PLACEHOLDER_EXECUTABLE, PLACEHOLDER_STEAM_APP_ID } from '../constants';
+import { DEBUG_PORT_DEFAULT, PLACEHOLDER_EXECUTABLE, PLACEHOLDER_STEAM_APP_ID } from '../constants';
 import type { ProjectValues } from '../types/project';
 import { packageNameFor } from '../utils/naming';
 
@@ -43,7 +43,8 @@ export function placeholderValues(values: ProjectValues): TemplateValues {
         gameIdValue: jsStringBody(values.gameId),
         gameNameValue: jsStringBody(values.gameName),
         steamAppIdValue: jsStringBody(values.steamAppId || PLACEHOLDER_STEAM_APP_ID),
-        exeValue: jsStringBody(values.executable || PLACEHOLDER_EXECUTABLE),
+        exePathValue: jsStringBody(values.executable || PLACEHOLDER_EXECUTABLE),
+        debugPort: String(DEBUG_PORT_DEFAULT),
     };
 }
 
@@ -52,5 +53,6 @@ export function restoreValues(packageName: string, gameName: string): TemplateVa
     return {
         packageName,
         gameName: commentText(gameName),
+        debugPort: String(DEBUG_PORT_DEFAULT),
     };
 }

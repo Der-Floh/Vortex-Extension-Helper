@@ -1,7 +1,15 @@
 /**
- * {{gameName}} as registered with Vortex. Paths are relative to the game folder.
+ * {{gameName}} as registered with Vortex. Every `...Path` is relative to the
+ * folder `findGame` returns, which is the store's install folder. Some games sit
+ * in a subfolder of it, and then each path needs that subfolder in front, for
+ * example `Game/Game.exe`.
  *
- * `modsDir` is where mods are installed. Change it to the folder the game loads
+ * `requiredFilePaths` is how Vortex verifies the folder: when one of them is
+ * missing the game counts as not discovered and never appears in Vortex, with
+ * nothing reported anywhere. It is the first thing to check if the game doesn't
+ * show up after installing the extension.
+ *
+ * `modsPath` is where mods are installed. Change it to the folder the game loads
  * mods from.
  */
 export const GAME = {
@@ -9,10 +17,10 @@ export const GAME = {
     name: '{{gameNameValue}}',
     logo: 'gameart.jpg',
     steamAppId: '{{steamAppIdValue}}',
-    exe: '{{exeValue}}',
-    modsDir: 'mods',
-    requiredFiles: [
-        '{{exeValue}}',
+    exePath: '{{exePathValue}}',
+    modsPath: 'mods',
+    requiredFilePaths: [
+        '{{exePathValue}}',
     ],
 };
 

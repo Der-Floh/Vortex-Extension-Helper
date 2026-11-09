@@ -8,12 +8,16 @@ export const COMMAND_CREATE_MISSING_FILES = pkg.contributes.commands[2].command;
 export const COMMAND_RUN_WORKSPACE_CHECKS = pkg.contributes.commands[3].command;
 export const COMMAND_OPEN_DOCUMENTATION = pkg.contributes.commands[4].command;
 export const COMMAND_ADD_VORTEX_LIBRARY = pkg.contributes.commands[5].command;
+export const COMMAND_DEBUG_IN_VORTEX = pkg.contributes.commands[6].command;
 
 export const CONFIG_SECTION = 'vortexHelper';
 export const CONFIG_USE_NEXUS_API = 'useNexusApi';
 export const CONFIG_AUTHOR = 'author';
 export const CONFIG_ASK_STEAM_APP_ID = 'askSteamAppId';
 export const CONFIG_ASK_EXECUTABLE = 'askExecutable';
+export const CONFIG_VORTEX_EXECUTABLE = 'vortexExecutable';
+export const CONFIG_VORTEX_PLUGINS_FOLDER = 'vortexPluginsFolder';
+export const CONFIG_DEBUG_PORT = 'debugPort';
 
 export const CONTEXT_IS_VORTEX_WORKSPACE = 'vortexHelper.isVortexWorkspace';
 export const DIAGNOSTIC_COLLECTION = 'vortexHelper';
@@ -38,8 +42,17 @@ export const PLACEHOLDER_EXECUTABLE = 'GAME_EXECUTABLE.exe';
 
 /** The versions `resolve-version` of the shared release workflow accepts */
 export const VERSION_PATTERN = /^[0-9]+(\.[0-9]+){1,3}(-[0-9A-Za-z.-]+)?$/;
-/** A leading letter keeps `<name>-support:///` a valid URL scheme for the source maps */
+/** A leading letter keeps the generated folder a valid URL scheme for the source map prefix */
 export const SHORT_NAME_PATTERN = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
 
 export const REVALIDATE_DEBOUNCE_MS = 300;
 export const TASK_START_TIMEOUT_MS = 10_000;
+
+/** The contributed default, so the templates and the command can't disagree on the port */
+export const DEBUG_PORT_DEFAULT = pkg.contributes.configuration.properties['vortexHelper.debugPort'].default;
+export const VORTEX_READY_TIMEOUT_MS = 90_000;
+export const VORTEX_PROBE_INTERVAL_MS = 250;
+export const VORTEX_QUIT_TIMEOUT_MS = 15_000;
+/** js-debug's Chrome attach, which is how the Vortex renderer is reached */
+export const DEBUG_SESSION_TYPE = 'chrome';
+export const JS_DEBUG_EXTENSION_ID = 'ms-vscode.js-debug';

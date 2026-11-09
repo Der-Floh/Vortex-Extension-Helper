@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import {
     COMMAND_ADD_VORTEX_LIBRARY,
     COMMAND_CREATE_MISSING_FILES,
+    COMMAND_DEBUG_IN_VORTEX,
     COMMAND_INSTALL_DEPENDENCIES,
     COMMAND_NEW_GAME_EXTENSION,
     COMMAND_OPEN_DOCUMENTATION,
@@ -10,6 +11,7 @@ import {
 } from './constants';
 import { handleAddVortexLibrary } from './handlers/addVortexLibrary';
 import { handleCreateMissingFiles } from './handlers/createMissingFiles';
+import { handleDebugInVortex } from './handlers/debugInVortex';
 import { handleInstallDependencies } from './handlers/installDependencies';
 import { handleNewGameExtension } from './handlers/newGameExtension';
 import { handleOpenDocumentation } from './handlers/openDocumentation';
@@ -18,6 +20,7 @@ import { errorMessage } from './utils/errors';
 import { Logger } from './utils/logger';
 import { resumePendingInstall } from './utils/pendingInstall';
 import { COMPLETION_SELECTOR, VortexCompletionProvider } from './utils/vortexCompletionProvider';
+import { watchVortexDebugSessions } from './utils/vortexDebugWatcher';
 import { VortexDiagnostics } from './utils/vortexDiagnostics';
 import { VortexWorkspaceTracker } from './utils/vortexWorkspaceTracker';
 
@@ -30,13 +33,15 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(
         tracker,
         diagnostics,
+        watchVortexDebugSessions(),
         vscode.languages.registerCompletionItemProvider(COMPLETION_SELECTOR, new VortexCompletionProvider(tracker)),
         vscode.commands.registerCommand(COMMAND_NEW_GAME_EXTENSION, () => handleNewGameExtension(context.globalState)),
         vscode.commands.registerCommand(COMMAND_INSTALL_DEPENDENCIES, () => handleInstallDependencies(tracker, diagnostics)),
         vscode.commands.registerCommand(COMMAND_CREATE_MISSING_FILES, () => handleCreateMissingFiles(tracker, diagnostics)),
         vscode.commands.registerCommand(COMMAND_RUN_WORKSPACE_CHECKS, () => handleRunWorkspaceChecks(tracker, diagnostics)),
         vscode.commands.registerCommand(COMMAND_OPEN_DOCUMENTATION, handleOpenDocumentation),
-        vscode.commands.registerCommand(COMMAND_ADD_VORTEX_LIBRARY, () => handleAddVortexLibrary(tracker, diagnostics))
+        vscode.commands.registerCommand(COMMAND_ADD_VORTEX_LIBRARY, () => handleAddVortexLibrary(tracker, diagnostics)),
+        vscode.commands.registerCommand(COMMAND_DEBUG_IN_VORTEX, () => handleDebugInVortex(tracker, diagnostics))
     );
 
     tracker.initialize()

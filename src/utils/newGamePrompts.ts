@@ -71,11 +71,11 @@ export async function askSteamAppId(): Promise<string | undefined> {
     return value?.trim();
 }
 
-/** @returns The executable relative to the game folder, an empty string for the placeholder, or undefined if cancelled */
+/** @returns The executable's path relative to the game folder, an empty string for the placeholder, or undefined if cancelled */
 export async function askExecutable(gameName: string): Promise<string | undefined> {
     const value = await vscode.window.showInputBox({
-        title: 'Game executable',
-        prompt: `The executable, relative to the game folder. Leave it empty to write the placeholder ${PLACEHOLDER_EXECUTABLE}.`,
+        title: 'Game executable path',
+        prompt: `The executable's path, relative to the folder the store installs the game in. Include any subfolder, for example Game/Game.exe. Leave it empty to write the placeholder ${PLACEHOLDER_EXECUTABLE}.`,
         value: suggestExecutable(gameName),
         placeHolder: PLACEHOLDER_EXECUTABLE,
         ignoreFocusOut: true,

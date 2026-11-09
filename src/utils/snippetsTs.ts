@@ -13,9 +13,9 @@ import { fs, log, selectors, types, util } from 'vortex-api';`,
     name: '\${2:Game Name}',
     logo: 'gameart.jpg',
     steamAppId: '\${3:000000}',
-    exe: '\${4:Game.exe}',
-    modsDir: '\${5:mods}',
-    requiredFiles: [
+    exePath: '\${4:Game.exe}',
+    modsPath: '\${5:mods}',
+    requiredFilePaths: [
         '\${4:Game.exe}',
     ],
 };
@@ -36,10 +36,10 @@ export const NOTIFICATION_IDS = {
     mergeMods: true,
     queryPath: util.toBlue(findGame),
     supportedTools: [],
-    queryModPath: () => GAME.modsDir,
+    queryModPath: () => GAME.modsPath,
     logo: GAME.logo,
-    executable: () => GAME.exe,
-    requiredFiles: GAME.requiredFiles,
+    executable: () => GAME.exePath,
+    requiredFiles: GAME.requiredFilePaths,
     setup: util.toBlue((discovery: types.IDiscoveryResult) => prepareForModding(discovery, context.api)),
     environment: { SteamAPPId: GAME.steamAppId },
     details: { steamAppId: GAME.steamAppId },
@@ -72,7 +72,7 @@ export async function findGame(): Promise<string> {
  * @returns A promise that resolves once preparation is complete.
  */
 export async function prepareForModding(discovery: types.IDiscoveryResult, api: types.IExtensionApi): Promise<void> {
-    await ensureWritableDirOrWarn(api, resolveGamePath(discovery, GAME.modsDir));$0
+    await ensureWritableDirOrWarn(api, resolveGamePath(discovery, GAME.modsPath));$0
 }`,
     },
     tregisterInstaller: {

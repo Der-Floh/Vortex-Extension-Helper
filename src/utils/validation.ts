@@ -22,6 +22,8 @@ export const PACKAGE_LOCK_PATH = 'package-lock.json';
 
 /** The fields populate-pack.mjs reads; it fails the build when one is missing or empty */
 const REQUIRED_FIELDS = ['name', 'displayName', 'author', 'version', 'description', 'gameart', 'gameId'];
+/** The rules whose findings make `npm run build` fail, so a debug run reports them before it builds */
+const BUILD_BLOCKING_RULES = new Set(['package-json-syntax', 'required-field', 'gameart-extension', 'gameart-missing', 'required-file']);
 const LINUX_ROLLUP_PACKAGE = '@rollup/rollup-linux-x64-gnu';
 const NEXUS_VORTEX_API = /Nexus-Mods\/vortex-api(\.git)?(#.*)?$/i;
 const EXACT_VERSION = /^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/;
@@ -70,6 +72,11 @@ export function validateProject(snapshot: ProjectSnapshot): Finding[] {
         ...runtimeExternalFindings(context),
         ...placeholderFindings(snapshot),
     ];
+}
+
+/** @returns The findings that will make `npm run build` fail */
+export function buildBlockers(findings: readonly Finding[]): Finding[] {
+    return findings.filter(finding => finding.severity === 'error' && BUILD_BLOCKING_RULES.has(finding.rule));
 }
 
 function syntaxFindings(root: Node | undefined, errors: readonly ParseError[]): Finding[] {
@@ -245,7 +252,7 @@ function placeholderFindings(snapshot: ProjectSnapshot): Finding[] {
     }
     const placeholders = [
         { token: PLACEHOLDER_STEAM_APP_ID, message: `Replace the placeholder ${PLACEHOLDER_STEAM_APP_ID} with the game's Steam app id.` },
-        { token: PLACEHOLDER_EXECUTABLE, message: `Replace the placeholder ${PLACEHOLDER_EXECUTABLE} with the game's executable, relative to the game folder.` },
+        { token: PLACEHOLDER_EXECUTABLE, message: `Replace the placeholder ${PLACEHOLDER_EXECUTABLE} with the path of the game's executable, relative to the game folder.` },
     ];
     return placeholders.flatMap(({ token, message }) =>
         [...constants.text.matchAll(new RegExp(`(['"\`])${escapeRegExp(token)}\\1`, 'g'))].map(match => ({

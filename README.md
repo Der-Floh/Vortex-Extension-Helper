@@ -15,6 +15,7 @@ Create, check and extend game support extensions for [Vortex](https://www.nexusm
 - **Live checks** — missing fields, a wrong game art, missing generated files, a mismatched `@types/bluebird`, TypeScript 7 and lockfiles that break CI are reported in the Problems panel while you edit
 - **Create Missing Files** — restores generated files you deleted, without touching any file that exists
 - **Vortex libraries** — installs the libraries Vortex provides at runtime, such as `winapi-bindings`, and tells rollup to leave their imports to Vortex
+- **Real debugging** — one command builds the extension, deploys it to Vortex, starts Vortex with its DevTools port open and attaches, so breakpoints in your TypeScript hit while the code runs inside Vortex
 - **Snippets** — `t…` snippets for registering the game, installers, deployment events, start hooks and toolbar actions, offered only in the `src` folder of a game extension
 - **Multi-root aware** — every workspace folder is checked on its own, without prompts
 
@@ -40,8 +41,12 @@ A generated extension looks like this:
 <short name>-support/
 ├── .vscode/
 │   ├── build/
+│   │   ├── deploy-to-vortex.mjs  # copies .pack/ into Vortex's plugins folder
 │   │   ├── package-zip.mjs       # zips .pack/ into dist/<name>-<version>.zip
-│   │   └── populate-pack.mjs     # copies the game art, generates .pack/info.json
+│   │   ├── populate-pack.mjs     # copies the game art, generates .pack/info.json
+│   │   ├── start-vortex.mjs      # starts Vortex with its DevTools port, waits for its window
+│   │   └── vortex-paths.mjs      # where Vortex is and where it loads extensions from
+│   ├── launch.json               # F5 builds, deploys, starts Vortex and attaches
 │   ├── settings.json
 │   └── tasks.json                # Ctrl+Shift+B runs npm run build
 ├── assets/
@@ -75,6 +80,7 @@ A generated extension looks like this:
 | **Vortex: Run Workspace Checks**         | Checks every game extension in the workspace and writes the findings to the log                          |
 | **Vortex: Open Extension Documentation** | Opens the Nexus Mods guide to creating a game extension                                                  |
 | **Vortex: Add Vortex Library**           | Installs a library Vortex provides at runtime and adds it to `vortex.externals` (needs a trusted workspace) |
+| **Vortex: Debug in Vortex**              | Builds the extension, deploys it to Vortex, starts Vortex with its DevTools port open and attaches the debugger (needs a trusted workspace) |
 
 A workspace folder is a game extension when its `package.json` has `vortex-api` in `devDependencies`. Commands that work on one extension use the extension of the active editor, or ask when several are open.
 
@@ -135,7 +141,10 @@ Type `t` in a source file of a game extension:
 | `vortexHelper.useNexusApi`   | `true`  | Pick the game from the public Nexus Mods game list. When off, or when the list can't be loaded, the wizard asks for the name and the Nexus Mods domain. |
 | `vortexHelper.author`        | `""`    | Author written to `package.json` of new extensions. When empty, the wizard asks for it.                                                           |
 | `vortexHelper.askSteamAppId` | `true`  | Ask for the game's Steam app id. When off, the placeholder `STEAM_APP_ID` is written, which the checks report.                                    |
-| `vortexHelper.askExecutable` | `true`  | Ask for the game's executable. When off, the placeholder `GAME_EXECUTABLE.exe` is written.                                                        |
+| `vortexHelper.askExecutable` | `true`  | Ask for the path of the game's executable, including any subfolder. When off, the placeholder `GAME_EXECUTABLE.exe` is written.                                                        |
+| `vortexHelper.vortexExecutable` | `""` | Path to `Vortex.exe` for **Vortex: Debug in Vortex**. When empty, the standard install locations are searched.                                 |
+| `vortexHelper.vortexPluginsFolder` | `""` | Folder the extension is deployed to for debugging. When empty, Vortex's own `plugins` folder is used.                                      |
+| `vortexHelper.debugPort`     | `9222`  | Port Vortex opens its DevTools protocol on. Generated projects write this default into their `.vscode/launch.json`.                              |
 
 ---
 

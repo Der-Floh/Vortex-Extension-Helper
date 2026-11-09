@@ -14,5 +14,5 @@ import { resolveGamePath } from '../detection/discovery';
  * @returns A promise that resolves once preparation is complete.
  */
 export async function prepareForModding(discovery: types.IDiscoveryResult, api: types.IExtensionApi): Promise<void> {
-    await ensureWritableDirOrWarn(api, resolveGamePath(discovery, GAME.modsDir));
+    await ensureWritableDirOrWarn(api, resolveGamePath(discovery, GAME.modsPath));
 }

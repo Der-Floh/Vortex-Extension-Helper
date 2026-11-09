@@ -35,7 +35,8 @@ suite('Rollup externals', () => {
         for (const name of ['winapi-bindings', 'vortex-api', 'bluebird', 'fs', 'node:fs']) {
             assert.ok(config.external.includes(name), name);
         }
-        assert.strictEqual(config.output.sourcemapPathTransform('..\\..\\src\\index.ts'), 'tsgame-support:///src/index.ts');
+        // the prefix follows the project folder, which is what ${workspaceFolderBasename} resolves to
+        assert.strictEqual(config.output.sourcemapPathTransform('..\\..\\src\\index.ts'), `${path.basename(folder)}:///src/index.ts`);
     });
 });
 

@@ -26,6 +26,8 @@ const BUILD_TIMEOUT_MS = 10 * 60_000;
         await npm(folder, 'run', 'package');
 
         assertPack(folder, TS_FIXTURE_VALUES);
+        assertDebuggable(folder);
+        await assertDeploys(folder, TS_FIXTURE_VALUES);
         assert.ok(fs.readFileSync(path.join(folder, 'package-lock.json'), 'utf8').includes('node_modules/@rollup/rollup-linux-x64-gnu'));
         const workspaceFolder: vscode.WorkspaceFolder = { uri: vscode.Uri.file(folder), name: path.basename(folder), index: 0 };
         const errors = validateProject(await readProjectSnapshot({ folder: workspaceFolder }))
@@ -36,6 +38,32 @@ const BUILD_TIMEOUT_MS = 10 * 60_000;
 
 async function npm(cwd: string, ...args: string[]): Promise<void> {
     await runShell(['npm', ...args].join(' '), { cwd, maxBuffer: 64 * 1024 * 1024 });
+}
+
+/** The inline source map the debugger reads out of the built bundle */
+function packSourceMap(folder: string): { sources: string[]; sourcesContent: (string | null)[] } {
+    const bundle = fs.readFileSync(path.join(folder, '.pack', 'index.js'), 'utf8');
+    const payload = bundle.split('sourceMappingURL=data:application/json;charset=utf-8;base64,')[1];
+    assert.ok(payload, 'the bundle carries an inline source map');
+    return JSON.parse(Buffer.from(payload.trim(), 'base64').toString('utf8'));
+}
+
+/** The debugger maps breakpoints back through `<project folder>:///`, which rollup has to write */
+function assertDebuggable(folder: string): void {
+    const scheme = path.basename(folder);
+    const map = packSourceMap(folder);
+    assert.ok(map.sources.includes(`${scheme}:///src/index.ts`), `sources are prefixed ${scheme}:/// (got ${map.sources[0]})`);
+    assert.deepStrictEqual(map.sources.filter(source => !source.startsWith(`${scheme}:///`)), []);
+    assert.deepStrictEqual(map.sourcesContent.filter(content => content === null), []);
+}
+
+async function assertDeploys(folder: string, values: ProjectValues): Promise<void> {
+    const plugins = path.join(folder, '..', 'build-plugins');
+    await runShell('npm run deploy', { cwd: folder, env: { ...process.env, VORTEX_PLUGINS: plugins }, maxBuffer: 64 * 1024 * 1024 });
+    const deployed = path.join(plugins, `${values.shortName}-support`);
+    for (const name of ['index.js', 'info.json', 'gameart.jpg']) {
+        assert.ok(fs.existsSync(path.join(deployed, name)), `${name} was deployed`);
+    }
 }
 
 function assertPack(folder: string, values: ProjectValues): void {

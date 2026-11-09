@@ -16,8 +16,12 @@ import instructions from './files/src/installers/instructions.ts?text';
 import mods from './files/src/installers/mods.ts?text';
 import prepareForModding from './files/src/setup/prepareForModding.ts?text';
 import tsconfig from './files/tsconfig.json?text';
+import deployToVortex from './files/vscode/build/deploy-to-vortex.mjs?text';
 import packageZip from './files/vscode/build/package-zip.mjs?text';
 import populatePack from './files/vscode/build/populate-pack.mjs?text';
+import startVortex from './files/vscode/build/start-vortex.mjs?text';
+import vortexPaths from './files/vscode/build/vortex-paths.mjs?text';
+import vscodeLaunch from './files/vscode/launch.json?text';
 import vscodeSettings from './files/vscode/settings.json?text';
 import vscodeTasks from './files/vscode/tasks.json?text';
 
@@ -48,8 +52,12 @@ export const GENERATED_FILES: readonly GeneratedFileSpec[] = Object.freeze([
     spec('README.md', readme, { templated: true, restorable: false }),
     spec('.vscode/tasks.json', vscodeTasks),
     spec('.vscode/settings.json', vscodeSettings),
+    spec('.vscode/launch.json', vscodeLaunch, { templated: true }),
     spec('.vscode/build/populate-pack.mjs', populatePack, { required: 'error' }),
     spec('.vscode/build/package-zip.mjs', packageZip, { required: 'error' }),
+    spec('.vscode/build/deploy-to-vortex.mjs', deployToVortex),
+    spec('.vscode/build/start-vortex.mjs', startVortex, { templated: true }),
+    spec('.vscode/build/vortex-paths.mjs', vortexPaths),
     spec(GAMEART_PATH, gameart),
     spec('src/index.ts', indexSource, { templated: true, required: 'error' }),
     spec(CONSTANTS_PATH, constants, { templated: true, restorable: false }),

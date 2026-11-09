@@ -2,7 +2,7 @@
     "name": "vortex-extension-helper",
     "displayName": "Vortex Extension Helper",
     "description": "Helps create and validate Vortex game support extensions",
-    "version": "0.2.0",
+    "version": "0.3.5",
     "publisher": "der-floh",
     "license": "MIT",
     "icon": "assets/vortex-icon-x512.png",
@@ -86,6 +86,11 @@
                 "command": "vortexHelper.addVortexLibrary",
                 "title": "Add Vortex Library",
                 "category": "Vortex"
+            },
+            {
+                "command": "vortexHelper.debugInVortex",
+                "title": "Debug in Vortex",
+                "category": "Vortex"
             }
         ],
         "menus": {
@@ -104,6 +109,10 @@
                 },
                 {
                     "command": "vortexHelper.addVortexLibrary",
+                    "when": "vortexHelper.isVortexWorkspace && isWorkspaceTrusted"
+                },
+                {
+                    "command": "vortexHelper.debugInVortex",
                     "when": "vortexHelper.isVortexWorkspace && isWorkspaceTrusted"
                 }
             ]
@@ -133,7 +142,25 @@
                     "type": "boolean",
                     "default": true,
                     "order": 3,
-                    "markdownDescription": "Ask for the game's executable, relative to the game folder, when creating a game support extension. When off, the placeholder `GAME_EXECUTABLE.exe` is used."
+                    "markdownDescription": "Ask for the path of the game's executable, relative to the game folder and including any subfolder, when creating a game support extension. When off, the placeholder `GAME_EXECUTABLE.exe` is used."
+                },
+                "vortexHelper.vortexExecutable": {
+                    "type": "string",
+                    "default": "",
+                    "order": 4,
+                    "markdownDescription": "Path to `Vortex.exe` that **Vortex: Debug in Vortex** starts. When empty, the standard install locations are searched."
+                },
+                "vortexHelper.vortexPluginsFolder": {
+                    "type": "string",
+                    "default": "",
+                    "order": 5,
+                    "markdownDescription": "Folder the extension is deployed to for debugging. When empty, Vortex's own `plugins` folder is used, `%APPDATA%\\Vortex\\plugins` on Windows. Set this when Vortex runs with a different user data folder, otherwise the deployed extension is the one Vortex doesn't load."
+                },
+                "vortexHelper.debugPort": {
+                    "type": "number",
+                    "default": 9222,
+                    "order": 6,
+                    "markdownDescription": "Port Vortex opens its DevTools protocol on for **Vortex: Debug in Vortex**. Generated projects write this default into `.vscode/launch.json`, where `VORTEX_DEBUG_PORT` can override it; changing it here only affects the command."
                 }
             }
         }

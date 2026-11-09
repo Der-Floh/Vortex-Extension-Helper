@@ -15,6 +15,24 @@
 				"reveal": "always",
 				"panel": "shared"
 			}
+		},
+		{
+			// The preLaunchTask of .vscode/launch.json. A shell task rather than an "npm" one so
+			// that VS Code resolves it from this file, instead of asking every task provider it
+			// has for a task with this label.
+			"label": "Build+Deploy+Start Vortex",
+			"detail": "npm run debug",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"debug"
+			],
+			"problemMatcher": "$tsc",
+			"presentation": {
+				"reveal": "always",
+				"panel": "shared"
+			}
 		}
 	]
 }

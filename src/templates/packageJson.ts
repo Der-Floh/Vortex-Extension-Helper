@@ -21,6 +21,8 @@ const SCRIPTS: Readonly<Record<string, string>> = {
     build: 'rollup -c rollup.config.mjs && node .vscode/build/populate-pack.mjs',
     watch: 'rollup -c rollup.config.mjs --watch',
     package: 'npm run typecheck && npm run build && node .vscode/build/package-zip.mjs',
+    deploy: 'node .vscode/build/deploy-to-vortex.mjs',
+    debug: 'npm run build && npm run deploy && node .vscode/build/start-vortex.mjs',
     'install-deps': 'npm install --ignore-scripts',
     'install-vortex-api': `npm install --ignore-scripts --save-dev ${VORTEX_API_SOURCE}`,
 };
