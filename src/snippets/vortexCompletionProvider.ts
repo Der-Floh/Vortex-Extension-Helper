@@ -1,11 +1,10 @@
 import * as vscode from 'vscode';
+import { SOURCE_FOLDER } from '../constants';
 import type { VortexWorkspaceTracker } from '../project/vortexWorkspaceTracker';
 import type { Snippet } from '../types/snippet';
-import { SNIPPETS_TS } from './snippets';
+import { SNIPPETS } from './snippets';
 
 export const COMPLETION_SELECTOR: vscode.DocumentSelector = [{ language: 'typescript' }];
-
-const SOURCE_FOLDER = 'src';
 
 /** Offers the snippets only in the src folder of a detected project */
 export class VortexCompletionProvider implements vscode.CompletionItemProvider {
@@ -16,7 +15,7 @@ export class VortexCompletionProvider implements vscode.CompletionItemProvider {
         if (!project || document.languageId !== 'typescript' || !isInside(vscode.Uri.joinPath(project.folder.uri, SOURCE_FOLDER), document.uri)) {
             return undefined;
         }
-        return Object.entries(SNIPPETS_TS).map(([label, snippet]) => toCompletionItem(label, snippet));
+        return Object.entries(SNIPPETS).map(([label, snippet]) => toCompletionItem(label, snippet));
     }
 }
 

@@ -1,12 +1,12 @@
 import * as vscode from 'vscode';
-import { VORTEX_PROBE_INTERVAL_MS, VORTEX_QUIT_TIMEOUT_MS } from '../constants';
+import { PACK_ENTRY, VORTEX_PROBE_INTERVAL_MS, VORTEX_QUIT_TIMEOUT_MS } from '../constants';
 import { runBuild } from '../project/npmTasks';
 import type { VortexProject } from '../types/project';
 import { fileExists, saveDirtyDocuments } from '../utils/fileSystemUtils';
 import { Logger } from '../utils/logger';
 import { vortexAttachConfiguration } from './attachConfiguration';
 import { HTTP_CDP, type CdpProbe, waitForPageTarget } from './cdpProbe';
-import { deployPack, isDeployedCurrent, PACK_ENTRY, readPackId } from './packDeployment';
+import { deployPack, isDeployedCurrent, readPackId } from './packDeployment';
 import type { VortexInstall } from './vortexInstall';
 import { debugArguments, requestVortexClose, SYSTEM_LAUNCHER, type VortexLauncher } from './vortexLauncher';
 

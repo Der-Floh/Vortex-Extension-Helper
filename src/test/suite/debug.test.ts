@@ -1,7 +1,7 @@
 import * as assert from 'assert';
 import * as path from 'path';
 import * as vscode from 'vscode';
-import { buildBlockers, validateProject, type ProjectSnapshot } from '../../checks/validation';
+import { buildBlockers, validateProject } from '../../checks/validation';
 import { DEBUG_PORT_DEFAULT, DEBUG_SESSION_TYPE } from '../../constants';
 import { topLevelBreakpointHint, vortexAttachConfiguration } from '../../debug/attachConfiguration';
 import { CdpTimeoutError, ForeignPortError, pickPageTarget, waitForPageTarget, type CdpProbe, type CdpTarget } from '../../debug/cdpProbe';
@@ -11,7 +11,7 @@ import { deployPack, InvalidPackIdError, isDeployedCurrent, PackMissingError, re
 import { defaultPluginsFolder, vortexExeCandidates, vortexUserDataFolder } from '../../debug/vortexInstall';
 import { debugArguments, type LaunchedVortex, type VortexLauncher } from '../../debug/vortexLauncher';
 import { renderProject, requiredFiles } from '../../templates/registry';
-import type { Finding, VortexProject } from '../../types/project';
+import type { Finding, ProjectSnapshot, VortexProject } from '../../types/project';
 import { copyDirectoryContents, emptyDirectory, fileExists, writeText } from '../../utils/fileSystemUtils';
 import { TS_FIXTURE_VALUES } from '../fixtures/createFixtureWorkspace';
 

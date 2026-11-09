@@ -1,8 +1,9 @@
 import * as vscode from 'vscode';
-import { PACKAGE_JSON_PATH } from '../templates/registry';
+import { PACKAGE_JSON_PATH } from '../constants';
 import { readTextIfExists } from '../utils/fileSystemUtils';
-import { isRecord, parseLenientJson } from '../utils/jsonUtils';
+import { parseLenientJson } from '../utils/jsonUtils';
 import { runTask } from '../utils/taskUtils';
+import { declaresScript } from './projectManifest';
 
 const INSTALL_DEPS_SCRIPT = 'install-deps';
 const BUILD_SCRIPT = 'build';
@@ -69,8 +70,7 @@ async function runNpm(folder: vscode.WorkspaceFolder, args: string[], hint?: str
     }
 }
 
-export async function hasScript(folder: vscode.WorkspaceFolder, script: string): Promise<boolean> {
+async function hasScript(folder: vscode.WorkspaceFolder, script: string): Promise<boolean> {
     const text = await readTextIfExists(vscode.Uri.joinPath(folder.uri, PACKAGE_JSON_PATH));
-    const manifest = text === undefined ? undefined : parseLenientJson(text);
-    return isRecord(manifest) && isRecord(manifest.scripts) && typeof manifest.scripts[script] === 'string';
+    return text !== undefined && declaresScript(parseLenientJson(text), script);
 }

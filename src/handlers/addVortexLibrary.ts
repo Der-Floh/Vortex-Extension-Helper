@@ -1,15 +1,14 @@
 import * as vscode from 'vscode';
 import type { VortexDiagnostics } from '../checks/vortexDiagnostics';
-import { MANIFEST } from '../constants';
+import { MANIFEST, PACKAGE_JSON_PATH } from '../constants';
 import { installDevDependency } from '../project/npmTasks';
-import { addExternal, readExternals } from '../project/projectManifest';
+import { addExternal, dependencyNames, readExternals } from '../project/projectManifest';
 import { pickVortexProject } from '../project/projectPicker';
 import { VORTEX_LIBRARIES, type VortexLibrary } from '../project/vortexLibraries';
 import type { VortexWorkspaceTracker } from '../project/vortexWorkspaceTracker';
-import { PACKAGE_JSON_PATH } from '../templates/registry';
 import { errorMessage } from '../utils/errors';
 import { findOpenDocument, readCurrentText, readTextIfExists, writeText } from '../utils/fileSystemUtils';
-import { isRecord, parseLenientJson } from '../utils/jsonUtils';
+import { parseLenientJson } from '../utils/jsonUtils';
 import { Logger } from '../utils/logger';
 import { requireTrust } from '../utils/trust';
 
@@ -86,14 +85,4 @@ async function saveOpenPackageJson(uri: vscode.Uri): Promise<boolean> {
     }
     const choice = await vscode.window.showWarningMessage(`${MANIFEST.displayName}: package.json has unsaved changes. npm rewrites it, so save it first.`, { modal: true }, SAVE_AND_CONTINUE);
     return choice === SAVE_AND_CONTINUE && await document.save();
-}
-
-function dependencyNames(manifest: unknown): Set<string> {
-    if (!isRecord(manifest)) {
-        return new Set();
-    }
-    return new Set(['devDependencies', 'dependencies'].flatMap(field => {
-        const dependencies = manifest[field];
-        return isRecord(dependencies) ? Object.keys(dependencies) : [];
-    }));
 }

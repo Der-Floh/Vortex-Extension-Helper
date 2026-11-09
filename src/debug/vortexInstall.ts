@@ -1,5 +1,6 @@
 import * as path from 'path';
 import * as vscode from 'vscode';
+import { SETTING_VORTEX_EXECUTABLE, SETTING_VORTEX_PLUGINS_FOLDER } from '../constants';
 import type { HelperConfiguration } from '../utils/configuration';
 import { fileExists } from '../utils/fileSystemUtils';
 
@@ -12,15 +13,15 @@ export interface VortexInstall {
 export class VortexNotFoundError extends Error {
     constructor(readonly candidates: readonly string[]) {
         super(candidates.length === 1
-            ? `${candidates[0]} doesn't exist. Set vortexHelper.vortexExecutable to the Vortex you want to debug against.`
-            : 'No Vortex installation was found. Set vortexHelper.vortexExecutable to the Vortex you want to debug against.');
+            ? `${candidates[0]} doesn't exist. Set ${SETTING_VORTEX_EXECUTABLE} to the Vortex you want to debug against.`
+            : `No Vortex installation was found. Set ${SETTING_VORTEX_EXECUTABLE} to the Vortex you want to debug against.`);
         this.name = 'VortexNotFoundError';
     }
 }
 
 export class PluginsFolderMissingError extends Error {
     constructor(readonly folder: vscode.Uri) {
-        super(`${folder.fsPath} doesn't exist, so Vortex has probably never run on this machine. Start Vortex once, or set vortexHelper.vortexPluginsFolder.`);
+        super(`${folder.fsPath} doesn't exist, so Vortex has probably never run on this machine. Start Vortex once, or set ${SETTING_VORTEX_PLUGINS_FOLDER}.`);
         this.name = 'PluginsFolderMissingError';
     }
 }

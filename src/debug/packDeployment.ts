@@ -1,10 +1,8 @@
 import * as vscode from 'vscode';
+import { PACK_DIR, PACK_ENTRY, PACK_INFO } from '../constants';
 import { copyDirectoryContents, emptyDirectory, fileExists, readTextIfExists } from '../utils/fileSystemUtils';
 import { isRecord, parseLenientJson } from '../utils/jsonUtils';
 
-export const PACK_DIR = '.pack';
-const PACK_INFO = 'info.json';
-export const PACK_ENTRY = 'index.js';
 /** vscode.Uri.joinPath resolves `..`, so an id out of info.json has to be checked before it names a folder */
 const PACK_ID_PATTERN = /^[a-z0-9][a-z0-9._-]*$/i;
 

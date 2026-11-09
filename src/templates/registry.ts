@@ -1,4 +1,4 @@
-import { GAMEART_PATH } from '../constants';
+import { CONSTANTS_PATH, ENTRY_PATH, GAMEART_PATH, PACKAGE_JSON_PATH } from '../constants';
 import type { GeneratedOutput, ProjectValues, Severity } from '../types/project';
 import { buildPackageJson } from './packageJson';
 import { placeholderValues, renderTemplate, type TemplateValues } from './render';
@@ -24,9 +24,6 @@ import vortexPaths from './files/vscode/build/vortex-paths.mjs?text';
 import vscodeLaunch from './files/vscode/launch.json?text';
 import vscodeSettings from './files/vscode/settings.json?text';
 import vscodeTasks from './files/vscode/tasks.json?text';
-
-export const PACKAGE_JSON_PATH = 'package.json';
-export const CONSTANTS_PATH = 'src/common/constants.ts';
 
 export interface GeneratedFileSpec {
     readonly path: string;
@@ -59,7 +56,7 @@ export const GENERATED_FILES: readonly GeneratedFileSpec[] = Object.freeze([
     spec('.vscode/build/start-vortex.mjs', startVortex, { templated: true }),
     spec('.vscode/build/vortex-paths.mjs', vortexPaths),
     spec(GAMEART_PATH, gameart),
-    spec('src/index.ts', indexSource, { templated: true, required: 'error' }),
+    spec(ENTRY_PATH, indexSource, { templated: true, required: 'error' }),
     spec(CONSTANTS_PATH, constants, { templated: true, restorable: false }),
     spec('src/common/files.ts', commonFiles),
     spec('src/common/notifications.ts', notifications),

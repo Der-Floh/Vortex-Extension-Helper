@@ -19,6 +19,11 @@ export const CONFIG_VORTEX_EXECUTABLE = 'vortexExecutable';
 export const CONFIG_VORTEX_PLUGINS_FOLDER = 'vortexPluginsFolder';
 export const CONFIG_DEBUG_PORT = 'debugPort';
 
+export const SETTING_AUTHOR = `${CONFIG_SECTION}.${CONFIG_AUTHOR}`;
+export const SETTING_VORTEX_EXECUTABLE = `${CONFIG_SECTION}.${CONFIG_VORTEX_EXECUTABLE}`;
+export const SETTING_VORTEX_PLUGINS_FOLDER = `${CONFIG_SECTION}.${CONFIG_VORTEX_PLUGINS_FOLDER}`;
+export const SETTING_DEBUG_PORT = `${CONFIG_SECTION}.${CONFIG_DEBUG_PORT}`;
+
 export const CONTEXT_IS_VORTEX_WORKSPACE = 'vortexHelper.isVortexWorkspace';
 export const DIAGNOSTIC_COLLECTION = 'vortexHelper';
 export const DIAGNOSTIC_SOURCE = 'Vortex';
@@ -31,10 +36,21 @@ export const NEXUS_GAMES_URL = 'https://data.nexusmods.com/file/nexus-data/games
 export const NEXUS_FETCH_TIMEOUT_MS = 15_000;
 export const DOCUMENTATION_URL = 'https://github.com/Nexus-Mods/Vortex/wiki/MODDINGWIKI-Developers-General-Creating-a-game-extension';
 
+export const PACKAGE_JSON_PATH = 'package.json';
+export const PACKAGE_LOCK_PATH = 'package-lock.json';
+export const SOURCE_FOLDER = 'src';
+export const ENTRY_PATH = 'src/index.ts';
+export const CONSTANTS_PATH = 'src/common/constants.ts';
+export const GAMEART_PATH = 'assets/gameart.jpg';
+/** A root info.json marks the layout from before package.json held the metadata */
+export const LEGACY_INFO_JSON = 'info.json';
+export const PACK_DIR = '.pack';
+export const PACK_INFO = 'info.json';
+export const PACK_ENTRY = 'index.js';
+
 export const PROJECT_VERSION = '1.0.0';
 export const PACKAGE_NAME_SUFFIX = '-support';
 export const DISPLAY_NAME_PREFIX = 'Game: ';
-export const GAMEART_PATH = 'assets/gameart.jpg';
 export const GAMEART_EXTENSION = '.jpg';
 export const VORTEX_API_SOURCE = 'git+https://github.com/Nexus-Mods/vortex-api.git';
 export const PLACEHOLDER_STEAM_APP_ID = 'STEAM_APP_ID';
@@ -49,7 +65,7 @@ export const REVALIDATE_DEBOUNCE_MS = 300;
 export const TASK_START_TIMEOUT_MS = 10_000;
 
 /** The contributed default, so the templates and the command can't disagree on the port */
-export const DEBUG_PORT_DEFAULT = pkg.contributes.configuration.properties['vortexHelper.debugPort'].default;
+export const DEBUG_PORT_DEFAULT = pkg.contributes.configuration.properties[SETTING_DEBUG_PORT].default;
 export const VORTEX_READY_TIMEOUT_MS = 90_000;
 export const VORTEX_PROBE_INTERVAL_MS = 250;
 export const VORTEX_QUIT_TIMEOUT_MS = 15_000;

@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { MANIFEST, PLACEHOLDER_EXECUTABLE, PLACEHOLDER_STEAM_APP_ID } from '../constants';
+import { MANIFEST, PLACEHOLDER_EXECUTABLE, PLACEHOLDER_STEAM_APP_ID, SETTING_AUTHOR } from '../constants';
 import { packageNameFor } from '../templates/packageJson';
 import { getTargetState, TargetNotEmptyError } from '../templates/projectWriter';
 import { errorMessage } from '../utils/errors';
@@ -87,7 +87,7 @@ export async function askExecutable(gameName: string): Promise<string | undefine
 export async function askAuthor(): Promise<string | undefined> {
     const value = await vscode.window.showInputBox({
         title: 'Author',
-        prompt: 'Written to package.json and shown in Vortex. Set vortexHelper.author to skip this question.',
+        prompt: `Written to package.json and shown in Vortex. Set ${SETTING_AUTHOR} to skip this question.`,
         ignoreFocusOut: true,
         validateInput: input => input.trim() ? undefined : 'Enter the author.',
     });

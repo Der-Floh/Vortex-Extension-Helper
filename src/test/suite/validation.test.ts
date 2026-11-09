@@ -1,7 +1,7 @@
 import * as assert from 'assert';
-import { validateProject, type ProjectSnapshot } from '../../checks/validation';
+import { validateProject } from '../../checks/validation';
 import { renderProject, requiredFiles } from '../../templates/registry';
-import type { Finding } from '../../types/project';
+import type { Finding, ProjectSnapshot } from '../../types/project';
 import { TS_FIXTURE_VALUES } from '../fixtures/createFixtureWorkspace';
 
 const WINAPI_BINDINGS = 'git+https://github.com/Nexus-Mods/node-winapi-bindings.git';

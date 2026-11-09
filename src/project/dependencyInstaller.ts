@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
-import type { VortexDiagnostics } from '../checks/vortexDiagnostics';
 import { COMMAND_INSTALL_DEPENDENCIES, MANIFEST } from '../constants';
+import type { FolderValidator } from '../types/project';
 import { errorMessage } from '../utils/errors';
 import { Logger } from '../utils/logger';
 import { ensureToolsAvailable, installDependencies } from './npmTasks';
@@ -8,7 +8,7 @@ import { ensureToolsAvailable, installDependencies } from './npmTasks';
 const RETRY = 'Retry';
 
 /** Checks the tools, installs the project's dependencies and reports the outcome */
-export async function installProjectDependencies(folder: vscode.WorkspaceFolder, diagnostics: VortexDiagnostics): Promise<boolean> {
+export async function installProjectDependencies(folder: vscode.WorkspaceFolder, validator: FolderValidator): Promise<boolean> {
     try {
         await vscode.window.withProgress(
             { location: vscode.ProgressLocation.Notification, title: `${MANIFEST.displayName}: Installing the dependencies of ${folder.name}…` },
@@ -25,6 +25,6 @@ export async function installProjectDependencies(folder: vscode.WorkspaceFolder,
             .then(choice => choice === RETRY && vscode.commands.executeCommand(COMMAND_INSTALL_DEPENDENCIES));
         return false;
     } finally {
-        await diagnostics.validateFolder(folder);
+        await validator.validateFolder(folder);
     }
 }

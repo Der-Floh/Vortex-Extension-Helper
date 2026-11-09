@@ -12,9 +12,14 @@ export function parseStrictJson(text: string): ParsedJson {
     return { root, errors };
 }
 
+/** Parses JSON leniently, returning the tree of whatever could be read, or undefined */
+export function parseLenientTree(text: string): Node | undefined {
+    return parseTree(text, [], { allowTrailingComma: true });
+}
+
 /** Parses JSON leniently, returning whatever could be read, or undefined */
 export function parseLenientJson(text: string): unknown {
-    const root = parseTree(text, [], { allowTrailingComma: true });
+    const root = parseLenientTree(text);
     return root ? getNodeValue(root) : undefined;
 }
 
@@ -24,11 +29,6 @@ export function describeParseError(error: ParseError): string {
 
 export function nodeAt(root: Node | undefined, path: readonly (string | number)[]): Node | undefined {
     return root ? findNodeAtLocation(root, [...path]) : undefined;
-}
-
-export function stringAt(root: Node | undefined, path: readonly (string | number)[]): string | undefined {
-    const node = nodeAt(root, path);
-    return node?.type === 'string' ? node.value as string : undefined;
 }
 
 /** The key node of a property, for anchoring a finding on the property name */

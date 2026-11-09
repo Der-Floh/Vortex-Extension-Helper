@@ -1,6 +1,6 @@
 import * as http from 'http';
 import * as vscode from 'vscode';
-import { VORTEX_PROBE_INTERVAL_MS, VORTEX_READY_TIMEOUT_MS } from '../constants';
+import { SETTING_DEBUG_PORT, VORTEX_PROBE_INTERVAL_MS, VORTEX_READY_TIMEOUT_MS } from '../constants';
 
 const REQUEST_TIMEOUT_MS = 3_000;
 const MAX_BODY_BYTES = 1024 * 1024;
@@ -10,6 +10,7 @@ const ATTACHABLE_TYPES = new Set(['page', 'iframe']);
 const SPLASH_WINDOW = /\/splash\.html(\?|$)/i;
 /** The window MainWindow loads, which is where extensions run */
 const MAIN_WINDOW = /\/index\.html(\?|$)/i;
+const NOT_DEVTOOLS = 'an HTTP server that doesn\'t speak the DevTools protocol';
 
 export interface CdpTarget {
     readonly id: string;
@@ -35,7 +36,7 @@ export interface CdpProbe {
 
 export class ForeignPortError extends Error {
     constructor(readonly port: number, detail: string) {
-        super(`Port ${port} is answering, but it is ${detail}, not Vortex. Set vortexHelper.debugPort to a free port.`);
+        super(`Port ${port} is answering, but it is ${detail}, not Vortex. Set ${SETTING_DEBUG_PORT} to a free port.`);
         this.name = 'ForeignPortError';
     }
 }
@@ -70,7 +71,7 @@ function requestJson(port: number, path: string): Promise<ProbeResult<unknown>> 
                 try {
                     resolve({ status: 'ok', value: JSON.parse(body) });
                 } catch {
-                    resolve({ status: 'foreign', detail: 'an HTTP server that doesn\'t speak the DevTools protocol' });
+                    resolve({ status: 'foreign', detail: NOT_DEVTOOLS });
                 }
             });
             response.on('error', () => resolve({ status: 'closed' }));
@@ -85,7 +86,7 @@ function asVersion(value: unknown): ProbeResult<CdpVersion> {
     const browser = (value as { Browser?: unknown } | undefined)?.Browser;
     return typeof browser === 'string'
         ? { status: 'ok', value: { browser } }
-        : { status: 'foreign', detail: 'an HTTP server that doesn\'t speak the DevTools protocol' };
+        : { status: 'foreign', detail: NOT_DEVTOOLS };
 }
 
 export const HTTP_CDP: CdpProbe = {
@@ -100,7 +101,7 @@ export const HTTP_CDP: CdpProbe = {
         }
         return Array.isArray(result.value)
             ? { status: 'ok', value: result.value as readonly CdpTarget[] }
-            : { status: 'foreign', detail: 'an HTTP server that doesn\'t speak the DevTools protocol' };
+            : { status: 'foreign', detail: NOT_DEVTOOLS };
     },
 };
 

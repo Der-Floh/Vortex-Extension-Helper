@@ -1,11 +1,11 @@
 import * as path from 'path';
 import * as vscode from 'vscode';
 import type { VortexDiagnostics } from '../checks/vortexDiagnostics';
-import { DISPLAY_NAME_PREFIX, GAMEART_EXTENSION, GAMEART_PATH, MANIFEST } from '../constants';
+import { DISPLAY_NAME_PREFIX, GAMEART_EXTENSION, GAMEART_PATH, MANIFEST, PACKAGE_JSON_PATH } from '../constants';
 import { pickVortexProject } from '../project/projectPicker';
 import type { VortexWorkspaceTracker } from '../project/vortexWorkspaceTracker';
 import { writeMissingFiles } from '../templates/projectWriter';
-import { PACKAGE_JSON_PATH, restorableOutputs, unrestorablePaths } from '../templates/registry';
+import { restorableOutputs, unrestorablePaths } from '../templates/registry';
 import { restoreValues } from '../templates/render';
 import type { GeneratedOutput } from '../types/project';
 import { errorMessage } from '../utils/errors';

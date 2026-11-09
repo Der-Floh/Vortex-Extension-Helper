@@ -32,6 +32,26 @@ export interface Finding {
     readonly length?: number;
 }
 
+/** Everything the rules read from a project, so validation needs no IO */
+export interface ProjectSnapshot {
+    readonly packageJsonText: string;
+    /** The required files that exist, relative to the project folder */
+    readonly existingFiles: ReadonlySet<string>;
+    readonly gameartExists: boolean;
+    readonly packageLockText?: string;
+    /** node_modules/vortex-api/package.json */
+    readonly vortexApiManifestText?: string;
+    /** The version in node_modules/typescript/package.json */
+    readonly installedTypeScriptVersion?: string;
+    /** src/common/constants.ts */
+    readonly constants?: { readonly path: string; readonly text: string };
+}
+
+/** Checks a project again after something changed it */
+export interface FolderValidator {
+    validateFolder(folder: vscode.WorkspaceFolder): Promise<void>;
+}
+
 export interface GeneratedOutput {
     /** Path relative to the project folder, with forward slashes */
     readonly path: string;

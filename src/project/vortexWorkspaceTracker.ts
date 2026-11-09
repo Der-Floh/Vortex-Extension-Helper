@@ -1,6 +1,5 @@
 import * as vscode from 'vscode';
-import { CONTEXT_IS_VORTEX_WORKSPACE, REVALIDATE_DEBOUNCE_MS } from '../constants';
-import { CONSTANTS_PATH, PACKAGE_JSON_PATH } from '../templates/registry';
+import { CONSTANTS_PATH, CONTEXT_IS_VORTEX_WORKSPACE, ENTRY_PATH, LEGACY_INFO_JSON, PACKAGE_JSON_PATH, PACKAGE_LOCK_PATH, REVALIDATE_DEBOUNCE_MS } from '../constants';
 import type { VortexProject } from '../types/project';
 import { errorMessage } from '../utils/errors';
 import { fileExists, readTextIfExists } from '../utils/fileSystemUtils';
@@ -8,12 +7,10 @@ import { parseLenientJson } from '../utils/jsonUtils';
 import { Logger } from '../utils/logger';
 import { isVortexManifest } from './projectManifest';
 
-const LEGACY_INFO_JSON = 'info.json';
-
 /** Root-level patterns only: a `**` pattern would fire for every file npm writes to node_modules */
 const WATCHED_PATTERNS = [
-    `{${PACKAGE_JSON_PATH},package-lock.json,${LEGACY_INFO_JSON},rollup.config.mjs,tsconfig.json}`,
-    'src/index.ts',
+    `{${PACKAGE_JSON_PATH},${PACKAGE_LOCK_PATH},${LEGACY_INFO_JSON},rollup.config.mjs,tsconfig.json}`,
+    ENTRY_PATH,
     CONSTANTS_PATH,
     '.vscode/build/*.mjs',
     'assets/**',

@@ -1,6 +1,6 @@
 import type { SnippetMap } from '../types/snippet';
 
-export const SNIPPETS_TS: SnippetMap = {
+export const SNIPPETS: SnippetMap = {
     tcommonImports: {
         description: 'Imports most game extension modules need',
         body: `import * as path from 'path';

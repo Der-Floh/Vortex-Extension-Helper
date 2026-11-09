@@ -1,13 +1,12 @@
 import * as vscode from 'vscode';
-import { DIAGNOSTIC_COLLECTION, DIAGNOSTIC_SOURCE, REVALIDATE_DEBOUNCE_MS } from '../constants';
+import { CONSTANTS_PATH, DIAGNOSTIC_COLLECTION, DIAGNOSTIC_SOURCE, PACKAGE_JSON_PATH, PACKAGE_LOCK_PATH, REVALIDATE_DEBOUNCE_MS } from '../constants';
 import type { FolderState, VortexWorkspaceTracker } from '../project/vortexWorkspaceTracker';
-import { CONSTANTS_PATH, PACKAGE_JSON_PATH } from '../templates/registry';
-import type { Finding, Severity, VortexProject } from '../types/project';
+import type { Finding, FolderValidator, ProjectSnapshot, Severity, VortexProject } from '../types/project';
 import { errorMessage } from '../utils/errors';
 import { offsetToPosition } from '../utils/jsonUtils';
 import { Logger } from '../utils/logger';
 import { readProjectSnapshot } from './projectSnapshot';
-import { PACKAGE_LOCK_PATH, validateProject, type ProjectSnapshot } from './validation';
+import { validateProject } from './validation';
 
 const SEVERITIES: Readonly<Record<Severity, vscode.DiagnosticSeverity>> = {
     error: vscode.DiagnosticSeverity.Error,
@@ -16,7 +15,7 @@ const SEVERITIES: Readonly<Record<Severity, vscode.DiagnosticSeverity>> = {
 };
 
 /** Shows the findings of every detected project as diagnostics and keeps them current */
-export class VortexDiagnostics implements vscode.Disposable {
+export class VortexDiagnostics implements vscode.Disposable, FolderValidator {
     private readonly _collection = vscode.languages.createDiagnosticCollection(DIAGNOSTIC_COLLECTION);
     /** The URIs that have diagnostics, per project folder, so they can be cleared */
     private readonly _reported = new Map<string, vscode.Uri[]>();

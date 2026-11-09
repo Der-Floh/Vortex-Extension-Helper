@@ -2,14 +2,13 @@ import * as vscode from 'vscode';
 import { readProjectSnapshot } from '../checks/projectSnapshot';
 import { buildBlockers, validateProject } from '../checks/validation';
 import type { VortexDiagnostics } from '../checks/vortexDiagnostics';
-import { COMMAND_DEBUG_IN_VORTEX, COMMAND_RUN_WORKSPACE_CHECKS, DEBUG_PORT_DEFAULT, JS_DEBUG_EXTENSION_ID, MANIFEST } from '../constants';
+import { COMMAND_DEBUG_IN_VORTEX, COMMAND_RUN_WORKSPACE_CHECKS, DEBUG_PORT_DEFAULT, JS_DEBUG_EXTENSION_ID, MANIFEST, PACKAGE_JSON_PATH, SETTING_VORTEX_EXECUTABLE, SETTING_VORTEX_PLUGINS_FOLDER } from '../constants';
 import { topLevelBreakpointHint } from '../debug/attachConfiguration';
 import { runDebugFlow, type DebugFlowUi } from '../debug/debugFlow';
 import { PluginsFolderMissingError, resolveVortexInstall, VortexNotFoundError } from '../debug/vortexInstall';
 import { MissingScriptError } from '../project/npmTasks';
 import { pickVortexProject } from '../project/projectPicker';
 import type { VortexWorkspaceTracker } from '../project/vortexWorkspaceTracker';
-import { PACKAGE_JSON_PATH } from '../templates/registry';
 import type { VortexProject } from '../types/project';
 import { commandLabel } from '../utils/commandLabel';
 import { getConfiguration } from '../utils/configuration';
@@ -173,7 +172,7 @@ async function resolveInstall() {
         const buttons = e instanceof PluginsFolderMissingError ? [OPEN_SETTINGS] : [];
         const choice = await vscode.window.showErrorMessage(`${MANIFEST.displayName}: ${errorMessage(e)}`, ...buttons);
         if (choice === OPEN_SETTINGS) {
-            await vscode.commands.executeCommand('workbench.action.openSettings', 'vortexHelper.vortexPluginsFolder');
+            await vscode.commands.executeCommand('workbench.action.openSettings', SETTING_VORTEX_PLUGINS_FOLDER);
         }
         return undefined;
     }
@@ -187,7 +186,7 @@ async function browseForVortex(): Promise<void> {
         filters: process.platform === 'win32' ? { Vortex: ['exe'] } : undefined,
     });
     if (picked?.[0]) {
-        await vscode.workspace.getConfiguration().update('vortexHelper.vortexExecutable', picked[0].fsPath, vscode.ConfigurationTarget.Global);
+        await vscode.workspace.getConfiguration().update(SETTING_VORTEX_EXECUTABLE, picked[0].fsPath, vscode.ConfigurationTarget.Global);
         vscode.window.showInformationMessage(`${MANIFEST.displayName}: Vortex set to ${picked[0].fsPath}. Run the command again.`);
     }
 }

@@ -1,5 +1,5 @@
 import * as path from 'path';
-import { getNodeValue, parseTree, type Node, type ParseError } from 'jsonc-parser';
+import { getNodeValue, type Node, type ParseError } from 'jsonc-parser';
 import {
     COMMAND_ADD_VORTEX_LIBRARY,
     COMMAND_CREATE_MISSING_FILES,
@@ -7,18 +7,19 @@ import {
     DISPLAY_NAME_PREFIX,
     GAMEART_EXTENSION,
     NEXUS_GAMES_URL,
+    PACKAGE_JSON_PATH,
+    PACKAGE_LOCK_PATH,
     PLACEHOLDER_EXECUTABLE,
     PLACEHOLDER_STEAM_APP_ID,
     VERSION_PATTERN,
     VORTEX_API_SOURCE,
 } from '../constants';
+import { DEPENDENCY_FIELDS, dependencySpec, externalsOf } from '../project/projectManifest';
 import { VORTEX_LIBRARIES } from '../project/vortexLibraries';
-import { PACKAGE_JSON_PATH, requiredFiles } from '../templates/registry';
-import type { Finding, Severity } from '../types/project';
+import { requiredFiles } from '../templates/registry';
+import type { Finding, ProjectSnapshot, Severity } from '../types/project';
 import { commandLabel } from '../utils/commandLabel';
-import { describeParseError, isRecord, keyNodeAt, nodeAt, parseStrictJson } from '../utils/jsonUtils';
-
-export const PACKAGE_LOCK_PATH = 'package-lock.json';
+import { describeParseError, isRecord, keyNodeAt, nodeAt, parseLenientJson, parseLenientTree, parseStrictJson } from '../utils/jsonUtils';
 
 /** The fields populate-pack.mjs reads; it fails the build when one is missing or empty */
 const REQUIRED_FIELDS = ['name', 'displayName', 'author', 'version', 'description', 'gameart', 'gameId'];
@@ -28,21 +29,6 @@ const LINUX_ROLLUP_PACKAGE = '@rollup/rollup-linux-x64-gnu';
 const NEXUS_VORTEX_API = /Nexus-Mods\/vortex-api(\.git)?(#.*)?$/i;
 const EXACT_VERSION = /^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/;
 const FIRST_UNSUPPORTED_TYPESCRIPT_MAJOR = 7;
-
-/** Everything the rules read from a project, so validation needs no IO */
-export interface ProjectSnapshot {
-    readonly packageJsonText: string;
-    /** The required files that exist, relative to the project folder */
-    readonly existingFiles: ReadonlySet<string>;
-    readonly gameartExists: boolean;
-    readonly packageLockText?: string;
-    /** node_modules/vortex-api/package.json */
-    readonly vortexApiManifestText?: string;
-    /** The version in node_modules/typescript/package.json */
-    readonly installedTypeScriptVersion?: string;
-    /** src/common/constants.ts */
-    readonly constants?: { readonly path: string; readonly text: string };
-}
 
 interface RuleContext {
     readonly snapshot: ProjectSnapshot;
@@ -172,8 +158,8 @@ function vortexApiFindings({ snapshot, root, manifest }: RuleContext): Finding[]
 }
 
 function bluebirdFindings({ snapshot, root, manifest }: RuleContext): Finding[] {
-    const vortexApi = snapshot.vortexApiManifestText === undefined ? undefined : parseObject(snapshot.vortexApiManifestText);
-    const peer = isRecord(vortexApi?.peerDependencies) ? vortexApi.peerDependencies['@types/bluebird'] : undefined;
+    const vortexApi = snapshot.vortexApiManifestText === undefined ? undefined : parseLenientJson(snapshot.vortexApiManifestText);
+    const peer = isRecord(vortexApi) && isRecord(vortexApi.peerDependencies) ? vortexApi.peerDependencies['@types/bluebird'] : undefined;
     const declared = dependencySpec(manifest, '@types/bluebird');
     if (typeof peer !== 'string' || !EXACT_VERSION.test(peer) || declared === undefined || declared === peer) {
         return [];
@@ -206,7 +192,7 @@ function lockfileFindings({ snapshot, root, manifest }: RuleContext): Finding[] 
     if (snapshot.packageLockText === undefined) {
         return [packageJsonFinding('lockfile-missing', 'information', `There is no package-lock.json yet. Run ${commandLabel(COMMAND_INSTALL_DEPENDENCIES)} to create it; npm ci needs it.`, anchorOf(root))];
     }
-    const lockRoot = parseTree(snapshot.packageLockText, [], { allowTrailingComma: true });
+    const lockRoot = parseLenientTree(snapshot.packageLockText);
     const lock = lockRoot ? getNodeValue(lockRoot) as unknown : undefined;
     if (!isRecord(lock)) {
         return [];
@@ -235,13 +221,13 @@ function lockfileFindings({ snapshot, root, manifest }: RuleContext): Finding[] 
 }
 
 function runtimeExternalFindings({ root, manifest }: RuleContext): Finding[] {
-    const externals = isRecord(manifest.vortex) && Array.isArray(manifest.vortex.externals) ? manifest.vortex.externals : [];
+    const externals = externalsOf(manifest);
     return VORTEX_LIBRARIES
         .filter(library => dependencySpec(manifest, library.name) !== undefined && !externals.includes(library.name))
         .map(library => packageJsonFinding(
             'runtime-external', 'information',
             `${library.name} is provided by Vortex at runtime, but isn't listed in "vortex": { "externals" }, so rollup reports it as an unresolved import. Run ${commandLabel(COMMAND_ADD_VORTEX_LIBRARY)} or add it there.`,
-            anchorOf(dependencyKeyNode(root, library.name))
+            anchorOf(dependencyNode(root, library.name, keyNodeAt))
         ));
 }
 
@@ -282,33 +268,13 @@ function anchorOf(node: Node | undefined): Anchor {
     return { offset: node.offset, length: node.type === 'object' || node.type === 'array' ? 1 : node.length };
 }
 
-function dependencySpec(manifest: Record<string, unknown>, name: string): string | undefined {
-    for (const field of ['devDependencies', 'dependencies']) {
-        const dependencies = manifest[field];
-        if (isRecord(dependencies) && typeof dependencies[name] === 'string') {
-            return dependencies[name];
-        }
-    }
-    return undefined;
-}
-
-function dependencyNode(root: Node, name: string): Node | undefined {
-    return nodeAt(root, ['devDependencies', name]) ?? nodeAt(root, ['dependencies', name]);
-}
-
-function dependencyKeyNode(root: Node, name: string): Node | undefined {
-    return keyNodeAt(root, ['devDependencies', name]) ?? keyNodeAt(root, ['dependencies', name]);
+function dependencyNode(root: Node, name: string, at: typeof nodeAt = nodeAt): Node | undefined {
+    return DEPENDENCY_FIELDS.map(field => at(root, [field, name])).find(Boolean);
 }
 
 function leadingMajor(range: string): number | undefined {
     const match = /^\s*(?:[~^]|>=?|=)?\s*v?(\d+)/.exec(range);
     return match ? Number(match[1]) : undefined;
-}
-
-function parseObject(text: string): Record<string, unknown> | undefined {
-    const root = parseTree(text, [], { allowTrailingComma: true });
-    const value: unknown = root ? getNodeValue(root) : undefined;
-    return isRecord(value) ? value : undefined;
 }
 
 function escapeRegExp(value: string): string {

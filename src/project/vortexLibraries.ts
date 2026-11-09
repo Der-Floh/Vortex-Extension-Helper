@@ -16,7 +16,3 @@ export const VORTEX_LIBRARIES: readonly VortexLibrary[] = Object.freeze([
     { name: 'permissions', source: 'git+https://github.com/Nexus-Mods/node-permissions.git', description: 'Reads and changes Windows file permissions' },
     { name: 'wholocks', source: 'git+https://github.com/Nexus-Mods/node-wholocks.git', description: 'Lists the processes that lock a file' },
 ].map(library => Object.freeze(library)));
-
-export function findVortexLibrary(name: string): VortexLibrary | undefined {
-    return VORTEX_LIBRARIES.find(library => library.name === name);
-}

@@ -1,9 +1,9 @@
 import * as vscode from 'vscode';
-import { CONSTANTS_PATH, PACKAGE_JSON_PATH, requiredFiles } from '../templates/registry';
-import type { VortexProject } from '../types/project';
+import { CONSTANTS_PATH, PACKAGE_JSON_PATH, PACKAGE_LOCK_PATH } from '../constants';
+import { requiredFiles } from '../templates/registry';
+import type { ProjectSnapshot, VortexProject } from '../types/project';
 import { fileExists, readCurrentText, readTextIfExists } from '../utils/fileSystemUtils';
 import { isRecord, parseLenientJson } from '../utils/jsonUtils';
-import { PACKAGE_LOCK_PATH, type ProjectSnapshot } from './validation';
 
 /** Reads what validation needs; open documents win over the files on disk */
 export async function readProjectSnapshot(project: VortexProject): Promise<ProjectSnapshot> {

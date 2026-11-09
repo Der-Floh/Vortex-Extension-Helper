@@ -1,8 +1,7 @@
 import * as path from 'path';
 import * as vscode from 'vscode';
-import { DEBUG_SESSION_TYPE } from '../constants';
+import { DEBUG_SESSION_TYPE, ENTRY_PATH } from '../constants';
 
-const ENTRY_FILE = 'src/index.ts';
 /** The callbacks a generated extension registers, which is everything an attach can reach */
 const REACHABLE_CALLBACKS = 'findGame, prepareForModding, queryModPath, executable, testSupported and install';
 
@@ -58,11 +57,11 @@ export function vortexAttachConfiguration(options: AttachConfigurationOptions): 
  * have already run by the time a debugger can attach.
  */
 export function topLevelBreakpointHint(folder: vscode.Uri, breakpoints: readonly vscode.Breakpoint[]): string | undefined {
-    const entry = vscode.Uri.joinPath(folder, ENTRY_FILE).toString();
+    const entry = vscode.Uri.joinPath(folder, ENTRY_PATH).toString();
     const inEntry = breakpoints.some(breakpoint => breakpoint instanceof vscode.SourceBreakpoint
         && breakpoint.enabled
         && breakpoint.location.uri.toString() === entry);
     return inEntry
-        ? `A breakpoint is set in ${ENTRY_FILE}. Vortex requires the extension while it starts, before a debugger can attach, so breakpoints in the module top level and in main() don't hit. Breakpoints in the callbacks main() registers do: ${REACHABLE_CALLBACKS}.`
+        ? `A breakpoint is set in ${ENTRY_PATH}. Vortex requires the extension while it starts, before a debugger can attach, so breakpoints in the module top level and in main() don't hit. Breakpoints in the callbacks main() registers do: ${REACHABLE_CALLBACKS}.`
         : undefined;
 }

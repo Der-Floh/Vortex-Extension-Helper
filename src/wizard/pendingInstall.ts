@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
-import type { VortexDiagnostics } from '../checks/vortexDiagnostics';
 import { MANIFEST, PENDING_INSTALL_KEY, PENDING_INSTALL_MAX_AGE_MS } from '../constants';
 import { installProjectDependencies } from '../project/dependencyInstaller';
+import type { FolderValidator } from '../types/project';
 import { WORKSPACE_TRUST, whenTrusted, type TrustGate } from '../utils/trust';
 
 /** A project the wizard created; its dependencies are installed once VS Code has opened it */
@@ -19,7 +19,7 @@ export async function savePendingInstall(state: vscode.Memento, target: vscode.U
  * Installs the dependencies of a project the wizard created, if this window opened it.
  * A window without that folder leaves the state for the window that opens it.
  */
-export async function resumePendingInstall(state: vscode.Memento, diagnostics: VortexDiagnostics, trust: TrustGate = WORKSPACE_TRUST): Promise<void> {
+export async function resumePendingInstall(state: vscode.Memento, validator: FolderValidator, trust: TrustGate = WORKSPACE_TRUST): Promise<void> {
     const pending = state.get<PendingInstall>(PENDING_INSTALL_KEY);
     if (!pending) {
         return;
@@ -38,7 +38,7 @@ export async function resumePendingInstall(state: vscode.Memento, diagnostics: V
         vscode.window.showInformationMessage(`${MANIFEST.displayName}: Trust ${folder.name} to install its dependencies.`);
         await whenTrusted(trust);
     }
-    await installProjectDependencies(folder, diagnostics);
+    await installProjectDependencies(folder, validator);
 }
 
 function findTargetFolder(target: vscode.Uri): vscode.WorkspaceFolder | undefined {
