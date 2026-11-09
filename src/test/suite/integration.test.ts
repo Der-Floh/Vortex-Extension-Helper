@@ -178,9 +178,8 @@ suite('Vortex Extension Helper integration', () => {
         }
     });
 
-    // The point of the whole feature: a breakpoint in the author's TypeScript, hit while the code
-    // runs in Vortex, reported by VS Code. Needs a Vortex started with --remote-debugging-port=9222
-    // that has the project of VORTEX_DEBUG_E2E_PROJECT deployed, so it is skipped by default.
+    // A breakpoint in the author's TypeScript, hit inside Vortex and reported by VS Code. Skipped unless
+    // a Vortex with --remote-debugging-port=9222 has the project of VORTEX_DEBUG_E2E_PROJECT deployed.
     test('a breakpoint in the project is hit inside Vortex and reported by VS Code', async function () {
         this.timeout(120_000);
         const project = process.env.VORTEX_DEBUG_E2E_PROJECT;

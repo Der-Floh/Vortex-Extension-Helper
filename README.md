@@ -173,16 +173,22 @@ Also available on [Open VSX](https://open-vsx.org/extension/der-floh/vortex-exte
 
 ### Project Architecture
 
-| Path                                   | Purpose                                                                                     |
-| -------------------------------------- | ------------------------------------------------------------------------------------------- |
-| `src/extension.ts`                     | Activation: creates the tracker and diagnostics, registers the commands and completions     |
-| `src/handlers/`                        | Command handlers                                                                            |
-| `src/templates/`                       | The generated project: its files, the `package.json` builder and the file registry           |
-| `src/utils/vortexWorkspaceTracker.ts`  | Detects the game extensions among the workspace folders and watches their files             |
-| `src/utils/validation.ts`              | The checks, as a pure function of a project snapshot                                        |
-| `src/utils/vortexDiagnostics.ts`       | Shows the findings in the Problems panel and keeps them current                            |
-| `src/utils/taskUtils.ts`               | Runs npm and the tool checks as VS Code tasks                                               |
-| `src/test/`                            | Mocha unit and integration tests, run inside a VS Code extension host                       |
+| Path               | Purpose                                                                                       |
+| ------------------ | --------------------------------------------------------------------------------------------- |
+| `src/extension.ts` | Activation: creates the tracker and diagnostics, registers the commands and completions       |
+| `src/constants.ts` | The single source for command ids, setting names, project paths and timings                   |
+| `src/handlers/`    | One file per command                                                                          |
+| `src/project/`     | A game extension open in the workspace: detecting and picking it, its `package.json`, npm     |
+| `src/checks/`      | The checks, as a pure function of a project snapshot, and their entries in the Problems panel |
+| `src/wizard/`      | New Game Support Extension: its prompts, the Nexus Mods game list, the install after reload   |
+| `src/debug/`       | Debug in Vortex: build, deploy, start Vortex and attach                                       |
+| `src/snippets/`    | The snippets and the completion provider that offers them                                     |
+| `src/templates/`   | The generated project: its files, the `package.json` builder, the file registry and writer    |
+| `src/utils/`       | Generic helpers that know nothing about Vortex                                                |
+| `src/types/`       | Types shared between the folders                                                              |
+| `src/test/`        | Mocha unit and integration tests, run inside a VS Code extension host                         |
+
+`eslint.config.mjs` enforces which folder may import which.
 
 ### Build Commands
 

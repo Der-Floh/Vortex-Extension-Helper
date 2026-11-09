@@ -40,9 +40,8 @@ export function vortexAttachConfiguration(options: AttachConfigurationOptions): 
         address: '127.0.0.1',
         port: options.port,
         timeout: 30_000,
-        // Vortex's splash screen is attachable too and closes moments later, so name the window.
-        // No slash before index.html: js-debug turns a file url into a path before matching, and on
-        // Windows that path has backslashes, so "*/index.html" matches nothing and the attach hangs.
+        // Names the window, since the splash screen is attachable too. No slash before index.html: js-debug
+        // matches against a path, so on Windows "*/index.html" matches nothing and the attach hangs.
         urlFilter: '*index.html',
         webRoot: workspace,
         sourceMaps: true,
