@@ -4,15 +4,15 @@ import * as http from 'http';
 import * as path from 'path';
 import * as vscode from 'vscode';
 import pkg from '../../../package.json';
+import type { VortexDiagnostics } from '../../checks/vortexDiagnostics';
 import { COMMAND_CREATE_MISSING_FILES, COMMAND_RUN_WORKSPACE_CHECKS, DIAGNOSTIC_SOURCE, PENDING_INSTALL_KEY } from '../../constants';
+import { vortexAttachConfiguration } from '../../debug/attachConfiguration';
+import { HTTP_CDP } from '../../debug/cdpProbe';
+import { requestVortexClose } from '../../debug/vortexLauncher';
+import { TargetNotEmptyError, writeNewProject } from '../../templates/projectWriter';
 import { renderProject } from '../../templates/registry';
-import { resumePendingInstall, savePendingInstall, type PendingInstall } from '../../utils/pendingInstall';
-import { TargetNotEmptyError, writeNewProject } from '../../utils/projectWriter';
 import { runTask } from '../../utils/taskUtils';
-import { HTTP_CDP } from '../../utils/vortexCdp';
-import { vortexAttachConfiguration } from '../../utils/vortexDebugConfig';
-import { requestVortexClose } from '../../utils/vortexLaunch';
-import type { VortexDiagnostics } from '../../utils/vortexDiagnostics';
+import { resumePendingInstall, savePendingInstall, type PendingInstall } from '../../wizard/pendingInstall';
 import { FIXTURE_FOLDERS, TS_FIXTURE_VALUES } from '../fixtures/createFixtureWorkspace';
 
 class MemoryState implements vscode.Memento {

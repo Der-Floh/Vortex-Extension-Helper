@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
+import type { VortexWorkspaceTracker } from '../project/vortexWorkspaceTracker';
 import type { Snippet } from '../types/snippet';
-import { SNIPPETS_TS } from './snippetsTs';
-import type { VortexWorkspaceTracker } from './vortexWorkspaceTracker';
+import { SNIPPETS_TS } from './snippets';
 
 export const COMPLETION_SELECTOR: vscode.DocumentSelector = [{ language: 'typescript' }];
 

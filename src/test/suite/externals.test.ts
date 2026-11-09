@@ -1,5 +1,5 @@
 import * as assert from 'assert';
-import { addExternal, readExternals } from '../../utils/externals';
+import { addExternal, readExternals } from '../../project/projectManifest';
 
 suite('Externals', () => {
     test('adds vortex.externals with the file\'s indentation and keeps everything else', () => {

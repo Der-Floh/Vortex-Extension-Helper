@@ -12,11 +12,11 @@ import {
     VERSION_PATTERN,
     VORTEX_API_SOURCE,
 } from '../constants';
+import { VORTEX_LIBRARIES } from '../project/vortexLibraries';
 import { PACKAGE_JSON_PATH, requiredFiles } from '../templates/registry';
 import type { Finding, Severity } from '../types/project';
-import { commandLabel } from './commandLabel';
-import { describeParseError, isRecord, keyNodeAt, nodeAt, parseStrictJson } from './jsonUtils';
-import { VORTEX_LIBRARIES } from './vortexLibraries';
+import { commandLabel } from '../utils/commandLabel';
+import { describeParseError, isRecord, keyNodeAt, nodeAt, parseStrictJson } from '../utils/jsonUtils';
 
 export const PACKAGE_LOCK_PATH = 'package-lock.json';
 

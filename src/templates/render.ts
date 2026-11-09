@@ -1,6 +1,6 @@
 import { DEBUG_PORT_DEFAULT, PLACEHOLDER_EXECUTABLE, PLACEHOLDER_STEAM_APP_ID } from '../constants';
 import type { ProjectValues } from '../types/project';
-import { packageNameFor } from '../utils/naming';
+import { packageNameFor } from './packageJson';
 
 const PLACEHOLDER = /(?<!\$)\{\{([A-Za-z]+)\}\}/g;
 

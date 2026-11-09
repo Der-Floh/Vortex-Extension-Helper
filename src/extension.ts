@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { VortexDiagnostics } from './checks/vortexDiagnostics';
 import {
     COMMAND_ADD_VORTEX_LIBRARY,
     COMMAND_CREATE_MISSING_FILES,
@@ -9,6 +10,7 @@ import {
     COMMAND_RUN_WORKSPACE_CHECKS,
     MANIFEST,
 } from './constants';
+import { watchVortexDebugSessions } from './debug/debugSessionWatcher';
 import { handleAddVortexLibrary } from './handlers/addVortexLibrary';
 import { handleCreateMissingFiles } from './handlers/createMissingFiles';
 import { handleDebugInVortex } from './handlers/debugInVortex';
@@ -16,13 +18,11 @@ import { handleInstallDependencies } from './handlers/installDependencies';
 import { handleNewGameExtension } from './handlers/newGameExtension';
 import { handleOpenDocumentation } from './handlers/openDocumentation';
 import { handleRunWorkspaceChecks } from './handlers/runWorkspaceChecks';
+import { VortexWorkspaceTracker } from './project/vortexWorkspaceTracker';
+import { COMPLETION_SELECTOR, VortexCompletionProvider } from './snippets/vortexCompletionProvider';
 import { errorMessage } from './utils/errors';
 import { Logger } from './utils/logger';
-import { resumePendingInstall } from './utils/pendingInstall';
-import { COMPLETION_SELECTOR, VortexCompletionProvider } from './utils/vortexCompletionProvider';
-import { watchVortexDebugSessions } from './utils/vortexDebugWatcher';
-import { VortexDiagnostics } from './utils/vortexDiagnostics';
-import { VortexWorkspaceTracker } from './utils/vortexWorkspaceTracker';
+import { resumePendingInstall } from './wizard/pendingInstall';
 
 export function activate(context: vscode.ExtensionContext) {
     Logger.initialize(context);

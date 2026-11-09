@@ -1,7 +1,7 @@
 import * as assert from 'assert';
+import { packageNameFor } from '../../templates/packageJson';
 import {
     normalizeExecutable,
-    packageNameFor,
     suggestExecutable,
     suggestGameId,
     toShortName,
@@ -9,7 +9,7 @@ import {
     validateGameId,
     validateShortName,
     validateSteamAppId,
-} from '../../utils/naming';
+} from '../../wizard/naming';
 
 suite('Naming', () => {
     test('suggests a Nexus Mods domain from a game name', () => {

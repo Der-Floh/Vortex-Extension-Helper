@@ -1,15 +1,15 @@
 import * as vscode from 'vscode';
 import { MANIFEST } from '../constants';
+import { packageNameFor } from '../templates/packageJson';
+import { writeNewProject } from '../templates/projectWriter';
 import { renderProject } from '../templates/registry';
 import type { ProjectValues } from '../types/project';
 import { getConfiguration, type HelperConfiguration } from '../utils/configuration';
 import { errorMessage } from '../utils/errors';
 import { Logger } from '../utils/logger';
-import { packageNameFor } from '../utils/naming';
-import { askAuthor, askExecutable, askShortName, askSteamAppId, pickBaseFolder, pickGameIdentity } from '../utils/newGamePrompts';
-import { fetchNexusGames, type NexusGame } from '../utils/nexusGames';
-import { savePendingInstall } from '../utils/pendingInstall';
-import { writeNewProject } from '../utils/projectWriter';
+import { askAuthor, askExecutable, askShortName, askSteamAppId, pickBaseFolder, pickGameIdentity } from '../wizard/newGamePrompts';
+import { fetchNexusGames, type NexusGame } from '../wizard/nexusGames';
+import { savePendingInstall } from '../wizard/pendingInstall';
 
 /** Asks for everything first, then writes the project and opens it; its dependencies are installed after the reload */
 export async function handleNewGameExtension(state: vscode.Memento): Promise<void> {

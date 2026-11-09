@@ -1,14 +1,14 @@
 import * as vscode from 'vscode';
 import { VORTEX_PROBE_INTERVAL_MS, VORTEX_QUIT_TIMEOUT_MS } from '../constants';
+import { runBuild } from '../project/npmTasks';
 import type { VortexProject } from '../types/project';
-import { fileExists, saveDirtyDocuments } from './fileSystemUtils';
-import { Logger } from './logger';
-import { runBuild } from './npmTasks';
-import { HTTP_CDP, type CdpProbe, waitForPageTarget } from './vortexCdp';
-import { vortexAttachConfiguration } from './vortexDebugConfig';
-import { deployPack, isDeployedCurrent, PACK_ENTRY, readPackId } from './vortexDeploy';
+import { fileExists, saveDirtyDocuments } from '../utils/fileSystemUtils';
+import { Logger } from '../utils/logger';
+import { vortexAttachConfiguration } from './attachConfiguration';
+import { HTTP_CDP, type CdpProbe, waitForPageTarget } from './cdpProbe';
+import { deployPack, isDeployedCurrent, PACK_ENTRY, readPackId } from './packDeployment';
 import type { VortexInstall } from './vortexInstall';
-import { debugArguments, requestVortexClose, SYSTEM_LAUNCHER, type VortexLauncher } from './vortexLaunch';
+import { debugArguments, requestVortexClose, SYSTEM_LAUNCHER, type VortexLauncher } from './vortexLauncher';
 
 export type DebugOutcome =
     | { readonly kind: 'attached'; readonly packId: string; readonly reused: boolean }

@@ -1,8 +1,8 @@
 import * as vscode from 'vscode';
 import { PACKAGE_JSON_PATH } from '../templates/registry';
-import { readTextIfExists } from './fileSystemUtils';
-import { isRecord, parseLenientJson } from './jsonUtils';
-import { runTask } from './taskUtils';
+import { readTextIfExists } from '../utils/fileSystemUtils';
+import { isRecord, parseLenientJson } from '../utils/jsonUtils';
+import { runTask } from '../utils/taskUtils';
 
 const INSTALL_DEPS_SCRIPT = 'install-deps';
 const BUILD_SCRIPT = 'build';

@@ -1,17 +1,17 @@
 import * as vscode from 'vscode';
+import type { VortexDiagnostics } from '../checks/vortexDiagnostics';
 import { MANIFEST } from '../constants';
+import { installDevDependency } from '../project/npmTasks';
+import { addExternal, readExternals } from '../project/projectManifest';
+import { pickVortexProject } from '../project/projectPicker';
+import { VORTEX_LIBRARIES, type VortexLibrary } from '../project/vortexLibraries';
+import type { VortexWorkspaceTracker } from '../project/vortexWorkspaceTracker';
 import { PACKAGE_JSON_PATH } from '../templates/registry';
 import { errorMessage } from '../utils/errors';
-import { addExternal, readExternals } from '../utils/externals';
 import { findOpenDocument, readCurrentText, readTextIfExists, writeText } from '../utils/fileSystemUtils';
 import { isRecord, parseLenientJson } from '../utils/jsonUtils';
 import { Logger } from '../utils/logger';
-import { installDevDependency } from '../utils/npmTasks';
-import { pickVortexProject } from '../utils/projectPicker';
 import { requireTrust } from '../utils/trust';
-import type { VortexDiagnostics } from '../utils/vortexDiagnostics';
-import { VORTEX_LIBRARIES, type VortexLibrary } from '../utils/vortexLibraries';
-import type { VortexWorkspaceTracker } from '../utils/vortexWorkspaceTracker';
 
 const SAVE_AND_CONTINUE = 'Save and Continue';
 

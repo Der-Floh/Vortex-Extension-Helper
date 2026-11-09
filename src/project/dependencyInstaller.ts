@@ -1,9 +1,9 @@
 import * as vscode from 'vscode';
+import type { VortexDiagnostics } from '../checks/vortexDiagnostics';
 import { COMMAND_INSTALL_DEPENDENCIES, MANIFEST } from '../constants';
-import { errorMessage } from './errors';
-import { Logger } from './logger';
+import { errorMessage } from '../utils/errors';
+import { Logger } from '../utils/logger';
 import { ensureToolsAvailable, installDependencies } from './npmTasks';
-import type { VortexDiagnostics } from './vortexDiagnostics';
 
 const RETRY = 'Retry';
 

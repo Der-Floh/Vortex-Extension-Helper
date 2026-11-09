@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { NEXUS_FETCH_TIMEOUT_MS, NEXUS_GAMES_URL } from '../constants';
-import { isRecord } from './jsonUtils';
+import { isRecord } from '../utils/jsonUtils';
 
 /** The fields of a games.json entry the wizard uses */
 export interface NexusGame {

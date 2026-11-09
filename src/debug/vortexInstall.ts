@@ -1,7 +1,7 @@
 import * as path from 'path';
 import * as vscode from 'vscode';
-import type { HelperConfiguration } from './configuration';
-import { fileExists } from './fileSystemUtils';
+import type { HelperConfiguration } from '../utils/configuration';
+import { fileExists } from '../utils/fileSystemUtils';
 
 export interface VortexInstall {
     readonly exe: string;

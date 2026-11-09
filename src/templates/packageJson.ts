@@ -1,6 +1,5 @@
-import { DISPLAY_NAME_PREFIX, GAMEART_PATH, PROJECT_VERSION, VORTEX_API_SOURCE } from '../constants';
+import { DISPLAY_NAME_PREFIX, GAMEART_PATH, PACKAGE_NAME_SUFFIX, PROJECT_VERSION, VORTEX_API_SOURCE } from '../constants';
 import type { ProjectValues } from '../types/project';
-import { packageNameFor } from '../utils/naming';
 
 /** Versions are bumped by hand: Dependabot can't see them. `@types/bluebird` must equal vortex-api's peer. */
 const DEV_DEPENDENCIES: Readonly<Record<string, string>> = {
@@ -26,6 +25,10 @@ const SCRIPTS: Readonly<Record<string, string>> = {
     'install-deps': 'npm install --ignore-scripts',
     'install-vortex-api': `npm install --ignore-scripts --save-dev ${VORTEX_API_SOURCE}`,
 };
+
+export function packageNameFor(shortName: string): string {
+    return `${shortName}${PACKAGE_NAME_SUFFIX}`;
+}
 
 /** Builds the package.json of a new project, in the key order and indentation of coalllc-support */
 export function buildPackageJson(values: ProjectValues): string {

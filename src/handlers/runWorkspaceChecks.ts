@@ -1,10 +1,10 @@
 import * as vscode from 'vscode';
+import type { VortexDiagnostics } from '../checks/vortexDiagnostics';
 import { MANIFEST } from '../constants';
+import { NO_PROJECT_MESSAGE } from '../project/projectPicker';
+import type { VortexWorkspaceTracker } from '../project/vortexWorkspaceTracker';
 import type { Finding, Severity, VortexProject } from '../types/project';
 import { Logger } from '../utils/logger';
-import { NO_PROJECT_MESSAGE } from '../utils/projectPicker';
-import type { VortexDiagnostics } from '../utils/vortexDiagnostics';
-import type { VortexWorkspaceTracker } from '../utils/vortexWorkspaceTracker';
 
 const SHOW_PROBLEMS = 'Show Problems';
 const SHOW_LOG = 'Show Log';

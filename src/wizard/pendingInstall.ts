@@ -1,8 +1,8 @@
 import * as vscode from 'vscode';
+import type { VortexDiagnostics } from '../checks/vortexDiagnostics';
 import { MANIFEST, PENDING_INSTALL_KEY, PENDING_INSTALL_MAX_AGE_MS } from '../constants';
-import { installProjectDependencies } from './dependencyInstaller';
-import { WORKSPACE_TRUST, whenTrusted, type TrustGate } from './trust';
-import type { VortexDiagnostics } from './vortexDiagnostics';
+import { installProjectDependencies } from '../project/dependencyInstaller';
+import { WORKSPACE_TRUST, whenTrusted, type TrustGate } from '../utils/trust';
 
 /** A project the wizard created; its dependencies are installed once VS Code has opened it */
 export interface PendingInstall {

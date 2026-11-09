@@ -1,6 +1,6 @@
 import * as assert from 'assert';
-import { formatNumberShort } from '../../utils/gameQuickPick';
-import { parseNexusGames } from '../../utils/nexusGames';
+import { formatNumberShort } from '../../wizard/gameQuickPick';
+import { parseNexusGames } from '../../wizard/nexusGames';
 
 suite('Nexus games', () => {
     test('keeps the entries with a name and a domain', () => {

@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
-import { copyDirectoryContents, emptyDirectory, fileExists, readTextIfExists } from './fileSystemUtils';
-import { isRecord, parseLenientJson } from './jsonUtils';
+import { copyDirectoryContents, emptyDirectory, fileExists, readTextIfExists } from '../utils/fileSystemUtils';
+import { isRecord, parseLenientJson } from '../utils/jsonUtils';
 
 export const PACK_DIR = '.pack';
 const PACK_INFO = 'info.json';

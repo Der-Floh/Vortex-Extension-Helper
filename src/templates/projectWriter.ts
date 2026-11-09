@@ -1,9 +1,9 @@
 import * as path from 'path';
 import * as vscode from 'vscode';
 import type { GeneratedOutput } from '../types/project';
-import { errorMessage } from './errors';
-import { fileExists, toBytes } from './fileSystemUtils';
-import { Logger } from './logger';
+import { errorMessage } from '../utils/errors';
+import { fileExists, toBytes } from '../utils/fileSystemUtils';
+import { Logger } from '../utils/logger';
 
 export type TargetState = 'missing' | 'empty' | 'occupied';
 

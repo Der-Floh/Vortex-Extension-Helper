@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { VORTEX_PROBE_INTERVAL_MS } from '../constants';
-import { Logger } from './logger';
-import { HTTP_CDP, type CdpProbe } from './vortexCdp';
+import { Logger } from '../utils/logger';
+import { HTTP_CDP, type CdpProbe } from './cdpProbe';
 
 const POLL_INTERVAL_MS = 4 * VORTEX_PROBE_INTERVAL_MS;
 /** Vortex restarts itself to apply an update, so one missed probe shouldn't end the session */

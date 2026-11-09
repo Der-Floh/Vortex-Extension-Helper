@@ -1,5 +1,5 @@
 import * as assert from 'assert';
-import { isVortexManifest } from '../../utils/detection';
+import { isVortexManifest } from '../../project/projectManifest';
 
 suite('Detection', () => {
     test('a manifest with vortex-api in devDependencies is a Vortex project', () => {

@@ -1,18 +1,18 @@
 import * as assert from 'assert';
 import * as path from 'path';
 import * as vscode from 'vscode';
+import { buildBlockers, validateProject, type ProjectSnapshot } from '../../checks/validation';
 import { DEBUG_PORT_DEFAULT, DEBUG_SESSION_TYPE } from '../../constants';
+import { topLevelBreakpointHint, vortexAttachConfiguration } from '../../debug/attachConfiguration';
+import { CdpTimeoutError, ForeignPortError, pickPageTarget, waitForPageTarget, type CdpProbe, type CdpTarget } from '../../debug/cdpProbe';
+import { runDebugFlow, type DebugFlowUi } from '../../debug/debugFlow';
+import { watchVortexDebugSessions, type DebugHost } from '../../debug/debugSessionWatcher';
+import { deployPack, InvalidPackIdError, isDeployedCurrent, PackMissingError, readPackId } from '../../debug/packDeployment';
+import { defaultPluginsFolder, vortexExeCandidates, vortexUserDataFolder } from '../../debug/vortexInstall';
+import { debugArguments, type LaunchedVortex, type VortexLauncher } from '../../debug/vortexLauncher';
 import { renderProject, requiredFiles } from '../../templates/registry';
 import type { Finding, VortexProject } from '../../types/project';
 import { copyDirectoryContents, emptyDirectory, fileExists, writeText } from '../../utils/fileSystemUtils';
-import { buildBlockers, validateProject, type ProjectSnapshot } from '../../utils/validation';
-import { CdpTimeoutError, ForeignPortError, pickPageTarget, waitForPageTarget, type CdpProbe, type CdpTarget } from '../../utils/vortexCdp';
-import { topLevelBreakpointHint, vortexAttachConfiguration } from '../../utils/vortexDebugConfig';
-import { watchVortexDebugSessions, type DebugHost } from '../../utils/vortexDebugWatcher';
-import { runDebugFlow, type DebugFlowUi } from '../../utils/vortexDebugFlow';
-import { deployPack, InvalidPackIdError, isDeployedCurrent, PackMissingError, readPackId } from '../../utils/vortexDeploy';
-import { defaultPluginsFolder, vortexExeCandidates, vortexUserDataFolder } from '../../utils/vortexInstall';
-import { debugArguments, type LaunchedVortex, type VortexLauncher } from '../../utils/vortexLaunch';
 import { TS_FIXTURE_VALUES } from '../fixtures/createFixtureWorkspace';
 
 const scratch = process.env.VORTEX_HELPER_SCRATCH ?? '';

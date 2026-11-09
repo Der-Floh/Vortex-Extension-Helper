@@ -1,5 +1,5 @@
 import { execFile, spawn } from 'child_process';
-import { Logger } from './logger';
+import { Logger } from '../utils/logger';
 
 const PROCESS_NAME = 'Vortex';
 const WINDOWS_IMAGE = 'Vortex.exe';

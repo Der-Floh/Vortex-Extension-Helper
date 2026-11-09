@@ -1,10 +1,6 @@
-import { PACKAGE_NAME_SUFFIX, SHORT_NAME_PATTERN } from '../constants';
+import { SHORT_NAME_PATTERN } from '../constants';
 
 const INVALID_FILE_NAME_CHARS = /[<>:"/\\|?*]/g;
-
-export function packageNameFor(shortName: string): string {
-    return `${shortName}${PACKAGE_NAME_SUFFIX}`;
-}
 
 /** Suggests a Nexus Mods domain for a game entered by hand: `Baldur's Gate 3` becomes `baldursgate3` */
 export function suggestGameId(gameName: string): string {

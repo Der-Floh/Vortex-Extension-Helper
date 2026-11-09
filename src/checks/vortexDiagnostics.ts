@@ -1,13 +1,13 @@
 import * as vscode from 'vscode';
 import { DIAGNOSTIC_COLLECTION, DIAGNOSTIC_SOURCE, REVALIDATE_DEBOUNCE_MS } from '../constants';
+import type { FolderState, VortexWorkspaceTracker } from '../project/vortexWorkspaceTracker';
 import { CONSTANTS_PATH, PACKAGE_JSON_PATH } from '../templates/registry';
 import type { Finding, Severity, VortexProject } from '../types/project';
-import { errorMessage } from './errors';
-import { offsetToPosition } from './jsonUtils';
-import { Logger } from './logger';
+import { errorMessage } from '../utils/errors';
+import { offsetToPosition } from '../utils/jsonUtils';
+import { Logger } from '../utils/logger';
 import { readProjectSnapshot } from './projectSnapshot';
 import { PACKAGE_LOCK_PATH, validateProject, type ProjectSnapshot } from './validation';
-import type { FolderState, VortexWorkspaceTracker } from './vortexWorkspaceTracker';
 
 const SEVERITIES: Readonly<Record<Severity, vscode.DiagnosticSeverity>> = {
     error: vscode.DiagnosticSeverity.Error,

@@ -1,10 +1,11 @@
 import * as vscode from 'vscode';
 import { MANIFEST, PLACEHOLDER_EXECUTABLE, PLACEHOLDER_STEAM_APP_ID } from '../constants';
-import { errorMessage } from './errors';
+import { packageNameFor } from '../templates/packageJson';
+import { getTargetState, TargetNotEmptyError } from '../templates/projectWriter';
+import { errorMessage } from '../utils/errors';
 import { pickNexusGame, type GameIdentity } from './gameQuickPick';
 import {
     normalizeExecutable,
-    packageNameFor,
     suggestExecutable,
     suggestGameId,
     toShortName,
@@ -15,7 +16,6 @@ import {
     validateSteamAppId,
 } from './naming';
 import type { NexusGame } from './nexusGames';
-import { getTargetState, TargetNotEmptyError } from './projectWriter';
 
 /** Every prompt returns undefined when the user cancels it */
 export async function pickBaseFolder(): Promise<vscode.Uri | undefined> {

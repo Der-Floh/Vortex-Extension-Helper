@@ -1,7 +1,14 @@
 import { applyEdits, modify, type FormattingOptions } from 'jsonc-parser';
-import { isRecord, parseLenientJson } from './jsonUtils';
+import { isRecord, parseLenientJson } from '../utils/jsonUtils';
 
 const EXTERNALS_PATH = ['vortex', 'externals'];
+
+/** A Vortex game extension declares vortex-api as a devDependency */
+export function isVortexManifest(manifest: unknown): boolean {
+    return isRecord(manifest)
+        && isRecord(manifest.devDependencies)
+        && typeof manifest.devDependencies['vortex-api'] === 'string';
+}
 
 /** The modules a project's rollup config treats as provided by Vortex at runtime, from `vortex.externals` */
 export function readExternals(packageJsonText: string): string[] {

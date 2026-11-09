@@ -1,8 +1,8 @@
-import { installProjectDependencies } from '../utils/dependencyInstaller';
-import { pickVortexProject } from '../utils/projectPicker';
+import type { VortexDiagnostics } from '../checks/vortexDiagnostics';
+import { installProjectDependencies } from '../project/dependencyInstaller';
+import { pickVortexProject } from '../project/projectPicker';
+import type { VortexWorkspaceTracker } from '../project/vortexWorkspaceTracker';
 import { requireTrust } from '../utils/trust';
-import type { VortexDiagnostics } from '../utils/vortexDiagnostics';
-import type { VortexWorkspaceTracker } from '../utils/vortexWorkspaceTracker';
 
 export async function handleInstallDependencies(tracker: VortexWorkspaceTracker, diagnostics: VortexDiagnostics): Promise<void> {
     const project = await pickVortexProject(tracker);

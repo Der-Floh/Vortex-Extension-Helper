@@ -2,11 +2,11 @@ import * as vscode from 'vscode';
 import { CONTEXT_IS_VORTEX_WORKSPACE, REVALIDATE_DEBOUNCE_MS } from '../constants';
 import { CONSTANTS_PATH, PACKAGE_JSON_PATH } from '../templates/registry';
 import type { VortexProject } from '../types/project';
-import { isVortexManifest } from './detection';
-import { errorMessage } from './errors';
-import { fileExists, readTextIfExists } from './fileSystemUtils';
-import { parseLenientJson } from './jsonUtils';
-import { Logger } from './logger';
+import { errorMessage } from '../utils/errors';
+import { fileExists, readTextIfExists } from '../utils/fileSystemUtils';
+import { parseLenientJson } from '../utils/jsonUtils';
+import { Logger } from '../utils/logger';
+import { isVortexManifest } from './projectManifest';
 
 const LEGACY_INFO_JSON = 'info.json';
 

@@ -4,10 +4,10 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { promisify } from 'util';
 import * as vscode from 'vscode';
+import { readProjectSnapshot } from '../../checks/projectSnapshot';
+import { validateProject } from '../../checks/validation';
 import { renderProject } from '../../templates/registry';
 import type { ProjectValues } from '../../types/project';
-import { readProjectSnapshot } from '../../utils/projectSnapshot';
-import { validateProject } from '../../utils/validation';
 import { TS_FIXTURE_VALUES, writeOutputs } from '../fixtures/createFixtureWorkspace';
 
 const runShell = promisify(exec);

@@ -1,5 +1,5 @@
 import * as assert from 'assert';
-import { SNIPPETS_TS } from '../../utils/snippetsTs';
+import { SNIPPETS_TS } from '../../snippets/snippets';
 
 suite('Snippets', () => {
     test('no snippet uses the patterns of the old template', () => {
