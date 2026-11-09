@@ -9,6 +9,7 @@ import {
     COMMAND_OPEN_PLUGINS_FOLDER,
     COMMAND_OPEN_VORTEX_LOG,
     COMMAND_PACKAGE_ZIP,
+    MANIFEST,
     ROW_ATTACHABLE,
     ROW_DEPENDENCIES_MISSING,
     ROW_DEPLOYABLE,
@@ -337,6 +338,14 @@ suite('Sidebar', () => {
             assert.strictEqual(row.snippet, snippet);
             assert.strictEqual(row.command, undefined);
             assert.ok((row.tooltip as vscode.MarkdownString).value.includes(snippet.body));
+        });
+
+        test('Help links to the guides, the GitHub repository and the issue tracker', () => {
+            const roots = buildSidebar(sidebarState());
+            assert.deepStrictEqual(roots[roots.length - 1].children?.map(row => row.label), ['Creating a game extension', 'Packaging a game extension', 'GitHub repository', 'Report an issue']);
+            const repository = findRow(roots, 'repository');
+            assert.strictEqual(repository.command?.command, BUILTIN_OPEN);
+            assert.strictEqual(String(repository.command?.arguments?.[0]), vscode.Uri.parse(MANIFEST.repository.url).toString());
         });
 
         test('Add to Project is a placeholder that does nothing yet', () => {

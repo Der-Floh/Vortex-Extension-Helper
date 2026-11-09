@@ -282,6 +282,7 @@ function addToProjectRow(row: ProjectRowState): SidebarNode {
 
 function helpSection(): SidebarNode {
     const packaging = openUrl(PACKAGING_WIKI_URL, 'Packaging a game extension');
+    const repository = openUrl(MANIFEST.repository.url, 'GitHub repository');
     const issues = openUrl(MANIFEST.bugs.url, 'Report an issue');
     return {
         id: 'help',
@@ -291,7 +292,8 @@ function helpSection(): SidebarNode {
         children: [
             { id: 'help#documentation', label: 'Creating a game extension', icon: themeIcon('book'), command: { title: 'Creating a game extension', command: COMMAND_OPEN_DOCUMENTATION } },
             { id: 'help#packaging', label: packaging.title, icon: themeIcon('package'), command: packaging },
-            { id: 'help#issues', label: issues.title, icon: themeIcon('github'), command: issues },
+            { id: 'help#repository', label: repository.title, icon: themeIcon('github'), command: repository },
+            { id: 'help#issues', label: issues.title, icon: themeIcon('issues'), command: issues },
         ],
     };
 }

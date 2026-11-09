@@ -79,7 +79,7 @@ The Vortex icon in the activity bar opens an overview of the game extensions in 
 - **Actions** — debug, build, package, and open Vortex's plugins folder or log
 - **Vortex Libraries** — every library Vortex provides at runtime, to install or remove
 - **Snippets** — every snippet with its code in the tooltip, to insert at the cursor
-- **Help** — the guides for creating and packaging a game extension, and the issue tracker
+- **Help** — the guides for creating and packaging a game extension, the GitHub repository and the issue tracker
 
 A row's buttons appear when you hover over or select it. While a game extension is busy with npm, a build, a deploy or starting a debug session, a second action on it is refused, so two npm runs can't overwrite each other's `package.json`.
 
