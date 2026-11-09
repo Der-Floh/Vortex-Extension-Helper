@@ -8,7 +8,7 @@ import type { VortexDiagnostics } from '../../checks/vortexDiagnostics';
 import { COMMAND_CREATE_MISSING_FILES, COMMAND_RUN_WORKSPACE_CHECKS, DIAGNOSTIC_SOURCE, PENDING_INSTALL_KEY } from '../../constants';
 import { vortexAttachConfiguration } from '../../debug/attachConfiguration';
 import { HTTP_CDP } from '../../debug/cdpProbe';
-import { requestVortexClose } from '../../debug/vortexLauncher';
+import { SYSTEM_LAUNCHER } from '../../debug/vortexLauncher';
 import { TargetNotEmptyError, writeNewProject } from '../../templates/projectWriter';
 import { renderProject } from '../../templates/registry';
 import { runTask } from '../../utils/taskUtils';
@@ -255,7 +255,7 @@ suite('Vortex Extension Helper integration', () => {
                 console.log(`REAL SESSION => type=${session.type} request=${session.configuration.request} port=${JSON.stringify(session.configuration.port)} parent=${session.parentSession === undefined ? 'none' : session.parentSession.type} overrides=${JSON.stringify(Object.keys(session.configuration.sourceMapPathOverrides ?? {}))}`);
             }
 
-            await requestVortexClose(true);
+            await SYSTEM_LAUNCHER.requestClose(true);
             console.log('REAL SESSION => Vortex closed, waiting for the watcher');
             await waitFor(() => terminated.length >= started.length, `the watcher never ended the session after Vortex closed (started ${started.length}, terminated ${terminated.length})`, 60_000);
             console.log(`REAL SESSION => ended, started=${started.length} terminated=${terminated.length}`);
@@ -340,7 +340,7 @@ async function openRendererSocket(port: number): Promise<WebSocket> {
             let body = '';
             response.setEncoding('utf8');
             response.on('data', chunk => {
-                body += chunk; 
+                body += chunk;
             });
             response.on('end', () => resolve(JSON.parse(body)));
         }).on('error', reject);

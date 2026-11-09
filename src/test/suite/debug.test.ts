@@ -5,7 +5,7 @@ import { buildBlockers, validateProject } from '../../checks/validation';
 import { DEBUG_PORT_DEFAULT, DEBUG_SESSION_TYPE } from '../../constants';
 import { topLevelBreakpointHint, vortexAttachConfiguration } from '../../debug/attachConfiguration';
 import { CdpTimeoutError, ForeignPortError, pickPageTarget, waitForPageTarget, type CdpProbe, type CdpTarget } from '../../debug/cdpProbe';
-import { runDebugFlow, type DebugFlowUi } from '../../debug/debugFlow';
+import { runDebugFlow, type DebugFlowUi, type DebugOutcome } from '../../debug/debugFlow';
 import { watchVortexDebugSessions, type DebugHost } from '../../debug/debugSessionWatcher';
 import { deployPack, InvalidPackIdError, isDeployedCurrent, PackMissingError, readPackId } from '../../debug/packDeployment';
 import { defaultPluginsFolder, vortexExeCandidates, vortexUserDataFolder } from '../../debug/vortexInstall';
@@ -106,6 +106,7 @@ function stubLauncher(overrides: Partial<VortexLauncher> = {}): VortexLauncher &
             return { pid: 1, exited: new Promise<number | null>(() => { }), release: () => { } };
         },
         isVortexRunning: async () => false,
+        requestClose: async () => assert.fail('should not have asked Vortex to close'),
         ...overrides,
     };
 }
@@ -389,6 +390,42 @@ suite('Debug in Vortex', () => {
             await writeText(vscode.Uri.joinPath(folder, '.pack', 'info.json'), JSON.stringify({ id }));
         }
 
+        /** A Vortex that stops when asked, only when forced, or not at all */
+        function closingLauncher(stopsOn: 'close' | 'force' | 'never'): ReturnType<typeof stubLauncher> & { closes: boolean[] } {
+            let running = true;
+            const closes: boolean[] = [];
+            return {
+                ...stubLauncher({
+                    isVortexRunning: async () => running,
+                    requestClose: async force => {
+                        closes.push(force);
+                        running = !(stopsOn === 'close' || (stopsOn === 'force' && force));
+                    },
+                }),
+                closes,
+            };
+        }
+
+        function runAgainstRunningVortex(name: string, launcher: VortexLauncher, portStatus: 'ok' | 'closed', ui: Partial<DebugFlowUi>, quitTimeoutMs?: number): Promise<DebugOutcome> {
+            return runDebugFlow(
+                {
+                    project: project(name),
+                    install: { exe: 'x', pluginsFolder: vscode.Uri.file(path.join(scratch, `${name}-plugins`)) },
+                    port: 9222,
+                    ui: { ...NEVER_ASKED, ...ui },
+                    report: () => { },
+                    token: NO_TOKEN,
+                },
+                {
+                    cdp: stubProbe([portStatus, 'ok'], [[target('page', 'file:///index.html')]]),
+                    launcher,
+                    build: async folder => buildablePack(folder.uri, `${name}-support`),
+                    startDebugging: async () => true,
+                    quitTimeoutMs,
+                }
+            );
+        }
+
         test('builds, deploys, starts Vortex and attaches, in that order', async () => {
             const flowProject = project('flow-happy');
             const plugins = vscode.Uri.file(path.join(scratch, 'flow-happy-plugins'));
@@ -405,14 +442,17 @@ suite('Debug in Vortex', () => {
                 },
                 {
                     launcher: { ...launcher, launch: (exe, args) => {
-                        calls.push('launch'); return launcher.launch(exe, args); 
+                        calls.push('launch');
+                        return launcher.launch(exe, args);
                     } },
                     cdp: stubProbe(['closed', 'ok'], [[target('page', 'file:///index.html')]]),
                     build: async folder => {
-                        calls.push('build'); await buildablePack(folder.uri, 'flow-support'); 
+                        calls.push('build');
+                        await buildablePack(folder.uri, 'flow-support');
                     },
                     startDebugging: async (_folder, configuration) => {
-                        calls.push(`attach:${Object.keys(configuration.sourceMapPathOverrides as Record<string, string>)[0]}`); return true; 
+                        calls.push(`attach:${Object.keys(configuration.sourceMapPathOverrides as Record<string, string>)[0]}`);
+                        return true;
                     },
                 }
             );
@@ -433,7 +473,8 @@ suite('Debug in Vortex', () => {
                     install: { exe: 'x', pluginsFolder: vscode.Uri.file(path.join(scratch, 'flow-attach-plugins')) },
                     port: 9222,
                     ui: { ...NEVER_ASKED, confirmPortInUse: async stale => {
-                        calls.push(`asked:stale=${stale}`); return 'attach'; 
+                        calls.push(`asked:stale=${stale}`);
+                        return 'attach';
                     } },
                     report: () => { },
                     token: NO_TOKEN,
@@ -443,7 +484,8 @@ suite('Debug in Vortex', () => {
                     launcher: stubLauncher({ launch: () => assert.fail('should not have launched Vortex') }),
                     build: async () => assert.fail('should not have built'),
                     startDebugging: async () => {
-                        calls.push('attach'); return true; 
+                        calls.push('attach');
+                        return true;
                     },
                 }
             );
@@ -551,6 +593,57 @@ suite('Debug in Vortex', () => {
             );
 
             assert.deepStrictEqual(outcome, { kind: 'declined' });
+        });
+
+        test('Rebuild and Restart closes Vortex and starts it again', async () => {
+            const launcher = closingLauncher('close');
+            const outcome = await runAgainstRunningVortex('flow-restart', launcher, 'ok', { confirmPortInUse: async () => 'restart' });
+
+            assert.deepStrictEqual(outcome, { kind: 'attached', packId: 'flow-restart-support', reused: false });
+            assert.deepStrictEqual(launcher.closes, [false]);
+            assert.strictEqual(launcher.launches.length, 1);
+        });
+
+        test('Close Vortex closes a Vortex that has no debugging port', async () => {
+            const launcher = closingLauncher('close');
+            const outcome = await runAgainstRunningVortex('flow-close', launcher, 'closed', { confirmVortexRunning: async () => 'close' });
+
+            assert.deepStrictEqual(outcome, { kind: 'attached', packId: 'flow-close-support', reused: false });
+            assert.deepStrictEqual(launcher.closes, [false]);
+        });
+
+        test('Retry goes on without closing anything', async () => {
+            const launcher = stubLauncher({ isVortexRunning: async () => true });
+            const outcome = await runAgainstRunningVortex('flow-retry', launcher, 'closed', { confirmVortexRunning: async () => 'retry' });
+
+            assert.deepStrictEqual(outcome, { kind: 'attached', packId: 'flow-retry-support', reused: false });
+            assert.strictEqual(launcher.launches.length, 1);
+        });
+
+        test('a Vortex that ignores the close is forced after asking', async () => {
+            const launcher = closingLauncher('force');
+            const outcome = await runAgainstRunningVortex('flow-forced', launcher, 'ok', { confirmPortInUse: async () => 'restart', confirmForceClose: async () => true }, 1);
+
+            assert.deepStrictEqual(outcome, { kind: 'attached', packId: 'flow-forced-support', reused: false });
+            assert.deepStrictEqual(launcher.closes, [false, true]);
+        });
+
+        test('declining to force leaves Vortex alone and starts nothing', async () => {
+            const launcher = closingLauncher('never');
+            const outcome = await runAgainstRunningVortex('flow-unforced', launcher, 'ok', { confirmPortInUse: async () => 'restart', confirmForceClose: async () => false }, 1);
+
+            assert.deepStrictEqual(outcome, { kind: 'declined' });
+            assert.deepStrictEqual(launcher.closes, [false]);
+            assert.strictEqual(launcher.launches.length, 0);
+        });
+
+        test('a Vortex that survives the force starts nothing', async () => {
+            const launcher = closingLauncher('never');
+            const outcome = await runAgainstRunningVortex('flow-survives', launcher, 'ok', { confirmPortInUse: async () => 'restart', confirmForceClose: async () => true }, 1);
+
+            assert.deepStrictEqual(outcome, { kind: 'declined' });
+            assert.deepStrictEqual(launcher.closes, [false, true]);
+            assert.strictEqual(launcher.launches.length, 0);
         });
     });
 });

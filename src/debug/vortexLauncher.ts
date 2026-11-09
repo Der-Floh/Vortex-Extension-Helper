@@ -16,6 +16,8 @@ export interface VortexLauncher {
     launch(exe: string, args: readonly string[]): LaunchedVortex;
     /** Whether a Vortex process exists, or undefined when the platform can't be asked */
     isVortexRunning(): Promise<boolean | undefined>;
+    /** Asks Vortex to close, or forces it, which loses whatever Vortex hadn't written to its state database */
+    requestClose(force: boolean): Promise<void>;
 }
 
 /** The switches that make a release Vortex attachable; it opens no port on its own */
@@ -58,14 +60,12 @@ export const SYSTEM_LAUNCHER: VortexLauncher = {
         const result = await run('pgrep', ['-x', PROCESS_NAME]);
         return result === undefined ? undefined : result.code === 0;
     },
+    async requestClose(force) {
+        const result = process.platform === 'win32'
+            ? await run('taskkill', force ? ['/F', '/IM', WINDOWS_IMAGE] : ['/IM', WINDOWS_IMAGE])
+            : await run('pkill', [force ? '-KILL' : '-TERM', '-x', PROCESS_NAME]);
+        if (result === undefined) {
+            Logger.warn('Could not ask Vortex to close: the platform has no process tool.');
+        }
+    },
 };
-
-/** Asks Vortex to close, or forces it, which loses whatever Vortex hadn't written to its state database */
-export async function requestVortexClose(force: boolean): Promise<void> {
-    const result = process.platform === 'win32'
-        ? await run('taskkill', force ? ['/F', '/IM', WINDOWS_IMAGE] : ['/IM', WINDOWS_IMAGE])
-        : await run('pkill', [force ? '-KILL' : '-TERM', '-x', PROCESS_NAME]);
-    if (result === undefined) {
-        Logger.warn('Could not ask Vortex to close: the platform has no process tool.');
-    }
-}

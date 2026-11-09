@@ -8,7 +8,7 @@ import { vortexAttachConfiguration } from './attachConfiguration';
 import { HTTP_CDP, type CdpProbe, waitForPageTarget } from './cdpProbe';
 import { deployPack, isDeployedCurrent, readPackId } from './packDeployment';
 import type { VortexInstall } from './vortexInstall';
-import { debugArguments, requestVortexClose, SYSTEM_LAUNCHER, type VortexLauncher } from './vortexLauncher';
+import { debugArguments, SYSTEM_LAUNCHER, type VortexLauncher } from './vortexLauncher';
 
 export type DebugOutcome =
     | { readonly kind: 'attached'; readonly packId: string; readonly reused: boolean }
@@ -33,6 +33,7 @@ export interface DebugFlowDeps {
     readonly cdp?: CdpProbe;
     readonly build?: (folder: vscode.WorkspaceFolder, token?: vscode.CancellationToken) => Promise<void>;
     readonly startDebugging?: (folder: vscode.WorkspaceFolder, configuration: vscode.DebugConfiguration) => Thenable<boolean>;
+    readonly quitTimeoutMs?: number;
 }
 
 export interface DebugFlowOptions {
@@ -59,6 +60,7 @@ export async function runDebugFlow(options: DebugFlowOptions, deps: DebugFlowDep
     const cdp = deps.cdp ?? HTTP_CDP;
     const build = deps.build ?? runBuild;
     const startDebugging = deps.startDebugging ?? ((folder, configuration) => vscode.debug.startDebugging(folder, configuration));
+    const quitTimeoutMs = deps.quitTimeoutMs ?? VORTEX_QUIT_TIMEOUT_MS;
 
     const cancelled = (): boolean => token.isCancellationRequested;
 
@@ -77,7 +79,7 @@ export async function runDebugFlow(options: DebugFlowOptions, deps: DebugFlowDep
         if (choice === 'attach') {
             attachOnly = true;
         } else {
-            const closed = await closeVortex(launcher, ui);
+            const closed = await closeVortex(launcher, ui, quitTimeoutMs);
             if (!closed) {
                 return { kind: 'declined' };
             }
@@ -89,7 +91,7 @@ export async function runDebugFlow(options: DebugFlowOptions, deps: DebugFlowDep
             if (choice === 'cancel') {
                 return { kind: 'declined' };
             }
-            if (choice === 'close' && !await closeVortex(launcher, ui)) {
+            if (choice === 'close' && !await closeVortex(launcher, ui, quitTimeoutMs)) {
                 return { kind: 'declined' };
             }
         }
@@ -160,9 +162,9 @@ export async function runDebugFlow(options: DebugFlowOptions, deps: DebugFlowDep
         : { kind: 'failed', reason: 'VS Code refused to start the debug session. The log holds the configuration that was used.' };
 }
 
-async function closeVortex(launcher: VortexLauncher, ui: DebugFlowUi): Promise<boolean> {
-    await requestVortexClose(false);
-    const deadline = Date.now() + VORTEX_QUIT_TIMEOUT_MS;
+async function closeVortex(launcher: VortexLauncher, ui: DebugFlowUi, quitTimeoutMs: number): Promise<boolean> {
+    await launcher.requestClose(false);
+    const deadline = Date.now() + quitTimeoutMs;
     while (Date.now() < deadline) {
         if (await launcher.isVortexRunning() !== true) {
             return true;
@@ -172,7 +174,7 @@ async function closeVortex(launcher: VortexLauncher, ui: DebugFlowUi): Promise<b
     if (!await ui.confirmForceClose()) {
         return false;
     }
-    await requestVortexClose(true);
+    await launcher.requestClose(true);
     await wait(VORTEX_PROBE_INTERVAL_MS);
     return await launcher.isVortexRunning() !== true;
 }
