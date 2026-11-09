@@ -1,7 +1,8 @@
 import { applyEdits, modify, type FormattingOptions } from 'jsonc-parser';
 import { isRecord, parseLenientJson } from '../utils/jsonUtils';
 
-const EXTERNALS_PATH = ['vortex', 'externals'];
+const VORTEX_KEY = 'vortex';
+const EXTERNALS_PATH = [VORTEX_KEY, 'externals'];
 
 export const DEPENDENCY_FIELDS = ['devDependencies', 'dependencies'];
 
@@ -57,6 +58,25 @@ export function addExternal(packageJsonText: string, moduleName: string): string
     }
     const edits = modify(packageJsonText, EXTERNALS_PATH, [...externals, moduleName], { formattingOptions: detectFormatting(packageJsonText) });
     return applyEdits(packageJsonText, edits);
+}
+
+/** Takes a module out of `vortex.externals`, and the `vortex` key with it once nothing else is in there, which undoes `addExternal` */
+export function removeExternal(packageJsonText: string, moduleName: string): string {
+    const externals = readExternals(packageJsonText);
+    if (!externals.includes(moduleName)) {
+        return packageJsonText;
+    }
+    const remaining = externals.filter(name => name !== moduleName);
+    const removal = remaining.length > 0
+        ? { path: EXTERNALS_PATH, value: remaining }
+        : { path: holdsOnlyExternals(packageJsonText) ? [VORTEX_KEY] : EXTERNALS_PATH, value: undefined };
+    const edits = modify(packageJsonText, removal.path, removal.value, { formattingOptions: detectFormatting(packageJsonText) });
+    return applyEdits(packageJsonText, edits);
+}
+
+function holdsOnlyExternals(packageJsonText: string): boolean {
+    const manifest = parseLenientJson(packageJsonText);
+    return isRecord(manifest) && isRecord(manifest.vortex) && Object.keys(manifest.vortex).length === 1;
 }
 
 function detectFormatting(text: string): FormattingOptions {

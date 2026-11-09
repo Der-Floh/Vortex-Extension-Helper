@@ -5,6 +5,11 @@ export interface VortexProject {
     readonly folder: vscode.WorkspaceFolder;
 }
 
+/** What a sidebar row passes to the command it runs; the command palette passes nothing */
+export interface ProjectTarget {
+    readonly project?: VortexProject;
+}
+
 /** The answers of the New Game Support Extension wizard */
 export interface ProjectValues {
     readonly shortName: string;

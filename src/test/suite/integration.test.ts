@@ -5,10 +5,13 @@ import * as path from 'path';
 import * as vscode from 'vscode';
 import pkg from '../../../package.json';
 import type { VortexDiagnostics } from '../../checks/vortexDiagnostics';
-import { COMMAND_CREATE_MISSING_FILES, COMMAND_RUN_WORKSPACE_CHECKS, DIAGNOSTIC_SOURCE, PENDING_INSTALL_KEY } from '../../constants';
+import { COMMAND_CREATE_MISSING_FILES, COMMAND_RUN_WORKSPACE_CHECKS, DIAGNOSTIC_SOURCE, PENDING_INSTALL_KEY, VIEW_SIDEBAR } from '../../constants';
 import { vortexAttachConfiguration } from '../../debug/attachConfiguration';
 import { HTTP_CDP } from '../../debug/cdpProbe';
 import { SYSTEM_LAUNCHER } from '../../debug/vortexLauncher';
+import { ProjectActivity } from '../../project/projectActivity';
+import { VortexWorkspaceTracker } from '../../project/vortexWorkspaceTracker';
+import { SidebarProvider } from '../../sidebar/sidebarProvider';
 import { TargetNotEmptyError, writeNewProject } from '../../templates/projectWriter';
 import { renderProject } from '../../templates/registry';
 import { runTask } from '../../utils/taskUtils';
@@ -265,16 +268,49 @@ suite('Vortex Extension Helper integration', () => {
         }
     });
 
+    test('the sidebar shows the real projects of a multi-root workspace', async () => {
+        await vscode.commands.executeCommand(`${VIEW_SIDEBAR}.focus`);
+
+        const tracker = new VortexWorkspaceTracker();
+        const activity = new ProjectActivity();
+        const sidebar = new SidebarProvider(tracker, activity, {
+            cdp: { version: async () => ({ status: 'closed' }), targets: async () => ({ status: 'closed' }) },
+            launcher: { ...SYSTEM_LAUNCHER, isVortexRunning: async () => false },
+            pluginsFolder: async () => undefined,
+            isEnabled: () => false,
+        });
+        try {
+            await tracker.initialize();
+            const roots = await sidebar.getChildren();
+            assert.deepStrictEqual(roots.map(node => node.label).slice(0, 3), ['Game: TS Game', 'Actions', 'Vortex Libraries']);
+            assert.strictEqual(roots[0].description, 'v1.0.0');
+
+            const rows = await sidebar.getChildren(roots[0]);
+            assert.deepStrictEqual(rows.map(node => sidebar.getTreeItem(node).label), [
+                '8 dependencies not installed',
+                rows[1].label,
+                'Nexus game 4187',
+                'Not built yet',
+                'Checking Vortex...',
+            ]);
+        } finally {
+            sidebar.dispose();
+            activity.dispose();
+            tracker.dispose();
+        }
+    });
+
     test('a pending install waits for the window that opens its folder, and expires', async () => {
         const diagnostics = {} as VortexDiagnostics;
+        const activity = new ProjectActivity();
         const state = new MemoryState();
         await savePendingInstall(state, vscode.Uri.file(path.join(scratch, 'not-open')));
-        await resumePendingInstall(state, diagnostics);
+        await resumePendingInstall(state, diagnostics, activity);
         assert.ok(state.get(PENDING_INSTALL_KEY));
 
         const expired: PendingInstall = { targetUri: vscode.Uri.file(path.join(scratch, 'not-open')).toString(), createdAt: 0 };
         await state.update(PENDING_INSTALL_KEY, expired);
-        await resumePendingInstall(state, diagnostics);
+        await resumePendingInstall(state, diagnostics, activity);
         assert.strictEqual(state.get(PENDING_INSTALL_KEY), undefined);
     });
 });

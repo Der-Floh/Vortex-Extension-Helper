@@ -1,7 +1,14 @@
+import type { ProjectTarget } from '../types/project';
+
 export interface VortexLibrary {
     readonly name: string;
     readonly source: string;
     readonly description: string;
+}
+
+/** What a sidebar row passes to the commands that install or remove a library */
+export interface LibraryTarget extends ProjectTarget {
+    readonly library?: VortexLibrary;
 }
 
 /** The libraries in the top-level node_modules of Vortex's app.asar (2.8.0), which game extensions can require at runtime */

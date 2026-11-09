@@ -1,12 +1,13 @@
 import * as vscode from 'vscode';
 import { PACKAGE_JSON_PATH } from '../constants';
-import { readTextIfExists } from '../utils/fileSystemUtils';
+import { readTextIfExists, saveDirtyDocuments } from '../utils/fileSystemUtils';
 import { parseLenientJson } from '../utils/jsonUtils';
 import { runTask } from '../utils/taskUtils';
 import { declaresScript } from './projectManifest';
 
 const INSTALL_DEPS_SCRIPT = 'install-deps';
 const BUILD_SCRIPT = 'build';
+const PACKAGE_SCRIPT = 'package';
 
 interface RequiredTool {
     readonly command: string;
@@ -33,6 +34,13 @@ export class CommandFailedError extends Error {
     }
 }
 
+export class UnsavedFilesError extends Error {
+    constructor() {
+        super('Some of the project\'s files couldn\'t be saved, so the build would not match the editor.');
+        this.name = 'UnsavedFilesError';
+    }
+}
+
 /** Runs `node --version` and `git --version` in the folder's shell, which may find other tools than the extension host */
 export async function ensureToolsAvailable(folder: vscode.WorkspaceFolder): Promise<void> {
     for (const tool of REQUIRED_TOOLS) {
@@ -54,12 +62,32 @@ export async function installDevDependency(folder: vscode.WorkspaceFolder, sourc
     await runNpm(folder, ['install', '--ignore-scripts', '--save-dev', source]);
 }
 
-/** Runs `npm run build`, which bundles src into .pack and generates .pack/info.json */
-export async function runBuild(folder: vscode.WorkspaceFolder, token?: vscode.CancellationToken): Promise<void> {
-    if (!await hasScript(folder, BUILD_SCRIPT)) {
-        throw new MissingScriptError(BUILD_SCRIPT, folder.name);
+export async function uninstallDependency(folder: vscode.WorkspaceFolder, name: string): Promise<void> {
+    await runNpm(folder, ['uninstall', '--ignore-scripts', name]);
+}
+
+/** A build reads the files on disk, so what the editor shows has to be saved first */
+export async function saveForBuild(folder: vscode.WorkspaceFolder): Promise<void> {
+    if (!await saveDirtyDocuments(folder.uri)) {
+        throw new UnsavedFilesError();
     }
-    await runNpm(folder, ['run', BUILD_SCRIPT], undefined, token);
+}
+
+/** Runs `npm run build`, which bundles src into .pack and generates .pack/info.json */
+export function runBuild(folder: vscode.WorkspaceFolder, token?: vscode.CancellationToken): Promise<void> {
+    return runScript(folder, BUILD_SCRIPT, token);
+}
+
+/** Runs `npm run package`, which type checks, builds and zips .pack into dist */
+export function runPackage(folder: vscode.WorkspaceFolder, token?: vscode.CancellationToken): Promise<void> {
+    return runScript(folder, PACKAGE_SCRIPT, token);
+}
+
+async function runScript(folder: vscode.WorkspaceFolder, script: string, token?: vscode.CancellationToken): Promise<void> {
+    if (!await hasScript(folder, script)) {
+        throw new MissingScriptError(script, folder.name);
+    }
+    await runNpm(folder, ['run', script], undefined, token);
 }
 
 async function runNpm(folder: vscode.WorkspaceFolder, args: string[], hint?: string, token?: vscode.CancellationToken): Promise<void> {

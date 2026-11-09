@@ -2,7 +2,7 @@
     "name": "vortex-extension-helper",
     "displayName": "Vortex Extension Helper",
     "description": "Helps create and validate Vortex game support extensions",
-    "version": "0.3.5",
+    "version": "0.4.1",
     "publisher": "der-floh",
     "license": "MIT",
     "icon": "assets/vortex-icon-x512.png",
@@ -44,7 +44,7 @@
     "capabilities": {
         "untrustedWorkspaces": {
             "supported": "limited",
-            "description": "In Restricted Mode the extension only detects and checks Vortex game extensions. Installing dependencies and libraries runs npm, which needs a trusted workspace."
+            "description": "In Restricted Mode the extension only detects and checks Vortex game extensions. Installing, building, packaging and deploying run npm or hand the project's code to Vortex, which needs a trusted workspace."
         },
         "virtualWorkspaces": {
             "supported": false,
@@ -65,7 +65,8 @@
             {
                 "command": "vortexHelper.setupVortexApi",
                 "title": "Install Dependencies",
-                "category": "Vortex"
+                "category": "Vortex",
+                "icon": "$(cloud-download)"
             },
             {
                 "command": "vortexHelper.scaffoldGameExtension",
@@ -85,15 +86,139 @@
             {
                 "command": "vortexHelper.addVortexLibrary",
                 "title": "Add Vortex Library",
-                "category": "Vortex"
+                "category": "Vortex",
+                "icon": "$(cloud-download)"
             },
             {
                 "command": "vortexHelper.debugInVortex",
                 "title": "Debug in Vortex",
                 "category": "Vortex"
+            },
+            {
+                "command": "vortexHelper.build",
+                "title": "Build",
+                "category": "Vortex"
+            },
+            {
+                "command": "vortexHelper.packageZip",
+                "title": "Package Zip",
+                "category": "Vortex"
+            },
+            {
+                "command": "vortexHelper.deployToVortex",
+                "title": "Deploy to Vortex",
+                "category": "Vortex",
+                "icon": "$(cloud-upload)"
+            },
+            {
+                "command": "vortexHelper.attachToVortex",
+                "title": "Attach to Vortex",
+                "category": "Vortex",
+                "icon": "$(debug-alt)"
+            },
+            {
+                "command": "vortexHelper.removeVortexLibrary",
+                "title": "Remove Vortex Library",
+                "category": "Vortex",
+                "icon": "$(trash)"
+            },
+            {
+                "command": "vortexHelper.insertSnippet",
+                "title": "Insert Snippet",
+                "category": "Vortex",
+                "icon": "$(add)"
+            },
+            {
+                "command": "vortexHelper.openPluginsFolder",
+                "title": "Open Plugins Folder",
+                "category": "Vortex"
+            },
+            {
+                "command": "vortexHelper.openVortexLog",
+                "title": "Open Vortex Log",
+                "category": "Vortex"
+            },
+            {
+                "command": "vortexHelper.refreshSidebar",
+                "title": "Refresh",
+                "category": "Vortex",
+                "icon": "$(refresh)"
+            }
+        ],
+        "viewsContainers": {
+            "activitybar": [
+                {
+                    "id": "vortexHelper",
+                    "title": "Vortex",
+                    "icon": "assets/vortex-activitybar.svg"
+                }
+            ]
+        },
+        "views": {
+            "vortexHelper": [
+                {
+                    "id": "vortexHelper.sidebar",
+                    "name": "Vortex"
+                }
+            ]
+        },
+        "viewsWelcome": [
+            {
+                "view": "vortexHelper.sidebar",
+                "contents": "No Vortex game extension is open in this window.\n[New Game Support Extension](command:vortexHelper.newGameSupportExtension)\nA folder counts as one when its package.json has vortex-api in devDependencies.\n[Open Extension Documentation](command:vortexHelper.openDocumentation)",
+                "when": "vortexHelper.detectionDone"
             }
         ],
         "menus": {
+            "view/title": [
+                {
+                    "command": "vortexHelper.refreshSidebar",
+                    "when": "view == vortexHelper.sidebar",
+                    "group": "navigation"
+                }
+            ],
+            "view/item/context": [
+                {
+                    "command": "vortexHelper.setupVortexApi",
+                    "when": "view == vortexHelper.sidebar && viewItem == dependenciesMissing && isWorkspaceTrusted",
+                    "group": "inline"
+                },
+                {
+                    "command": "vortexHelper.deployToVortex",
+                    "when": "view == vortexHelper.sidebar && viewItem == deployable && isWorkspaceTrusted",
+                    "group": "inline"
+                },
+                {
+                    "command": "vortexHelper.attachToVortex",
+                    "when": "view == vortexHelper.sidebar && viewItem == attachable && isWorkspaceTrusted",
+                    "group": "inline"
+                },
+                {
+                    "command": "vortexHelper.addVortexLibrary",
+                    "when": "view == vortexHelper.sidebar && viewItem == libraryAvailable && isWorkspaceTrusted",
+                    "group": "inline"
+                },
+                {
+                    "command": "vortexHelper.addVortexLibrary",
+                    "when": "view == vortexHelper.sidebar && viewItem == libraryUnlisted && isWorkspaceTrusted",
+                    "group": "inline"
+                },
+                {
+                    "command": "vortexHelper.removeVortexLibrary",
+                    "when": "view == vortexHelper.sidebar && viewItem == libraryUnlisted && isWorkspaceTrusted",
+                    "group": "inline"
+                },
+                {
+                    "command": "vortexHelper.removeVortexLibrary",
+                    "when": "view == vortexHelper.sidebar && viewItem == libraryAdded && isWorkspaceTrusted",
+                    "group": "inline"
+                },
+                {
+                    "command": "vortexHelper.insertSnippet",
+                    "when": "view == vortexHelper.sidebar && viewItem == snippet && isWorkspaceTrusted",
+                    "group": "inline"
+                }
+            ],
             "commandPalette": [
                 {
                     "command": "vortexHelper.setupVortexApi",
@@ -114,6 +239,42 @@
                 {
                     "command": "vortexHelper.debugInVortex",
                     "when": "vortexHelper.isVortexWorkspace && isWorkspaceTrusted"
+                },
+                {
+                    "command": "vortexHelper.build",
+                    "when": "vortexHelper.isVortexWorkspace && isWorkspaceTrusted"
+                },
+                {
+                    "command": "vortexHelper.packageZip",
+                    "when": "vortexHelper.isVortexWorkspace && isWorkspaceTrusted"
+                },
+                {
+                    "command": "vortexHelper.deployToVortex",
+                    "when": "vortexHelper.isVortexWorkspace && isWorkspaceTrusted"
+                },
+                {
+                    "command": "vortexHelper.attachToVortex",
+                    "when": "false"
+                },
+                {
+                    "command": "vortexHelper.removeVortexLibrary",
+                    "when": "false"
+                },
+                {
+                    "command": "vortexHelper.insertSnippet",
+                    "when": "false"
+                },
+                {
+                    "command": "vortexHelper.openPluginsFolder",
+                    "when": "vortexHelper.isVortexWorkspace"
+                },
+                {
+                    "command": "vortexHelper.openVortexLog",
+                    "when": "vortexHelper.isVortexWorkspace"
+                },
+                {
+                    "command": "vortexHelper.refreshSidebar",
+                    "when": "false"
                 }
             ]
         },

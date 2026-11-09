@@ -1,17 +1,19 @@
 import * as assert from 'assert';
+import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
 import { buildBlockers, validateProject } from '../../checks/validation';
 import { DEBUG_PORT_DEFAULT, DEBUG_SESSION_TYPE } from '../../constants';
 import { topLevelBreakpointHint, vortexAttachConfiguration } from '../../debug/attachConfiguration';
-import { CdpTimeoutError, ForeignPortError, pickPageTarget, waitForPageTarget, type CdpProbe, type CdpTarget } from '../../debug/cdpProbe';
-import { runDebugFlow, type DebugFlowUi, type DebugOutcome } from '../../debug/debugFlow';
+import { CdpTimeoutError, ForeignPortError, pickPageTarget, vortexWindowState, waitForPageTarget, type CdpProbe, type CdpTarget } from '../../debug/cdpProbe';
+import { buildAndDeploy, runAttachFlow, runDebugFlow, type DebugFlowUi, type DebugOutcome } from '../../debug/debugFlow';
 import { watchVortexDebugSessions, type DebugHost } from '../../debug/debugSessionWatcher';
-import { deployPack, InvalidPackIdError, isDeployedCurrent, PackMissingError, readPackId } from '../../debug/packDeployment';
-import { defaultPluginsFolder, vortexExeCandidates, vortexUserDataFolder } from '../../debug/vortexInstall';
+import { deployPack, InvalidPackIdError, isDeployedCurrent, PackMissingError, readDeploymentState, readPackId } from '../../debug/packDeployment';
+import { defaultPluginsFolder, PluginsFolderMissingError, resolvePluginsFolder, resolveVortexInstall, VortexNotFoundError, vortexExeCandidates, vortexUserDataFolder } from '../../debug/vortexInstall';
 import { debugArguments, type LaunchedVortex, type VortexLauncher } from '../../debug/vortexLauncher';
 import { renderProject, requiredFiles } from '../../templates/registry';
 import type { Finding, ProjectSnapshot, VortexProject } from '../../types/project';
+import type { HelperConfiguration } from '../../utils/configuration';
 import { copyDirectoryContents, emptyDirectory, fileExists, writeText } from '../../utils/fileSystemUtils';
 import { TS_FIXTURE_VALUES } from '../fixtures/createFixtureWorkspace';
 
@@ -178,6 +180,16 @@ suite('Debug in Vortex', () => {
         assert.strictEqual(pickPageTarget([main])?.url, main.url);
     });
 
+    test('vortexWindowState only calls a file: main window Vortex', () => {
+        const main = target('page', 'file:///C:/Program%20Files/Vortex/resources/app.asar/index.html');
+        const splash = target('page', 'file:///C:/Program%20Files/Vortex/resources/app.asar/splash.html');
+        assert.strictEqual(vortexWindowState([main]), 'ready');
+        assert.strictEqual(vortexWindowState([main, splash]), 'starting');
+        assert.strictEqual(vortexWindowState([]), 'starting');
+        assert.strictEqual(vortexWindowState([target('page', 'https://example.com/index.html')]), 'other');
+        assert.strictEqual(vortexWindowState([target('page', 'https://example.com/')]), 'other');
+    });
+
     test('debugArguments passes only what a release Vortex needs', () => {
         assert.deepStrictEqual(debugArguments(9333), ['--remote-debugging-port=9333', '--remote-allow-origins=*']);
     });
@@ -320,6 +332,64 @@ suite('Debug in Vortex', () => {
         assert.strictEqual(DEBUG_PORT_DEFAULT, 9222);
     });
 
+    suite('install', () => {
+        function settings(overrides: Partial<HelperConfiguration> = {}): HelperConfiguration {
+            return { useNexusApi: undefined, author: undefined, askSteamAppId: undefined, askExecutable: undefined, vortexExecutable: undefined, vortexPluginsFolder: undefined, debugPort: undefined, ...overrides };
+        }
+
+        /** A Windows machine inside the scratch folder that holds only what the test asks for */
+        async function machine(name: string, { exe = false, userData = false } = {}): Promise<NodeJS.ProcessEnv> {
+            const programFiles = path.join(scratch, name, 'program-files');
+            const appData = path.join(scratch, name, 'app-data');
+            if (exe) {
+                await writeText(vscode.Uri.file(path.join(programFiles, 'Vortex', 'Vortex.exe')), 'x');
+            }
+            if (userData) {
+                await writeText(vscode.Uri.file(path.join(appData, 'Vortex', 'state.v2')), 'x');
+            }
+            return { PROGRAMFILES: programFiles, APPDATA: appData };
+        }
+
+        test('a missing executable is reported before a missing user data folder', async () => {
+            await assert.rejects(() => resolveVortexInstall(settings(), 'win32', { PROGRAMFILES: path.join(scratch, 'no-vortex') }), VortexNotFoundError);
+            const env = await machine('install-no-exe', { userData: true });
+            await assert.rejects(() => resolveVortexInstall(settings(), 'win32', env), VortexNotFoundError);
+        });
+
+        test('a configured executable that doesn\'t exist is the only candidate', async () => {
+            const env = await machine('install-configured-exe', { exe: true, userData: true });
+            const configured = path.join(scratch, 'install-configured-exe', 'elsewhere', 'Vortex.exe');
+            await assert.rejects(
+                () => resolveVortexInstall(settings({ vortexExecutable: configured }), 'win32', env),
+                (error: unknown) => error instanceof VortexNotFoundError && error.candidates.length === 1 && error.candidates[0] === configured
+            );
+        });
+
+        test('a Vortex that never ran has no user data folder', async () => {
+            const env = await machine('install-never-ran', { exe: true });
+            await assert.rejects(() => resolveVortexInstall(settings(), 'win32', env), PluginsFolderMissingError);
+        });
+
+        test('a configured plugins folder needs no user data folder', async () => {
+            const env = await machine('install-configured-plugins', { exe: true });
+            const plugins = path.join(scratch, 'install-configured-plugins', 'plugins');
+            const install = await resolveVortexInstall(settings({ vortexPluginsFolder: `  ${plugins}  ` }), 'win32', env);
+            assert.strictEqual(install.pluginsFolder.fsPath, vscode.Uri.file(plugins).fsPath);
+        });
+
+        test('finds the executable and the plugins folder of the user data folder', async () => {
+            const env = await machine('install-found', { exe: true, userData: true });
+            const install = await resolveVortexInstall(settings(), 'win32', env);
+            assert.strictEqual(install.exe, path.join(env.PROGRAMFILES ?? '', 'Vortex', 'Vortex.exe'));
+            assert.strictEqual(install.pluginsFolder.fsPath, vscode.Uri.file(path.join(env.APPDATA ?? '', 'Vortex', 'plugins')).fsPath);
+        });
+
+        test('the plugins folder doesn\'t take a Vortex.exe to find', async () => {
+            const env = await machine('install-plugins-only', { userData: true });
+            assert.strictEqual((await resolvePluginsFolder(settings(), 'win32', env)).fsPath, vscode.Uri.file(path.join(env.APPDATA ?? '', 'Vortex', 'plugins')).fsPath);
+        });
+    });
+
     suite('deploy', () => {
         const projectFolder = (name: string): vscode.Uri => vscode.Uri.file(path.join(scratch, name));
 
@@ -362,6 +432,50 @@ suite('Debug in Vortex', () => {
             assert.strictEqual(await isDeployedCurrent(folder, plugins, 'missing-support'), false);
             await writeText(vscode.Uri.joinPath(plugins, 'missing-support', 'index.js'), 'module.exports = 3;');
             assert.strictEqual(await isDeployedCurrent(folder, plugins, 'missing-support'), false);
+        });
+
+        async function builtProject(name: string, id: string): Promise<{ folder: vscode.Uri; plugins: vscode.Uri }> {
+            const folder = projectFolder(`${name}-source`);
+            await writeText(vscode.Uri.joinPath(folder, '.pack', 'index.js'), 'module.exports = 1;');
+            await writeText(vscode.Uri.joinPath(folder, '.pack', 'info.json'), JSON.stringify({ id }));
+            return { folder, plugins: projectFolder(`${name}-plugins`) };
+        }
+
+        test('readDeploymentState follows a project from unbuilt to deployed', async () => {
+            assert.strictEqual(await readDeploymentState(projectFolder('state-unbuilt'), projectFolder('state-plugins')), 'not-built');
+            const { folder, plugins } = await builtProject('state', 'state-support');
+            assert.strictEqual(await readDeploymentState(folder, undefined), 'no-plugins-folder');
+            assert.strictEqual(await readDeploymentState(folder, plugins), 'not-deployed');
+            await deployPack(folder, plugins, 'state-support');
+            assert.strictEqual(await readDeploymentState(folder, plugins), 'current');
+        });
+
+        test('the same bundle with a different info.json is out of date, so a version bump counts', async () => {
+            const { folder, plugins } = await builtProject('state-info', 'info-support');
+            await deployPack(folder, plugins, 'info-support');
+            await writeText(vscode.Uri.joinPath(folder, '.pack', 'info.json'), JSON.stringify({ id: 'info-support', version: '2.0.0' }));
+            assert.strictEqual(await readDeploymentState(folder, plugins), 'out-of-date');
+        });
+
+        test('a file Vortex added to the deployed folder doesn\'t make it out of date', async () => {
+            const { folder, plugins } = await builtProject('state-extra', 'extra-support');
+            await deployPack(folder, plugins, 'extra-support');
+            await writeText(vscode.Uri.joinPath(plugins, 'extra-support', 'written-by-vortex.txt'), 'x');
+            assert.strictEqual(await readDeploymentState(folder, plugins), 'current');
+        });
+
+        test('a source file or package.json newer than the bundle is out of date, even with the build deployed', async () => {
+            const { folder, plugins } = await builtProject('state-source-changed', 'changed-support');
+            await deployPack(folder, plugins, 'changed-support');
+            const later = new Date(Date.now() + 60_000);
+            for (const relative of ['src/deep/module.ts', 'package.json']) {
+                const uri = vscode.Uri.joinPath(folder, relative);
+                await writeText(uri, 'x');
+                fs.utimesSync(uri.fsPath, later, later);
+                assert.strictEqual(await readDeploymentState(folder, plugins), 'out-of-date', relative);
+                fs.rmSync(uri.fsPath);
+            }
+            assert.strictEqual(await readDeploymentState(folder, plugins), 'current');
         });
 
         test('emptyDirectory and copyDirectoryContents keep the target directory', async () => {
@@ -492,6 +606,58 @@ suite('Debug in Vortex', () => {
 
             assert.deepStrictEqual(outcome, { kind: 'attached', packId: 'attach-support', reused: true });
             assert.deepStrictEqual(calls, ['asked:stale=true', 'attach']);
+        });
+
+        function runAttach(name: string, targets: Awaited<ReturnType<CdpProbe['targets']>>): { outcome: Promise<DebugOutcome>; attached: () => number } {
+            let attached = 0;
+            const outcome = buildablePack(project(name).folder.uri, `${name}-support`).then(() => runAttachFlow(
+                { project: project(name), port: 9222, report: () => { }, token: NO_TOKEN },
+                {
+                    cdp: { version: async () => assert.fail('should have asked for the windows'), targets: async () => targets },
+                    startDebugging: async () => {
+                        attached += 1;
+                        return true;
+                    },
+                }
+            ));
+            return { outcome, attached: () => attached };
+        }
+
+        test('attach only attaches to a Vortex whose window is up', async () => {
+            const run = runAttach('attach-ready', { status: 'ok', value: [target('page', 'file:///app.asar/index.html')] });
+            assert.deepStrictEqual(await run.outcome, { kind: 'attached', packId: 'attach-ready-support', reused: true });
+            assert.strictEqual(run.attached(), 1);
+        });
+
+        test('attach refuses during the splash screen, which could hang Vortex', async () => {
+            const run = runAttach('attach-splash', { status: 'ok', value: [target('page', 'file:///app.asar/splash.html')] });
+            assert.strictEqual((await run.outcome).kind, 'failed');
+            assert.strictEqual(run.attached(), 0);
+        });
+
+        test('attach reports a closed port instead of building and starting Vortex', async () => {
+            const run = runAttach('attach-closed', { status: 'closed' });
+            assert.strictEqual((await run.outcome).kind, 'failed');
+            assert.strictEqual(run.attached(), 0);
+        });
+
+        test('attach refuses a port something else owns', async () => {
+            await assert.rejects(runAttach('attach-foreign', { status: 'foreign', detail: 'a web server' }).outcome, ForeignPortError);
+            await assert.rejects(runAttach('attach-browser', { status: 'ok', value: [target('page', 'https://example.com/')] }).outcome, ForeignPortError);
+        });
+
+        test('a deploy only needs the plugins folder', async () => {
+            const flowProject = project('deploy-only');
+            const plugins = vscode.Uri.file(path.join(scratch, 'deploy-only-plugins'));
+            const result = await buildAndDeploy({
+                project: flowProject,
+                pluginsFolder: plugins,
+                report: () => { },
+                token: NO_TOKEN,
+                build: async folder => buildablePack(folder.uri, 'deploy-only-support'),
+            });
+            assert.strictEqual(result, 'deploy-only-support');
+            assert.ok(await fileExists(vscode.Uri.joinPath(plugins, 'deploy-only-support', 'index.js')));
         });
 
         test('a Vortex that quits is reported as the single instance lock', async () => {

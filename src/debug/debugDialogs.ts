@@ -3,6 +3,7 @@ import { readProjectSnapshot } from '../checks/projectSnapshot';
 import { buildBlockers, validateProject } from '../checks/validation';
 import { COMMAND_DEBUG_IN_VORTEX, COMMAND_RUN_WORKSPACE_CHECKS, JS_DEBUG_EXTENSION_ID, PACKAGE_JSON_PATH, SETTING_VORTEX_EXECUTABLE, SETTING_VORTEX_PLUGINS_FOLDER } from '../constants';
 import { MissingScriptError } from '../project/npmTasks';
+import type { Activity, ProjectActivity } from '../project/projectActivity';
 import type { FolderValidator, VortexProject } from '../types/project';
 import { commandLabel } from '../utils/commandLabel';
 import { getConfiguration } from '../utils/configuration';
@@ -11,7 +12,7 @@ import { Logger } from '../utils/logger';
 import { showError, showInfo, showWarning } from '../utils/notifications';
 import { topLevelBreakpointHint } from './attachConfiguration';
 import type { DebugFlowUi, DebugOutcome } from './debugFlow';
-import { PluginsFolderMissingError, resolveVortexInstall, VortexNotFoundError, type VortexInstall } from './vortexInstall';
+import { PluginsFolderMissingError, resolvePluginsFolder, resolveVortexInstall, VortexNotFoundError, type VortexInstall } from './vortexInstall';
 
 const ATTACH_ONLY = 'Attach Only';
 const REBUILD_AND_RESTART = 'Rebuild and Restart Vortex';
@@ -25,11 +26,30 @@ const OPEN_SETTINGS = 'Open Settings';
 const OPEN_LOG = 'Open Log';
 const BROWSE = 'Browse...';
 
+export interface ProjectActionContext {
+    readonly project: VortexProject;
+    readonly validator: FolderValidator;
+    readonly activity: ProjectActivity;
+}
+
+/** Runs an action alone on its project, reports what stopped it and checks the project again afterwards */
+export async function runProjectAction({ project, validator, activity }: ProjectActionContext, kind: Activity, action: string, task: () => Promise<void>): Promise<void> {
+    await activity.run(project.folder, kind, async () => {
+        try {
+            await task();
+        } catch (e) {
+            reportFailure(project, e, action);
+        } finally {
+            await validator.validateFolder(project.folder);
+        }
+    });
+}
+
 export const WINDOW_UI: DebugFlowUi = {
     async confirmPortInUse(stale) {
         const detail = stale
             ? 'The build Vortex has loaded differs from the one that was just built, so breakpoints may bind to the wrong lines. Restarting Vortex loads the current build.'
-            : 'Vortex already has the current build loaded.';
+            : 'The deployed extension matches the current build. Vortex only loads it when it starts, so if it was deployed while Vortex was running, restart Vortex.';
         const choice = await showInfo(
             'Vortex is already running with its debugging port open.',
             { modal: true, detail },
@@ -119,11 +139,18 @@ export async function resolveInstall(): Promise<VortexInstall | undefined> {
             }
             return undefined;
         }
-        const buttons = e instanceof PluginsFolderMissingError ? [OPEN_SETTINGS] : [];
-        const choice = await showError(errorMessage(e), ...buttons);
-        if (choice === OPEN_SETTINGS) {
-            await vscode.commands.executeCommand('workbench.action.openSettings', SETTING_VORTEX_PLUGINS_FOLDER);
-        }
+        await reportNoPluginsFolder(e);
+        return undefined;
+    }
+}
+
+/** @returns The folder to deploy to, or undefined once the author has been told why there is none */
+export async function resolveDeployTarget(): Promise<vscode.Uri | undefined> {
+    try {
+        return await resolvePluginsFolder(getConfiguration());
+    } catch (e) {
+        Logger.error(errorMessage(e));
+        await reportNoPluginsFolder(e);
         return undefined;
     }
 }
@@ -157,17 +184,25 @@ export function reportOutcome(outcome: DebugOutcome): void {
     }
 }
 
-/** Reports what stopped the flow, unless the author cancelled it */
-export function reportFailure(project: VortexProject, e: unknown): void {
+/** Reports what stopped an action on the project, unless the author cancelled it */
+export function reportFailure(project: VortexProject, e: unknown, action = 'debug'): void {
     if (e instanceof vscode.CancellationError) {
         return;
     }
-    Logger.error(`Failed to debug ${project.folder.uri.fsPath}: ${errorMessage(e)}`);
+    Logger.error(`Failed to ${action} ${project.folder.uri.fsPath}: ${errorMessage(e)}`);
     const message = e instanceof MissingScriptError
         ? `${errorMessage(e)} A generated project builds with "rollup -c rollup.config.mjs && node .vscode/build/populate-pack.mjs".`
         : errorMessage(e);
     showError(message, OPEN_LOG)
         .then(choice => choice === OPEN_LOG && Logger.show());
+}
+
+async function reportNoPluginsFolder(e: unknown): Promise<void> {
+    const buttons = e instanceof PluginsFolderMissingError ? [OPEN_SETTINGS] : [];
+    const choice = await showError(errorMessage(e), ...buttons);
+    if (choice === OPEN_SETTINGS) {
+        await vscode.commands.executeCommand('workbench.action.openSettings', SETTING_VORTEX_PLUGINS_FOLDER);
+    }
 }
 
 async function browseForVortex(): Promise<void> {

@@ -23,7 +23,7 @@ export interface WatchOptions {
     readonly misses?: number;
 }
 
-const VSCODE_DEBUG: DebugHost = {
+export const VSCODE_DEBUG: DebugHost = {
     onDidStartDebugSession: (listener, thisArgs, disposables) => vscode.debug.onDidStartDebugSession(listener, thisArgs, disposables),
     onDidTerminateDebugSession: (listener, thisArgs, disposables) => vscode.debug.onDidTerminateDebugSession(listener, thisArgs, disposables),
     stopDebugging: session => vscode.debug.stopDebugging(session),
@@ -92,6 +92,11 @@ export function watchVortexDebugSessions(options: WatchOptions = {}): vscode.Dis
             subscriptions.forEach(subscription => subscription.dispose());
         },
     };
+}
+
+/** Whether a session is the one holding an attach to Vortex, rather than one of the sessions js-debug nests under it */
+export function isVortexDebugSession(session: vscode.DebugSession): boolean {
+    return vortexPortOf(session) !== undefined && session.parentSession === undefined;
 }
 
 /**

@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import type { VortexDiagnostics } from '../checks/vortexDiagnostics';
+import { BUILTIN_SHOW_PROBLEMS } from '../constants';
 import { NO_PROJECT_MESSAGE } from '../project/projectPicker';
 import type { VortexWorkspaceTracker } from '../project/vortexWorkspaceTracker';
 import type { Finding, Severity, VortexProject } from '../types/project';
@@ -34,7 +35,7 @@ export async function handleRunWorkspaceChecks(tracker: VortexWorkspaceTracker, 
     showInfo(`${summarize(all)} in ${pluralize(results.size, 'project')}.`, SHOW_PROBLEMS, SHOW_LOG)
         .then(choice => {
             if (choice === SHOW_PROBLEMS) {
-                void vscode.commands.executeCommand('workbench.actions.view.problems');
+                void vscode.commands.executeCommand(BUILTIN_SHOW_PROBLEMS);
             } else if (choice === SHOW_LOG) {
                 Logger.show();
             }

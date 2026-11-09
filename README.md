@@ -10,6 +10,7 @@ Create, check and extend game support extensions for [Vortex](https://www.nexusm
 
 ## ✨ Features
 
+- **Sidebar** — shows at a glance whether a game extension's dependencies, problems, Nexus Mods id and deployed build are in order and whether Vortex is running, and puts building, deploying, attaching, libraries and snippets one click away
 - **New game support extension** — pick the game from the Nexus Mods game list (or enter it by hand) and get a TypeScript project that installs, builds and packages right away
 - **One standard layout** — metadata and the game art path in `package.json`, rollup bundling straight into `.pack/`, and Node-only build scripts that generate `info.json` and zip the release
 - **Live checks** — missing fields, a wrong game art, missing generated files, a mismatched `@types/bluebird`, TypeScript 7 and lockfiles that break CI are reported in the Problems panel while you edit
@@ -70,6 +71,20 @@ A generated extension looks like this:
 
 `npm run build` creates `.pack/`, exactly what Vortex loads, and `npm run package` the release zip in `dist/`.
 
+### Sidebar
+
+The Vortex icon in the activity bar opens an overview of the game extensions in the window:
+
+- **The game** — whether its dependencies are installed, what the Problems panel lists for it, whether its Nexus Mods id matches the game, whether Vortex has the current build, and whether Vortex is running with its debug port open
+- **Actions** — debug, build, package, and open Vortex's plugins folder or log
+- **Vortex Libraries** — every library Vortex provides at runtime, to install or remove
+- **Snippets** — every snippet with its code in the tooltip, to insert at the cursor
+- **Help** — the guides for creating and packaging a game extension, and the issue tracker
+
+A row's buttons appear when you hover over or select it. While a game extension is busy with npm, a build, a deploy or starting a debug session, a second action on it is refused, so two npm runs can't overwrite each other's `package.json`.
+
+While the view is visible and VS Code has focus, it asks the debug port for Vortex's state every second and re-reads the project every 5 seconds. While the view is hidden it does neither. The game's name comes from the public Nexus Mods game list, which is loaded once per session and not at all when `vortexHelper.useNexusApi` is off.
+
 ### Commands
 
 | Command                                  | Does                                                                                                     |
@@ -81,6 +96,11 @@ A generated extension looks like this:
 | **Vortex: Open Extension Documentation** | Opens the Nexus Mods guide to creating a game extension                                                  |
 | **Vortex: Add Vortex Library**           | Installs a library Vortex provides at runtime and adds it to `vortex.externals` (needs a trusted workspace) |
 | **Vortex: Debug in Vortex**              | Builds the extension, deploys it to Vortex, starts Vortex with its DevTools port open and attaches the debugger (needs a trusted workspace) |
+| **Vortex: Build**                        | Runs `npm run build` (needs a trusted workspace)                                                         |
+| **Vortex: Package Zip**                  | Runs `npm run package`, which writes the release zip to `dist/` (needs a trusted workspace)              |
+| **Vortex: Deploy to Vortex**             | Builds the extension and copies it to Vortex's plugins folder (needs a trusted workspace)                |
+| **Vortex: Open Plugins Folder**          | Shows Vortex's plugins folder in the file explorer                                                       |
+| **Vortex: Open Vortex Log**              | Opens Vortex's log                                                                                       |
 
 A workspace folder is a game extension when its `package.json` has `vortex-api` in `devDependencies`. Commands that work on one extension use the extension of the active editor, or ask when several are open.
 
@@ -107,7 +127,7 @@ A game extension runs inside Vortex, so it can only import what Vortex provides:
 }
 ```
 
-The generated `rollup.config.mjs` reads that list, so rollup leaves the import to Vortex instead of warning about it.
+The generated `rollup.config.mjs` reads that list, so rollup leaves the import to Vortex instead of warning about it. The sidebar lists the same libraries, and can remove one again.
 
 ### Snippets
 
@@ -183,6 +203,7 @@ Also available on [Open VSX](https://open-vsx.org/extension/der-floh/vortex-exte
 | `src/wizard/`      | New Game Support Extension: its prompts, the Nexus Mods game list, the install after reload   |
 | `src/debug/`       | Debug in Vortex: build, deploy, start Vortex and attach                                       |
 | `src/snippets/`    | The snippets and the completion provider that offers them                                     |
+| `src/sidebar/`     | The Vortex view: its rows, what they read from a project, and the watch on Vortex itself      |
 | `src/templates/`   | The generated project: its files, the `package.json` builder, the file registry and writer    |
 | `src/utils/`       | Generic helpers that know nothing about Vortex                                                |
 | `src/types/`       | Types shared between the folders                                                              |

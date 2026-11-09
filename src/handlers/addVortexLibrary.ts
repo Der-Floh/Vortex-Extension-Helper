@@ -1,39 +1,41 @@
 import * as vscode from 'vscode';
 import type { VortexDiagnostics } from '../checks/vortexDiagnostics';
 import { PACKAGE_JSON_PATH } from '../constants';
+import { saveOpenPackageJson } from '../project/dependencyInstaller';
 import { installDevDependency } from '../project/npmTasks';
+import { libraryActivity, type ProjectActivity } from '../project/projectActivity';
 import { addExternal, dependencyNames, readExternals } from '../project/projectManifest';
 import { pickVortexProject } from '../project/projectPicker';
-import { VORTEX_LIBRARIES, type VortexLibrary } from '../project/vortexLibraries';
+import { VORTEX_LIBRARIES, type LibraryTarget, type VortexLibrary } from '../project/vortexLibraries';
 import type { VortexWorkspaceTracker } from '../project/vortexWorkspaceTracker';
+import type { VortexProject } from '../types/project';
 import { errorMessage } from '../utils/errors';
-import { findOpenDocument, readCurrentText, readTextIfExists, writeText } from '../utils/fileSystemUtils';
+import { readCurrentText, readTextIfExists, writeText } from '../utils/fileSystemUtils';
 import { parseLenientJson } from '../utils/jsonUtils';
 import { Logger } from '../utils/logger';
-import { showError, showInfo, showWarning } from '../utils/notifications';
+import { showError, showInfo } from '../utils/notifications';
 import { requireTrust } from '../utils/trust';
-
-const SAVE_AND_CONTINUE = 'Save and Continue';
 
 interface LibraryQuickPickItem extends vscode.QuickPickItem {
     readonly library: VortexLibrary;
 }
 
-/**
- * Installs a library Vortex provides at runtime and lists it in `vortex.externals`, so rollup leaves its import to Vortex.
- * package.json is edited before npm runs, because npm rewrites the file, and restored if npm fails.
- */
-export async function handleAddVortexLibrary(tracker: VortexWorkspaceTracker, diagnostics: VortexDiagnostics): Promise<void> {
-    const project = await pickVortexProject(tracker);
+/** Installs a library Vortex provides at runtime and lists it in `vortex.externals`, so rollup leaves its import to Vortex */
+export async function handleAddVortexLibrary(tracker: VortexWorkspaceTracker, diagnostics: VortexDiagnostics, activity: ProjectActivity, target?: LibraryTarget): Promise<void> {
+    const project = await pickVortexProject(tracker, target);
     if (!project || !requireTrust()) {
         return;
     }
     const packageJsonUri = vscode.Uri.joinPath(project.folder.uri, PACKAGE_JSON_PATH);
-    const library = await pickLibrary(await readCurrentText(packageJsonUri) ?? '');
+    const library = target?.library ?? await pickLibrary(await readCurrentText(packageJsonUri) ?? '');
     if (!library || !await saveOpenPackageJson(packageJsonUri)) {
         return;
     }
+    await activity.run(project.folder, libraryActivity('adding', library.name), () => addLibrary(project, library, packageJsonUri, diagnostics));
+}
 
+/** package.json is edited before npm runs, because npm rewrites the file, and restored if npm fails */
+async function addLibrary(project: VortexProject, library: VortexLibrary, packageJsonUri: vscode.Uri, diagnostics: VortexDiagnostics): Promise<void> {
     const originalText = await readTextIfExists(packageJsonUri);
     if (originalText === undefined) {
         showError(`${project.folder.name}/package.json can't be read.`);
@@ -76,14 +78,4 @@ async function pickLibrary(packageJsonText: string): Promise<VortexLibrary | und
         ignoreFocusOut: true,
     });
     return picked?.library;
-}
-
-/** npm rewrites package.json, so unsaved changes in an open editor must be saved first */
-async function saveOpenPackageJson(uri: vscode.Uri): Promise<boolean> {
-    const document = findOpenDocument(uri);
-    if (!document?.isDirty) {
-        return true;
-    }
-    const choice = await showWarning('package.json has unsaved changes. npm rewrites it, so save it first.', { modal: true }, SAVE_AND_CONTINUE);
-    return choice === SAVE_AND_CONTINUE && await document.save();
 }

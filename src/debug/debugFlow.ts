@@ -1,11 +1,11 @@
 import * as vscode from 'vscode';
 import { PACK_ENTRY, VORTEX_PROBE_INTERVAL_MS, VORTEX_QUIT_TIMEOUT_MS } from '../constants';
-import { runBuild } from '../project/npmTasks';
+import { runBuild, saveForBuild } from '../project/npmTasks';
 import type { VortexProject } from '../types/project';
-import { fileExists, saveDirtyDocuments } from '../utils/fileSystemUtils';
+import { fileExists } from '../utils/fileSystemUtils';
 import { Logger } from '../utils/logger';
 import { vortexAttachConfiguration } from './attachConfiguration';
-import { ForeignPortError, HTTP_CDP, type CdpProbe, waitForPageTarget } from './cdpProbe';
+import { ForeignPortError, HTTP_CDP, type CdpProbe, vortexWindowState, waitForPageTarget } from './cdpProbe';
 import { deployPack, isDeployedCurrent, readPackId } from './packDeployment';
 import type { VortexInstall } from './vortexInstall';
 import { debugArguments, SYSTEM_LAUNCHER, type VortexLauncher } from './vortexLauncher';
@@ -45,9 +45,24 @@ export interface DebugFlowOptions {
     readonly token: vscode.CancellationToken;
 }
 
+export type AttachFlowOptions = Pick<DebugFlowOptions, 'project' | 'port' | 'report' | 'token'>;
+
+export interface DeployOptions {
+    readonly project: VortexProject;
+    readonly pluginsFolder: vscode.Uri;
+    readonly report: (message: string) => void;
+    readonly token: vscode.CancellationToken;
+    readonly build?: DebugFlowDeps['build'];
+}
+
+export type Stopped = Exclude<DebugOutcome, { readonly kind: 'attached' }>;
+
 type Flow = DebugFlowOptions & Required<DebugFlowDeps>;
 type LaunchPlan = 'launch' | 'attach' | 'declined';
-type Stopped = Exclude<DebugOutcome, { readonly kind: 'attached' }>;
+
+const ANOTHER_BROWSER = 'another browser';
+
+const startVsCodeDebugging: Required<DebugFlowDeps>['startDebugging'] = (folder, configuration) => vscode.debug.startDebugging(folder, configuration);
 
 const wait = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -64,7 +79,7 @@ export async function runDebugFlow(options: DebugFlowOptions, deps: DebugFlowDep
         launcher: deps.launcher ?? SYSTEM_LAUNCHER,
         cdp: deps.cdp ?? HTTP_CDP,
         build: deps.build ?? runBuild,
-        startDebugging: deps.startDebugging ?? ((folder, configuration) => vscode.debug.startDebugging(folder, configuration)),
+        startDebugging: deps.startDebugging ?? startVsCodeDebugging,
         quitTimeoutMs: deps.quitTimeoutMs ?? VORTEX_QUIT_TIMEOUT_MS,
     };
 
@@ -80,11 +95,36 @@ export async function runDebugFlow(options: DebugFlowOptions, deps: DebugFlowDep
         return attach(flow, await readPackId(flow.project.folder.uri), true);
     }
 
-    const packId = await buildAndDeploy(flow);
+    const packId = await buildAndDeploy({ ...flow, pluginsFolder: flow.install.pluginsFolder });
     if (typeof packId !== 'string') {
         return packId;
     }
     return await launchAndWait(flow, packId) ?? attach(flow, packId, false);
+}
+
+/**
+ * Attaches to the Vortex that is running, and does nothing else.
+ *
+ * Whatever offered this may be out of date, so Vortex is asked again: attaching during the splash
+ * screen can hang it, and a port that has closed must not turn into a build and a launch.
+ */
+export async function runAttachFlow(options: AttachFlowOptions, deps: Pick<DebugFlowDeps, 'cdp' | 'startDebugging'> = {}): Promise<DebugOutcome> {
+    const { project, port } = options;
+    const targets = await (deps.cdp ?? HTTP_CDP).targets(port);
+    if (targets.status === 'foreign') {
+        throw new ForeignPortError(port, targets.detail);
+    }
+    if (targets.status === 'closed') {
+        return { kind: 'failed', reason: `Nothing is listening on port ${port} any more, so Vortex has probably closed.` };
+    }
+    const state = vortexWindowState(targets.value);
+    if (state === 'other') {
+        throw new ForeignPortError(port, ANOTHER_BROWSER);
+    }
+    if (state === 'starting') {
+        return { kind: 'failed', reason: 'Vortex is still starting. Try again once its window is up.' };
+    }
+    return attach({ ...options, startDebugging: deps.startDebugging ?? startVsCodeDebugging }, await readPackId(project.folder.uri), true);
 }
 
 async function planForRunningVortex(flow: Flow): Promise<LaunchPlan> {
@@ -138,11 +178,9 @@ async function closeVortex({ launcher, ui, quitTimeoutMs }: Flow): Promise<boole
     return await launcher.isVortexRunning() !== true;
 }
 
-/** @returns The id of the deployed extension, or why the flow stopped */
-async function buildAndDeploy({ project, install, report, build, token }: Flow): Promise<string | Stopped> {
-    if (!await saveDirtyDocuments(project.folder.uri)) {
-        return { kind: 'failed', reason: 'Some of the project\'s files couldn\'t be saved, so the build would not match the editor.' };
-    }
+/** @returns The id of the deployed extension, or why it stopped */
+export async function buildAndDeploy({ project, pluginsFolder, report, token, build = runBuild }: DeployOptions): Promise<string | Stopped> {
+    await saveForBuild(project.folder);
     report(`Building ${project.folder.name}...`);
     await build(project.folder, token);
     if (token.isCancellationRequested) {
@@ -151,8 +189,8 @@ async function buildAndDeploy({ project, install, report, build, token }: Flow):
 
     const packId = await readPackId(project.folder.uri);
     report(`Deploying ${packId}...`);
-    const files = await deployPack(project.folder.uri, install.pluginsFolder, packId, token);
-    Logger.info(`Deployed ${files} files of ${packId} to ${install.pluginsFolder.fsPath}`);
+    const files = await deployPack(project.folder.uri, pluginsFolder, packId, token);
+    Logger.info(`Deployed ${files} files of ${packId} to ${pluginsFolder.fsPath}`);
     return token.isCancellationRequested ? { kind: 'cancelled' } : packId;
 }
 
@@ -182,7 +220,7 @@ async function launchAndWait({ install, port, launcher, cdp, report, token }: Fl
     return await fileExists(vscode.Uri.joinPath(install.pluginsFolder, packId, PACK_ENTRY)) ? undefined : { kind: 'removed', packId };
 }
 
-async function attach({ project, port, report, startDebugging, token }: Flow, packId: string, reused: boolean): Promise<DebugOutcome> {
+async function attach({ project, port, report, startDebugging, token }: AttachFlowOptions & Pick<Flow, 'startDebugging'>, packId: string, reused: boolean): Promise<DebugOutcome> {
     if (token.isCancellationRequested) {
         return { kind: 'cancelled' };
     }

@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { CONSTANTS_PATH, CONTEXT_IS_VORTEX_WORKSPACE, ENTRY_PATH, LEGACY_INFO_JSON, PACKAGE_JSON_PATH, PACKAGE_LOCK_PATH, REVALIDATE_DEBOUNCE_MS } from '../constants';
+import { CONSTANTS_PATH, CONTEXT_DETECTION_DONE, CONTEXT_IS_VORTEX_WORKSPACE, ENTRY_PATH, LEGACY_INFO_JSON, PACKAGE_JSON_PATH, PACKAGE_LOCK_PATH, REVALIDATE_DEBOUNCE_MS } from '../constants';
 import type { VortexProject } from '../types/project';
 import { errorMessage } from '../utils/errors';
 import { fileExists, readTextIfExists } from '../utils/fileSystemUtils';
@@ -65,6 +65,7 @@ export class VortexWorkspaceTracker implements vscode.Disposable {
             this.watch(folder);
         }
         await this.refreshAll();
+        await vscode.commands.executeCommand('setContext', CONTEXT_DETECTION_DONE, true);
     }
 
     async refreshAll(): Promise<void> {

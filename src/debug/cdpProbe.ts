@@ -29,6 +29,8 @@ export type ProbeResult<T> =
     | { readonly status: 'closed' }
     | { readonly status: 'foreign'; readonly detail: string };
 
+export type VortexWindowState = 'starting' | 'ready' | 'other';
+
 export interface CdpProbe {
     version(port: number): Promise<ProbeResult<CdpVersion>>;
     targets(port: number): Promise<ProbeResult<readonly CdpTarget[]>>;
@@ -119,6 +121,19 @@ export function pickPageTarget(targets: readonly CdpTarget[]): CdpTarget | undef
         return undefined;
     }
     return attachable.find(target => MAIN_WINDOW.test(target.url)) ?? attachable[0];
+}
+
+/**
+ * How far the browser behind a debugging port has got.
+ *
+ * Any Chromium answers on such a port, so only a `file:` page that is the main window counts as Vortex.
+ */
+export function vortexWindowState(targets: readonly CdpTarget[]): VortexWindowState {
+    const page = pickPageTarget(targets);
+    if (page === undefined) {
+        return 'starting';
+    }
+    return page.url.startsWith('file:') && MAIN_WINDOW.test(page.url) ? 'ready' : 'other';
 }
 
 export interface WaitOptions {

@@ -67,10 +67,60 @@ export async function copyDirectoryContents(source: vscode.Uri, target: vscode.U
     return copied;
 }
 
+/** Whether every file below `source` has an identical copy at the same path below `target` */
+export async function hasIdenticalCopies(source: vscode.Uri, target: vscode.Uri): Promise<boolean> {
+    let entries: [string, vscode.FileType][];
+    try {
+        entries = await vscode.workspace.fs.readDirectory(source);
+    } catch {
+        return false;
+    }
+    for (const [name, type] of entries) {
+        const from = vscode.Uri.joinPath(source, name);
+        const to = vscode.Uri.joinPath(target, name);
+        if (!await (type === vscode.FileType.Directory ? hasIdenticalCopies(from, to) : haveSameBytes(from, to))) {
+            return false;
+        }
+    }
+    return true;
+}
+
+/** The latest modification time of a file or of anything below a directory, or undefined if it doesn't exist */
+export async function latestModification(uri: vscode.Uri): Promise<number | undefined> {
+    const stat = await statIfExists(uri);
+    if (stat?.type !== vscode.FileType.Directory) {
+        return stat?.mtime;
+    }
+    const entries = await vscode.workspace.fs.readDirectory(uri);
+    const times = await Promise.all(entries.map(([name]) => latestModification(vscode.Uri.joinPath(uri, name))));
+    return Math.max(0, ...times.filter((time): time is number => time !== undefined));
+}
+
 /** Saves the folder's modified documents, so a build reads what the editor shows. @returns False if one couldn't be saved */
 export async function saveDirtyDocuments(folder: vscode.Uri): Promise<boolean> {
     const prefix = `${folder.toString().replace(/\/$/, '')}/`;
     const dirty = vscode.workspace.textDocuments.filter(document => document.isDirty && document.uri.toString().startsWith(prefix));
     const results = await Promise.all(dirty.map(document => document.save()));
     return results.every(saved => saved);
+}
+
+async function statIfExists(uri: vscode.Uri): Promise<vscode.FileStat | undefined> {
+    try {
+        return await vscode.workspace.fs.stat(uri);
+    } catch {
+        return undefined;
+    }
+}
+
+async function readBytesIfExists(uri: vscode.Uri): Promise<Uint8Array | undefined> {
+    try {
+        return await vscode.workspace.fs.readFile(uri);
+    } catch {
+        return undefined;
+    }
+}
+
+async function haveSameBytes(first: vscode.Uri, second: vscode.Uri): Promise<boolean> {
+    const [a, b] = await Promise.all([readBytesIfExists(first), readBytesIfExists(second)]);
+    return a !== undefined && b !== undefined && a.length === b.length && a.every((byte, index) => byte === b[index]);
 }

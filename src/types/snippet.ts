@@ -5,3 +5,8 @@ export interface Snippet {
 }
 
 export type SnippetMap = Readonly<Record<string, Snippet>>;
+
+/** What a sidebar row passes to the command that inserts a snippet */
+export interface SnippetTarget {
+    readonly snippet?: Snippet;
+}

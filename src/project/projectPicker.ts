@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import type { VortexProject } from '../types/project';
+import type { ProjectTarget, VortexProject } from '../types/project';
 import { showInfo } from '../utils/notifications';
 import type { VortexWorkspaceTracker } from './vortexWorkspaceTracker';
 
@@ -9,8 +9,11 @@ interface ProjectQuickPickItem extends vscode.QuickPickItem {
     readonly project: VortexProject;
 }
 
-/** The project of the active editor, the only project, or the one the user picks */
-export async function pickVortexProject(tracker: VortexWorkspaceTracker): Promise<VortexProject | undefined> {
+/** The project a row asks for, the project of the active editor, the only project, or the one the user picks */
+export async function pickVortexProject(tracker: VortexWorkspaceTracker, target?: ProjectTarget): Promise<VortexProject | undefined> {
+    if (target?.project) {
+        return target.project;
+    }
     const projects = tracker.projects;
     if (projects.length === 0) {
         showInfo(NO_PROJECT_MESSAGE);

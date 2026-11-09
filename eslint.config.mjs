@@ -6,13 +6,14 @@ const NO_VSCODE = { name: 'vscode', message: 'This module has to load without a 
 
 /** The folders each folder must not import */
 const LAYERS = {
-    utils: ['templates', 'project', 'checks', 'wizard', 'debug', 'snippets'],
-    templates: ['project', 'checks', 'wizard', 'debug', 'snippets'],
-    project: ['templates', 'checks', 'wizard', 'debug', 'snippets'],
-    checks: ['wizard', 'debug', 'snippets'],
-    wizard: ['checks', 'debug', 'snippets'],
-    debug: ['templates', 'wizard', 'snippets'],
-    snippets: ['templates', 'checks', 'wizard', 'debug'],
+    utils: ['templates', 'project', 'checks', 'wizard', 'debug', 'snippets', 'sidebar'],
+    templates: ['project', 'checks', 'wizard', 'debug', 'snippets', 'sidebar'],
+    project: ['templates', 'checks', 'wizard', 'debug', 'snippets', 'sidebar'],
+    checks: ['wizard', 'debug', 'snippets', 'sidebar'],
+    wizard: ['checks', 'debug', 'snippets', 'sidebar'],
+    debug: ['templates', 'wizard', 'snippets', 'sidebar'],
+    snippets: ['templates', 'checks', 'wizard', 'debug', 'sidebar'],
+    sidebar: ['templates'],
 };
 
 /** Pure logic, and what out/test/runTests.js loads in plain Node */

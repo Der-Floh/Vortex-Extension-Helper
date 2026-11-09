@@ -1,10 +1,13 @@
 import * as vscode from 'vscode';
-import { PACK_DIR, PACK_ENTRY, PACK_INFO } from '../constants';
-import { copyDirectoryContents, emptyDirectory, fileExists, readTextIfExists } from '../utils/fileSystemUtils';
+import { PACK_DIR, PACK_ENTRY, PACK_INFO, PACKAGE_JSON_PATH, SOURCE_FOLDER } from '../constants';
+import { copyDirectoryContents, emptyDirectory, fileExists, hasIdenticalCopies, latestModification, readTextIfExists } from '../utils/fileSystemUtils';
 import { isRecord, parseLenientJson } from '../utils/jsonUtils';
 
 /** vscode.Uri.joinPath resolves `..`, so an id out of info.json has to be checked before it names a folder */
 const PACK_ID_PATTERN = /^[a-z0-9][a-z0-9._-]*$/i;
+const BUILD_INPUTS = [SOURCE_FOLDER, PACKAGE_JSON_PATH];
+
+export type DeploymentState = 'not-built' | 'no-plugins-folder' | 'not-deployed' | 'out-of-date' | 'current';
 
 export class PackMissingError extends Error {
     constructor() {
@@ -71,19 +74,26 @@ export async function deployPack(
 
 /** Whether Vortex already has the build that is in `.pack`, since a stale copy binds breakpoints to the wrong lines */
 export async function isDeployedCurrent(folder: vscode.Uri, pluginsFolder: vscode.Uri, id: string): Promise<boolean> {
-    const read = async (uri: vscode.Uri): Promise<Uint8Array | undefined> => {
-        try {
-            return await vscode.workspace.fs.readFile(uri);
-        } catch {
-            return undefined;
-        }
-    };
-    const [built, deployed] = await Promise.all([
-        read(packUri(folder, PACK_ENTRY)),
-        read(vscode.Uri.joinPath(pluginsFolder, id, PACK_ENTRY)),
-    ]);
-    if (built === undefined || deployed === undefined || built.length !== deployed.length) {
-        return false;
+    return hasIdenticalCopies(packUri(folder), vscode.Uri.joinPath(pluginsFolder, id));
+}
+
+/** How a project's sources, its build and the copy in Vortex's plugins folder relate to each other */
+export async function readDeploymentState(folder: vscode.Uri, pluginsFolder: vscode.Uri | undefined): Promise<DeploymentState> {
+    const id = await readPackId(folder).catch(() => undefined);
+    const builtAt = await latestModification(packUri(folder, PACK_ENTRY));
+    if (id === undefined || builtAt === undefined) {
+        return 'not-built';
     }
-    return built.every((byte, index) => byte === deployed[index]);
+    if (pluginsFolder === undefined) {
+        return 'no-plugins-folder';
+    }
+    if (!await fileExists(vscode.Uri.joinPath(pluginsFolder, id, PACK_ENTRY))) {
+        return 'not-deployed';
+    }
+    return await changedSinceBuild(folder, builtAt) || !await isDeployedCurrent(folder, pluginsFolder, id) ? 'out-of-date' : 'current';
+}
+
+async function changedSinceBuild(folder: vscode.Uri, builtAt: number): Promise<boolean> {
+    const times = await Promise.all(BUILD_INPUTS.map(input => latestModification(vscode.Uri.joinPath(folder, input))));
+    return times.some(time => time !== undefined && time > builtAt);
 }

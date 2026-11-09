@@ -68,6 +68,32 @@ export function defaultPluginsFolder(platform: NodeJS.Platform, env: NodeJS.Proc
 }
 
 /**
+ * Where Vortex keeps its extensions, which doesn't take a Vortex.exe to answer.
+ *
+ * @throws PluginsFolderMissingError when Vortex has no user data folder
+ */
+export async function resolvePluginsFolder(
+    config: HelperConfiguration,
+    platform: NodeJS.Platform = process.platform,
+    env: NodeJS.ProcessEnv = process.env,
+): Promise<vscode.Uri> {
+    const configuredFolder = config.vortexPluginsFolder?.trim();
+    if (configuredFolder) {
+        return vscode.Uri.file(configuredFolder);
+    }
+    const userData = vortexUserDataFolder(platform, env);
+    const pluginsFolder = defaultPluginsFolder(platform, env);
+    if (userData === undefined || pluginsFolder === undefined) {
+        throw new PluginsFolderMissingError(vscode.Uri.file('Vortex'));
+    }
+    // plugins itself is created on demand, but a missing user data folder means Vortex never ran
+    if (!await fileExists(vscode.Uri.file(userData))) {
+        throw new PluginsFolderMissingError(vscode.Uri.file(userData));
+    }
+    return vscode.Uri.file(pluginsFolder);
+}
+
+/**
  * Where Vortex is and where its extensions go.
  *
  * @throws VortexNotFoundError when no executable exists, PluginsFolderMissingError when Vortex has no user data folder
@@ -89,19 +115,5 @@ export async function resolveVortexInstall(
     if (exe === undefined) {
         throw new VortexNotFoundError(candidates);
     }
-
-    const configuredFolder = config.vortexPluginsFolder?.trim();
-    if (configuredFolder) {
-        return { exe, pluginsFolder: vscode.Uri.file(configuredFolder) };
-    }
-    const userData = vortexUserDataFolder(platform, env);
-    const pluginsFolder = defaultPluginsFolder(platform, env);
-    if (userData === undefined || pluginsFolder === undefined) {
-        throw new PluginsFolderMissingError(vscode.Uri.file('Vortex'));
-    }
-    // plugins itself is created on demand, but a missing user data folder means Vortex never ran
-    if (!await fileExists(vscode.Uri.file(userData))) {
-        throw new PluginsFolderMissingError(vscode.Uri.file(userData));
-    }
-    return { exe, pluginsFolder: vscode.Uri.file(pluginsFolder) };
+    return { exe, pluginsFolder: await resolvePluginsFolder(config, platform, env) };
 }
