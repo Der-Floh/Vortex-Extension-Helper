@@ -42,6 +42,8 @@ import { handleRunWorkspaceChecks } from './handlers/runWorkspaceChecks';
 import { ProjectActivity } from './project/projectActivity';
 import { VortexWorkspaceTracker } from './project/vortexWorkspaceTracker';
 import { createSidebarView, SidebarProvider } from './sidebar/sidebarProvider';
+import { addonListing } from './templates/addons/addonListing';
+import { DISCOVERED_CATALOGUE } from './templates/addons/discoveredCatalogue';
 import { COMPLETION_SELECTOR, VortexCompletionProvider } from './snippets/vortexCompletionProvider';
 import type { AddonTarget, LibraryTarget, ProjectTarget } from './types/project';
 import type { SnippetTarget } from './types/snippet';
@@ -55,7 +57,7 @@ export function activate(context: vscode.ExtensionContext) {
     const tracker = new VortexWorkspaceTracker();
     const diagnostics = new VortexDiagnostics(tracker);
     const activity = new ProjectActivity();
-    const sidebar = new SidebarProvider(tracker, activity);
+    const sidebar = new SidebarProvider(tracker, activity, { addonListing: (engine, record) => addonListing(engine, record, DISCOVERED_CATALOGUE) });
 
     context.subscriptions.push(
         tracker,

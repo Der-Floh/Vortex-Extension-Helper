@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import {
     BUILTIN_OPEN,
     BUILTIN_SHOW_PROBLEMS,
+    COMMAND_ADD_ADDONS,
     COMMAND_BUILD,
     COMMAND_DEBUG_IN_VORTEX,
     COMMAND_OPEN_DOCUMENTATION,
@@ -14,6 +15,9 @@ import {
     NEXUS_SITE_URL,
     PACK_DIR,
     PACKAGING_WIKI_URL,
+    ROW_ADDON_ADDED,
+    ROW_ADDON_AVAILABLE,
+    ROW_ADDONS,
     ROW_ATTACHABLE,
     ROW_DEPENDENCIES_MISSING,
     ROW_DEPLOYABLE,
@@ -26,16 +30,16 @@ import {
     VORTEX_LIBRARIES,
 } from '../constants';
 import type { DeploymentState } from '../debug/packDeployment';
-import { ACTIVITY_BUILD, ACTIVITY_DEBUG, ACTIVITY_DEPENDENCIES, ACTIVITY_DEPLOY, ACTIVITY_PACKAGE, libraryActivityId, type Activity } from '../project/projectActivity';
+import { ACTIVITY_ADDONS, ACTIVITY_BUILD, ACTIVITY_DEBUG, ACTIVITY_DEPENDENCIES, ACTIVITY_DEPLOY, ACTIVITY_PACKAGE, libraryActivityId, type Activity } from '../project/projectActivity';
 import { SNIPPETS } from '../snippets/snippets';
-import type { LibraryTarget, VortexLibrary, VortexProject } from '../types/project';
+import type { AddonListing, AddonSummary, AddonTarget, LibraryTarget, VortexLibrary, VortexProject } from '../types/project';
 import type { SnippetTarget } from '../types/snippet';
 import type { NexusGame } from '../wizard/nexusGames';
 import type { ProjectStatus } from './projectStatus';
 import type { VortexPhase } from './vortexMonitor';
 
-/** One row of the tree, and what the row's command needs to know: which project, library or snippet it is about */
-export interface SidebarNode extends LibraryTarget, SnippetTarget {
+/** One row of the tree, and what the row's command needs to know: which project, library, add-on or snippet it is about */
+export interface SidebarNode extends LibraryTarget, SnippetTarget, AddonTarget {
     readonly id: string;
     readonly label: string;
     readonly description?: string;
@@ -53,6 +57,8 @@ export interface ProjectRowState {
     readonly busy?: Activity;
     readonly attached: boolean;
     readonly restartNeeded: boolean;
+    /** Its add-ons and those it could add */
+    readonly addons: AddonListing;
 }
 
 export interface SidebarState {
@@ -99,14 +105,14 @@ export function buildSidebar(state: SidebarState): SidebarNode[] {
     }
     if (state.projects.length === 1) {
         const [row] = state.projects;
-        return [statusSection(row, state), actionsSection(row), librariesSection(row), snippetsSection(), addToProjectRow(row), helpSection()];
+        return [statusSection(row, state), actionsSection(row), librariesSection(row), addonsSection(row), snippetsSection(), helpSection()];
     }
     return [...state.projects.map(row => projectGroup(row, state)), snippetsSection(), helpSection()];
 }
 
 function projectGroup(row: ProjectRowState, state: SidebarState): SidebarNode {
     const section = statusSection(row, state);
-    return { ...section, children: [...section.children ?? [], actionsSection(row), librariesSection(row), addToProjectRow(row)] };
+    return { ...section, children: [...section.children ?? [], actionsSection(row), librariesSection(row), addonsSection(row)] };
 }
 
 function statusSection(row: ProjectRowState, state: SidebarState): SidebarNode {
@@ -269,15 +275,89 @@ function snippetsSection(): SidebarNode {
     };
 }
 
-/** A placeholder until the generators exist, so it deliberately has no command */
-function addToProjectRow(row: ProjectRowState): SidebarNode {
+/** The project's add-ons with a remove button, the others for its engine with an add button, by category when there are several */
+function addonsSection(row: ProjectRowState): SidebarNode {
+    const { addons } = row;
+    const entries = [
+        ...addons.added.map(addon => ({ category: addon.category, node: addedAddonRow(row, addon) })),
+        ...addons.available.map(addon => ({ category: addon.category, node: availableAddonRow(row, addon) })),
+        ...addons.blocked.map(addon => ({ category: addon.category, node: blockedAddonRow(row, addon) })),
+    ];
+    const children = addons.engine === undefined
+        ? [...entries.map(entry => entry.node), engineUnknownRow(row)]
+        : addons.grouped ? categoryGroups(row, entries) : entries.map(entry => entry.node);
     return {
-        id: rowId(row, 'add'),
-        label: 'Add to Project',
-        description: 'coming soon',
-        tooltip: 'Planned: adding state, tests, pages and dialogs to the project.',
-        icon: themeIcon('wand'),
+        id: rowId(row, 'addons'),
+        label: 'Add-ons',
+        description: addons.engine,
+        icon: row.busy?.id === ACTIVITY_ADDONS.id ? SPINNER : themeIcon('extensions'),
+        expanded: true,
+        contextValue: row.busy ? undefined : ROW_ADDONS,
+        project: row.project,
+        children,
     };
+}
+
+function addedAddonRow(row: ProjectRowState, addon: AddonListing['added'][number]): SidebarNode {
+    return {
+        id: rowId(row, 'addons', addon.id),
+        label: addon.name,
+        description: addon.current === undefined ? addon.version : `${addon.version}, this helper has ${addon.current}`,
+        tooltip: addon.description,
+        icon: addon.unknown ? WARNING : themeIcon('check'),
+        contextValue: row.busy || addon.unknown ? undefined : ROW_ADDON_ADDED,
+        project: row.project,
+        addon: addon.id,
+    };
+}
+
+function availableAddonRow(row: ProjectRowState, addon: AddonSummary): SidebarNode {
+    return {
+        id: rowId(row, 'addons', addon.id),
+        label: addon.name,
+        description: addon.description,
+        tooltip: addon.description,
+        icon: themeIcon('add'),
+        contextValue: row.busy ? undefined : ROW_ADDON_AVAILABLE,
+        project: row.project,
+        addon: addon.id,
+    };
+}
+
+function blockedAddonRow(row: ProjectRowState, addon: AddonListing['blocked'][number]): SidebarNode {
+    return {
+        id: rowId(row, 'addons', addon.id),
+        label: addon.name,
+        description: addon.reason,
+        tooltip: `${addon.description} ${addon.reason}`,
+        icon: themeIcon('circle-slash'),
+    };
+}
+
+/** Without an engine the add-ons can't be listed, so the row asks for it through the add command */
+function engineUnknownRow(row: ProjectRowState): SidebarNode {
+    const title = 'Pick the game\'s engine to see its add-ons';
+    return {
+        id: rowId(row, 'addons', 'engine'),
+        label: title,
+        icon: themeIcon('question'),
+        command: { title, command: COMMAND_ADD_ADDONS, arguments: [{ project: row.project }] },
+    };
+}
+
+/** Rows of an unknown add-on have no category and stay above the groups */
+function categoryGroups(row: ProjectRowState, entries: readonly { category: string; node: SidebarNode }[]): SidebarNode[] {
+    const categories = [...new Set(entries.map(entry => entry.category).filter(category => category))];
+    return [
+        ...entries.filter(entry => !entry.category).map(entry => entry.node),
+        ...categories.map(category => ({
+            id: rowId(row, 'addons', 'category', category),
+            label: category,
+            icon: themeIcon('folder'),
+            expanded: true,
+            children: entries.filter(entry => entry.category === category).map(entry => entry.node),
+        })),
+    ];
 }
 
 function helpSection(): SidebarNode {

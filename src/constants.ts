@@ -53,6 +53,9 @@ export const ROW_LIBRARY_AVAILABLE = 'libraryAvailable';
 export const ROW_LIBRARY_UNLISTED = 'libraryUnlisted';
 export const ROW_LIBRARY_ADDED = 'libraryAdded';
 export const ROW_SNIPPET = 'snippet';
+export const ROW_ADDONS = 'addons';
+export const ROW_ADDON_AVAILABLE = 'addonAvailable';
+export const ROW_ADDON_ADDED = 'addonAdded';
 
 export const DIAGNOSTIC_COLLECTION = 'vortexHelper';
 export const DIAGNOSTIC_SOURCE = 'Vortex';

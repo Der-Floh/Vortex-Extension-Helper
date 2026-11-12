@@ -64,7 +64,7 @@ export interface AddonListing {
     /** The label of the project's engine; undefined while it records none and its add-ons don't tell */
     readonly engine?: string;
     /** The visible add-ons it has, with the recorded version and, when it differs, the helper's */
-    readonly added: readonly (AddonSummary & { readonly version: string; readonly current?: string })[];
+    readonly added: readonly (AddonSummary & { readonly version: string; readonly current?: string; readonly unknown?: boolean })[];
     readonly available: readonly AddonSummary[];
     /** Add-ons for its engine that can't be combined with what it has, with the reason */
     readonly blocked: readonly (AddonSummary & { readonly reason: string })[];

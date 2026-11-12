@@ -3,7 +3,7 @@ import { CONFIG_SECTION, REVALIDATE_DEBOUNCE_MS, VIEW_SIDEBAR } from '../constan
 import { resolvePluginsFolder } from '../debug/vortexInstall';
 import { ACTIVITY_DEPLOY, type ActivityChange, type ProjectActivity } from '../project/projectActivity';
 import type { VortexWorkspaceTracker } from '../project/vortexWorkspaceTracker';
-import type { VortexProject } from '../types/project';
+import type { AddonListing, AddonRecord, VortexProject } from '../types/project';
 import { getConfiguration } from '../utils/configuration';
 import { errorMessage } from '../utils/errors';
 import { Logger } from '../utils/logger';
@@ -14,8 +14,15 @@ import { VortexMonitor, type VortexMonitorDeps } from './vortexMonitor';
 
 export type SidebarTracker = Pick<VortexWorkspaceTracker, 'projects' | 'onDidRefresh' | 'refreshAll'>;
 
+/** What a project's add-ons are, and which others it could add */
+export type AddonLister = (engine: string | undefined, record: AddonRecord | undefined) => AddonListing;
+
+const NO_ADDONS: AddonListing = Object.freeze({ added: [], available: [], blocked: [], grouped: false });
+
 export interface SidebarDeps extends VortexMonitorDeps, NexusGameLookupDeps {
     readonly readStatus?: typeof readProjectStatus;
+    /** From the catalogue, which this folder may not import */
+    readonly addonListing?: AddonLister;
     readonly pluginsFolder?: () => Promise<vscode.Uri | undefined>;
     readonly debounceMs?: number;
 }
@@ -39,6 +46,7 @@ export class SidebarProvider implements vscode.TreeDataProvider<SidebarNode>, vs
     private readonly monitor: VortexMonitor;
     private readonly lookup: NexusGameLookup;
     private readonly readStatus: typeof readProjectStatus;
+    private readonly addonListing: AddonLister;
     private readonly pluginsFolder: () => Promise<vscode.Uri | undefined>;
     private readonly scheduledReload: ReturnType<typeof debounced>;
     private readonly scheduledRecount: ReturnType<typeof debounced>;
@@ -60,6 +68,7 @@ export class SidebarProvider implements vscode.TreeDataProvider<SidebarNode>, vs
         this.monitor = new VortexMonitor(deps);
         this.lookup = new NexusGameLookup(() => this.render(), deps);
         this.readStatus = deps.readStatus ?? readProjectStatus;
+        this.addonListing = deps.addonListing ?? (() => NO_ADDONS);
         this.pluginsFolder = deps.pluginsFolder ?? (() => resolvePluginsFolder(getConfiguration()).catch(() => undefined));
         this.scheduledReload = debounced(() => void this.reload(), deps.debounceMs ?? REVALIDATE_DEBOUNCE_MS);
         this.scheduledRecount = debounced(() => this.recountProblems(), deps.debounceMs ?? REVALIDATE_DEBOUNCE_MS);
@@ -220,6 +229,7 @@ export class SidebarProvider implements vscode.TreeDataProvider<SidebarNode>, vs
             busy: this.activity.current(project.folder),
             attached: this.monitor.isAttached(project.folder),
             restartNeeded: this._restartNeeded.has(keyOf(project)),
+            addons: this.addonListing(status.engine, status.addonRecord),
         }];
     }
 }

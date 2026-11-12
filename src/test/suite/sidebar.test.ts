@@ -4,12 +4,16 @@ import * as vscode from 'vscode';
 import {
     BUILTIN_OPEN,
     BUILTIN_SHOW_PROBLEMS,
+    COMMAND_ADD_ADDONS,
     COMMAND_BUILD,
     COMMAND_DEBUG_IN_VORTEX,
     COMMAND_OPEN_PLUGINS_FOLDER,
     COMMAND_OPEN_VORTEX_LOG,
     COMMAND_PACKAGE_ZIP,
     MANIFEST,
+    ROW_ADDON_ADDED,
+    ROW_ADDON_AVAILABLE,
+    ROW_ADDONS,
     ROW_ATTACHABLE,
     ROW_DEPENDENCIES_MISSING,
     ROW_DEPLOYABLE,
@@ -23,7 +27,7 @@ import type { CdpProbe, ProbeResult } from '../../debug/cdpProbe';
 import type { DebugHost } from '../../debug/debugSessionWatcher';
 import type { DeploymentState } from '../../debug/packDeployment';
 import type { VortexLauncher } from '../../debug/vortexLauncher';
-import { ACTIVITY_BUILD, ACTIVITY_DEPENDENCIES, ACTIVITY_DEPLOY, libraryActivity, ProjectActivity } from '../../project/projectActivity';
+import { ACTIVITY_ADDONS, ACTIVITY_BUILD, ACTIVITY_DEPENDENCIES, ACTIVITY_DEPLOY, libraryActivity, ProjectActivity } from '../../project/projectActivity';
 import type { FolderState } from '../../project/vortexWorkspaceTracker';
 import { NexusGameLookup } from '../../sidebar/nexusGameLookup';
 import { readProjectStatus, type ProjectStatus } from '../../sidebar/projectStatus';
@@ -31,7 +35,7 @@ import { SidebarProvider, type SidebarDeps, type SidebarTracker } from '../../si
 import { buildSidebar, type ProjectRowState, type SidebarNode, type SidebarState } from '../../sidebar/sidebarRows';
 import { VortexMonitor, type VortexPhase } from '../../sidebar/vortexMonitor';
 import { SNIPPETS } from '../../snippets/snippets';
-import type { VortexProject } from '../../types/project';
+import type { AddonListing, VortexProject } from '../../types/project';
 import { writeText } from '../../utils/fileSystemUtils';
 import type { NexusGame } from '../../wizard/nexusGames';
 
@@ -59,8 +63,10 @@ function status(overrides: Partial<ProjectStatus> = {}): ProjectStatus {
     };
 }
 
+const NO_ADDONS: AddonListing = { added: [], available: [], blocked: [], grouped: false };
+
 function rowState(overrides: Partial<ProjectRowState> = {}): ProjectRowState {
-    return { project: project('coalllc-support'), status: status(), attached: false, restartNeeded: false, ...overrides };
+    return { project: project('coalllc-support'), status: status(), attached: false, restartNeeded: false, addons: NO_ADDONS, ...overrides };
 }
 
 function sidebarState(rows: ProjectRowState[] = [rowState()], overrides: Partial<SidebarState> = {}): SidebarState {
@@ -153,17 +159,17 @@ suite('Sidebar', () => {
     suite('layout', () => {
         test('one project has its sections at the top, in the order of the mock-up', () => {
             const roots = buildSidebar(sidebarState());
-            assert.deepStrictEqual(roots.map(node => node.label), ['Game: Coal LLC', 'Actions', 'Vortex Libraries', `Snippets (${Object.keys(SNIPPETS).length})`, 'Add to Project', 'Help']);
+            assert.deepStrictEqual(roots.map(node => node.label), ['Game: Coal LLC', 'Actions', 'Vortex Libraries', 'Add-ons', `Snippets (${Object.keys(SNIPPETS).length})`, 'Help']);
             assert.strictEqual(roots[0].description, 'v1.2.0');
-            assert.deepStrictEqual(roots.map(node => node.expanded), [true, true, true, false, undefined, false]);
+            assert.deepStrictEqual(roots.map(node => node.expanded), [true, true, true, true, false, false]);
         });
 
         test('every section has an icon, because the text of a row without one starts further left', () => {
-            assert.deepStrictEqual(buildSidebar(sidebarState()).map(iconOf), ['game', 'zap', 'library', 'symbol-snippet', 'wand', 'question']);
+            assert.deepStrictEqual(buildSidebar(sidebarState()).map(iconOf), ['game', 'zap', 'library', 'extensions', 'symbol-snippet', 'question']);
 
             const groups = buildSidebar(sidebarState([rowState({ project: project('one') }), rowState({ project: project('two') })]));
             assert.deepStrictEqual(groups.map(iconOf), ['game', 'game', 'symbol-snippet', 'question']);
-            assert.deepStrictEqual(groups[0].children?.slice(-3).map(iconOf), ['zap', 'library', 'wand']);
+            assert.deepStrictEqual(groups[0].children?.slice(-3).map(iconOf), ['zap', 'library', 'extensions']);
         });
 
         test('no project leaves the tree empty, which is what shows the welcome text', () => {
@@ -175,7 +181,7 @@ suite('Sidebar', () => {
             const second = rowState({ project: project('two'), status: status({ displayName: 'Game: Two' }) });
             const roots = buildSidebar(sidebarState([first, second]));
             assert.deepStrictEqual(roots.map(node => node.label), ['Game: One', 'Game: Two', `Snippets (${Object.keys(SNIPPETS).length})`, 'Help']);
-            assert.deepStrictEqual(roots[0].children?.slice(-3).map(node => node.label), ['Actions', 'Vortex Libraries', 'Add to Project']);
+            assert.deepStrictEqual(roots[0].children?.slice(-3).map(node => node.label), ['Actions', 'Vortex Libraries', 'Add-ons']);
         });
 
         test('a project without a display name or version falls back on its folder', () => {
@@ -348,12 +354,63 @@ suite('Sidebar', () => {
             assert.strictEqual(String(repository.command?.arguments?.[0]), vscode.Uri.parse(MANIFEST.repository.url).toString());
         });
 
-        test('Add to Project is a placeholder that does nothing yet', () => {
-            const row = findRow(buildSidebar(sidebarState()), 'add');
-            assert.strictEqual(row.description, 'coming soon');
-            assert.strictEqual(row.command, undefined);
-            assert.strictEqual(row.contextValue, undefined);
-            assert.strictEqual(row.children, undefined);
+    });
+
+    suite('add-ons', () => {
+        const LOADERS = 'Mod loaders';
+        const LISTING: AddonListing = {
+            engine: 'Unity',
+            added: [{ id: 'melonloader', name: 'MelonLoader', description: 'Installs .dll mods.', category: LOADERS, version: '1.0.0' }],
+            available: [{ id: 'bepinex', name: 'BepInEx', description: 'Uses Vortex\'s BepInEx support.', category: LOADERS }],
+            blocked: [{ id: 'other', name: 'Other loader', description: 'Another loader.', category: LOADERS, reason: 'MelonLoader can\'t be combined with Other loader.' }],
+            grouped: false,
+        };
+        const OWNER = project('coalllc-support');
+        const section = (row: Partial<ProjectRowState>) => findRow(buildSidebar(sidebarState([rowState({ project: OWNER, ...row })])), 'addons');
+
+        test('the project\'s add-ons can be removed, the others for its engine added, and those that can\'t join say why', () => {
+            const addons = section({ addons: LISTING });
+            assert.strictEqual(addons.description, 'Unity');
+            assert.strictEqual(addons.contextValue, ROW_ADDONS);
+            assert.deepStrictEqual(addons.children?.map(row => [row.label, row.description, iconOf(row), row.contextValue, row.addon]), [
+                ['MelonLoader', '1.0.0', 'check', ROW_ADDON_ADDED, 'melonloader'],
+                ['BepInEx', 'Uses Vortex\'s BepInEx support.', 'add', ROW_ADDON_AVAILABLE, 'bepinex'],
+                ['Other loader', 'MelonLoader can\'t be combined with Other loader.', 'circle-slash', undefined, undefined],
+            ]);
+            assert.ok(addons.children?.every(row => row.addon === undefined || row.project === OWNER));
+        });
+
+        test('an add-on in another version says so, and one this helper doesn\'t know can\'t be removed', () => {
+            const addons = section({
+                addons: { ...LISTING, added: [{ ...LISTING.added[0], version: '0.9.0', current: '1.0.0' }, { id: 'future', name: 'future', description: 'Not known', category: '', version: '2.0.0', unknown: true }] },
+            });
+            assert.strictEqual(addons.children?.[0].description, '0.9.0, this helper has 1.0.0');
+            assert.deepStrictEqual([iconOf(addons.children![1]), addons.children![1].contextValue], ['warning', undefined]);
+        });
+
+        test('several categories group the rows, and an unknown add-on stays above them', () => {
+            const addons = section({
+                addons: {
+                    ...LISTING,
+                    added: [...LISTING.added, { id: 'future', name: 'future', description: 'Not known', category: '', version: '2.0.0', unknown: true }],
+                    available: [...LISTING.available, { id: 'folder', name: 'Open Game Folder', description: 'A button.', category: 'Conveniences' }],
+                    grouped: true,
+                },
+            });
+            assert.deepStrictEqual(addons.children?.map(row => row.label), ['future', LOADERS, 'Conveniences']);
+            assert.deepStrictEqual(addons.children?.[1].children?.map(row => row.label), ['MelonLoader', 'BepInEx', 'Other loader']);
+        });
+
+        test('without an engine, a row asks for it through the add command', () => {
+            const [row] = section({}).children ?? [];
+            assert.strictEqual(row.command?.command, COMMAND_ADD_ADDONS);
+            assert.strictEqual(row.command?.arguments?.[0].project, OWNER);
+        });
+
+        test('while the project is busy the rows have no buttons, and the section spins while its add-ons change', () => {
+            const busy = section({ addons: LISTING, busy: ACTIVITY_ADDONS });
+            assert.strictEqual(iconOf(busy), SPINNER);
+            assert.deepStrictEqual([busy, ...busy.children ?? []].map(row => row.contextValue), [undefined, undefined, undefined, undefined]);
         });
     });
 
@@ -582,7 +639,7 @@ suite('Sidebar', () => {
 
         test('reads what the rows show from the project', async () => {
             const onDisk = await projectOnDisk('status-read', {
-                'package.json': manifest({ displayName: 'Game: Status', version: '2.0.0', gameId: 4187, vortex: { externals: ['turbowalk'] } }),
+                'package.json': manifest({ displayName: 'Game: Status', version: '2.0.0', gameId: 4187, vortex: { engine: 'unity', addons: { melonloader: '1.0.0' }, externals: ['turbowalk'] } }),
                 'src/common/constants.ts': 'export const GAME = {\n    id: \'statusgame\',\n    name: \'Status\',\n};\n',
                 'node_modules/vortex-api/package.json': '{}',
                 'node_modules/@types/bluebird/package.json': '{}',
@@ -595,6 +652,8 @@ suite('Sidebar', () => {
                 dependencies: ['vortex-api', '@types/bluebird', 'rollup'],
                 missingDependencies: ['rollup'],
                 externals: ['turbowalk'],
+                engine: 'unity',
+                addonRecord: { addons: { melonloader: '1.0.0' }, options: {} },
                 problems: { errors: 0, warnings: 0, notes: 0 },
                 deployment: 'not-built',
             });
@@ -664,10 +723,10 @@ suite('Sidebar', () => {
 
         test('rows become tree items that keep their id, state and command', async () => {
             const { provider } = providerFor(new StubTracker([project('one')]));
-            const [header, actions, , snippets, addToProject] = await provider.getChildren();
+            const [header, actions, , addons, snippets] = await provider.getChildren();
             assert.strictEqual(provider.getTreeItem(header).collapsibleState, vscode.TreeItemCollapsibleState.Expanded);
             assert.strictEqual(provider.getTreeItem(snippets).collapsibleState, vscode.TreeItemCollapsibleState.Collapsed);
-            assert.strictEqual(provider.getTreeItem(addToProject).collapsibleState, vscode.TreeItemCollapsibleState.None);
+            assert.strictEqual(provider.getTreeItem(addons).collapsibleState, vscode.TreeItemCollapsibleState.Expanded);
             const [debug] = await provider.getChildren(actions);
             const item = provider.getTreeItem(debug);
             assert.strictEqual(item.id, debug.id);

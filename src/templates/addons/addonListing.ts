@@ -21,10 +21,10 @@ export function projectEngine(recorded: string | undefined, record: AddonRecord 
 export function addonListing(recorded: string | undefined, record: AddonRecord | undefined, catalogue: Catalogue): AddonListing {
     const engineId = projectEngine(recorded, record, catalogue);
     const present = Object.keys(record?.addons ?? {});
-    const added = present.flatMap(id => {
+    const added = present.flatMap((id): AddonListing['added'] => {
         const addon = findAddon(catalogue, id);
         if (!addon || addon.manifest.hidden) {
-            return addon ? [] : [{ id, name: id, description: 'Not known to this version of the helper', category: '', version: record!.addons[id] }];
+            return addon ? [] : [{ id, name: id, description: 'Not known to this version of the helper', category: '', version: record!.addons[id], unknown: true }];
         }
         const version = record!.addons[id];
         return [{ ...summaryOf(addon, catalogue), version, ...(version === addon.manifest.version ? {} : { current: addon.manifest.version }) }];

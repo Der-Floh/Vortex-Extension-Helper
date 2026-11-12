@@ -219,7 +219,15 @@ Every project records its add-ons and their versions in `package.json`:
 }
 ```
 
-**Vortex: Create Missing Files** restores an add-on's files only while the extension still has it in that version, so an old project never gets files that don't fit the rest of it. That's why an add-on's version has to change with its files. [`catalogue/addons.lock.json`](src/templates/catalogue/addons.lock.json) holds each add-on's version and a hash of its folder, a test fails when the two don't match, and `npm run lock-addons` writes the new hash.
+**Vortex: Create Missing Files** restores an add-on's files only while the extension still has it in that version, so an old project never gets files that don't fit the rest of it. The same goes for adding and removing add-ons later: a change that involves an add-on the project has in another version is refused. That's why an add-on's version has to change with its files. [`catalogue/addons.lock.json`](src/templates/catalogue/addons.lock.json) holds each add-on's version and a hash of its folder, a test fails when the two don't match, and `npm run lock-addons` writes the new hash.
+
+---
+
+## ➕ Added and removed later
+
+Authors can add your add-on to an extension they have already worked on, and take it out again, from the sidebar or with **Vortex: Add Add-ons** and **Vortex: Remove Add-on**. The helper renders the project's files with and without the add-on and merges the difference into the author's files the way git merges a branch, so your add-on needs nothing extra for it. Keep to the hooks, and the helper knows exactly which lines are yours to add and take away.
+
+`npm test` checks this for every add-on too: added to a project generated without it, the result must equal a project generated with it, and removing it must give back the project without it, byte for byte.
 
 ---
 
@@ -240,4 +248,4 @@ Every project records its add-ons and their versions in `package.json`:
 ## ⚠️ Known limits
 
 - **Vortex libraries in your code.** This repository doesn't install the libraries Vortex provides, several of which are native Windows modules, so a TypeScript import of one in an add-on doesn't type-check here yet. The generated project installs the library and type-checks it.
-- **Existing projects.** Add-ons are only offered for new projects. Adding one to an existing project isn't possible yet.
+- **Upgrades.** A project keeps the version of an add-on it was given. Moving it to a newer version of the add-on isn't possible yet.

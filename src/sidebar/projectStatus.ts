@@ -1,8 +1,8 @@
 import * as vscode from 'vscode';
 import { CONSTANTS_PATH, PACKAGE_JSON_PATH } from '../constants';
 import { readDeploymentState, type DeploymentState } from '../debug/packDeployment';
-import { dependencyNames, externalsOf } from '../project/projectManifest';
-import type { VortexProject } from '../types/project';
+import { addonRecordOf, dependencyNames, engineOf, externalsOf } from '../project/projectManifest';
+import type { AddonRecord, VortexProject } from '../types/project';
 import { fileExists, readCurrentText } from '../utils/fileSystemUtils';
 import { isRecord, parseLenientJson } from '../utils/jsonUtils';
 
@@ -26,6 +26,10 @@ export interface ProjectStatus {
     readonly dependencies: readonly string[];
     readonly missingDependencies: readonly string[];
     readonly externals: readonly string[];
+    /** `vortex.engine` */
+    readonly engine?: string;
+    /** `vortex.addons` and `vortex.addonOptions` */
+    readonly addonRecord?: AddonRecord;
     readonly problems: ProblemCounts;
     readonly deployment: DeploymentState;
 }
@@ -50,6 +54,8 @@ export async function readProjectStatus(project: VortexProject, pluginsFolder: v
         dependencies,
         missingDependencies,
         externals: externalsOf(manifest),
+        engine: engineOf(manifest),
+        addonRecord: addonRecordOf(manifest),
         problems: countProblems(root),
         deployment,
     };

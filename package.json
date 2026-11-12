@@ -230,6 +230,21 @@
                     "command": "vortexHelper.insertSnippet",
                     "when": "view == vortexHelper.sidebar && viewItem == snippet && isWorkspaceTrusted",
                     "group": "inline"
+                },
+                {
+                    "command": "vortexHelper.addAddons",
+                    "when": "view == vortexHelper.sidebar && viewItem == addons && isWorkspaceTrusted",
+                    "group": "inline"
+                },
+                {
+                    "command": "vortexHelper.addAddons",
+                    "when": "view == vortexHelper.sidebar && viewItem == addonAvailable && isWorkspaceTrusted",
+                    "group": "inline"
+                },
+                {
+                    "command": "vortexHelper.removeAddon",
+                    "when": "view == vortexHelper.sidebar && viewItem == addonAdded && isWorkspaceTrusted",
+                    "group": "inline"
                 }
             ],
             "commandPalette": [

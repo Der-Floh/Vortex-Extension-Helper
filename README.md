@@ -12,6 +12,7 @@ Create, check and extend game support extensions for [Vortex](https://www.nexusm
 
 - **Sidebar** — shows at a glance whether a game extension's dependencies, problems, Nexus Mods id and deployed build are in order and whether Vortex is running, and puts building, deploying, attaching, libraries and snippets one click away
 - **New game support extension** — pick the game from the Nexus Mods game list (or enter it by hand) and get a TypeScript project that installs, builds and packages right away, with add-ons such as Godot Mod Loader, MelonLoader or BepInEx support
+- **Add-ons later** — add an add-on to an extension you have already worked on, or take one out, and your own changes stay
 - **One standard layout** — metadata and the game art path in `package.json`, rollup bundling straight into `.pack/`, and Node-only build scripts that generate `info.json` and zip the release
 - **Live checks** — missing fields, a wrong game art, missing generated files, a mismatched `@types/bluebird`, TypeScript 7 and lockfiles that break CI are reported in the Problems panel while you edit
 - **Create Missing Files** — restores generated files you deleted, without touching any file that exists
@@ -88,6 +89,12 @@ A mod loader replaces the plain installer. With MelonLoader and BepInEx both tic
 
 The add-ons and their versions are recorded in `package.json` as `vortex.addons`, so **Vortex: Create Missing Files** restores exactly their files. For a project made with an add-on this version of the helper doesn't have, or has in another version, it restores only the files no add-on changes.
 
+#### Adding and removing them later
+
+**Vortex: Add Add-ons** and **Vortex: Remove Add-on**, or the buttons in the sidebar's Add-ons section, change the add-ons of an extension you have already worked on. A confirmation lists every file that is created, changed or deleted, and npm runs when the dependencies change. Your own changes stay: each file is merged the way git merges a branch, so an added add-on ends up wired in just as if it had been picked in the wizard, next to your imports and registrations. Where you changed exactly the lines the add-on needs to change, such as `MOD_FILES` before adding a mod loader, that spot gets `<<<<<<<` / `>>>>>>>` conflict markers to resolve with VS Code's Accept buttons. A file of the add-on that you changed is never deleted, and if writing or npm fails, every file is put back as it was.
+
+The wizard records the game's engine as `vortex.engine`, which decides the add-ons offered later. For an extension made before that, the helper takes it from its add-ons or asks once.
+
 Anyone can write an add-on: it is a folder with an `addon.json`, which the build finds by itself. [CONTRIBUTING.md](./CONTRIBUTING.md) explains how.
 
 ### Sidebar
@@ -97,6 +104,7 @@ The Vortex icon in the activity bar opens an overview of the game extensions in 
 - **The game** — whether its dependencies are installed, what the Problems panel lists for it, whether its Nexus Mods id matches the game, whether Vortex has the current build, and whether Vortex is running with its debug port open
 - **Actions** — debug, build, package, and open Vortex's plugins folder or log
 - **Vortex Libraries** — every library Vortex provides at runtime, to install or remove
+- **Add-ons** — the extension's add-ons, to remove, and the others for its engine, to add; those that can't be combined with what it has say why
 - **Snippets** — every snippet with its code in the tooltip, to insert at the cursor
 - **Help** — the guides for creating and packaging a game extension, the GitHub repository and the issue tracker
 
@@ -120,6 +128,8 @@ While the view is visible and VS Code has focus, it asks the debug port for Vort
 | **Vortex: Deploy to Vortex**             | Builds the extension and copies it to Vortex's plugins folder (needs a trusted workspace)                |
 | **Vortex: Open Plugins Folder**          | Shows Vortex's plugins folder in the file explorer                                                       |
 | **Vortex: Open Vortex Log**              | Opens Vortex's log                                                                                       |
+| **Vortex: Add Add-ons**                  | Adds add-ons to an existing game extension, keeping your changes (needs a trusted workspace)             |
+| **Vortex: Remove Add-on**                | Takes an add-on out of a game extension again, keeping your changes (needs a trusted workspace)          |
 
 A workspace folder is a game extension when its `package.json` has `vortex-api` in `devDependencies`. Commands that work on one extension use the extension of the active editor, or ask when several are open.
 
