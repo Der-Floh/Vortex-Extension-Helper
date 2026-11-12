@@ -32,6 +32,7 @@ export function packageNameFor(shortName: string): string {
 
 /** Builds the package.json of a new project, in the key order and indentation of coalllc-support */
 export function buildPackageJson(values: ProjectValues): string {
+    const modLoaders = values.modLoaders ?? [];
     const manifest = {
         name: packageNameFor(values.shortName),
         displayName: `${DISPLAY_NAME_PREFIX}${values.gameName}`,
@@ -43,6 +44,7 @@ export function buildPackageJson(values: ProjectValues): string {
         private: true,
         devDependencies: DEV_DEPENDENCIES,
         scripts: SCRIPTS,
+        ...(modLoaders.length > 0 ? { vortex: { modLoaders } } : {}),
     };
     return `${JSON.stringify(manifest, null, 4)}\n`;
 }

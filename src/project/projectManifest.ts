@@ -46,6 +46,12 @@ export function externalsOf(manifest: unknown): string[] {
     return Array.isArray(externals) ? externals.filter((name): name is string => typeof name === 'string') : [];
 }
 
+/** The mod loaders the project was generated for, from `vortex.modLoaders` */
+export function modLoadersOf(manifest: unknown): string[] {
+    const modLoaders = isRecord(manifest) && isRecord(manifest.vortex) ? manifest.vortex.modLoaders : undefined;
+    return Array.isArray(modLoaders) ? modLoaders.filter((name): name is string => typeof name === 'string') : [];
+}
+
 export function readExternals(packageJsonText: string): string[] {
     return externalsOf(parseLenientJson(packageJsonText));
 }

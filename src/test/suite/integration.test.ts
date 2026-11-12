@@ -14,6 +14,7 @@ import { VortexWorkspaceTracker } from '../../project/vortexWorkspaceTracker';
 import { SidebarProvider } from '../../sidebar/sidebarProvider';
 import { TargetNotEmptyError, writeNewProject } from '../../templates/projectWriter';
 import { renderProject } from '../../templates/registry';
+import { findOpenDocument } from '../../utils/fileSystemUtils';
 import { runTask } from '../../utils/taskUtils';
 import { resumePendingInstall, savePendingInstall, type PendingInstall } from '../../wizard/pendingInstall';
 import { FIXTURE_FOLDERS, TS_FIXTURE_VALUES } from '../fixtures/createFixtureWorkspace';
@@ -136,6 +137,55 @@ suite('Vortex Extension Helper integration', () => {
         assert.strictEqual(fs.readFileSync(rollupConfig.fsPath, 'utf8'), original);
         await waitFor(() => !codes(fixtureUri(FIXTURE_FOLDERS.typescript, 'package.json')).includes('required-file'), 'the restore did not clear the diagnostic');
         await vscode.commands.executeCommand('workbench.action.closeAllEditors');
+    });
+
+    test('Create Missing Files restores a mod loader project\'s own versions and never the plain installer', async () => {
+        const manifest = fixtureUri(FIXTURE_FOLDERS.typescript, 'package.json');
+        const project = path.dirname(manifest.fsPath);
+        const entryPath = path.join(project, 'src/index.ts');
+        const plainInstallerPath = path.join(project, 'src/installers/mods.ts');
+        const originalManifest = fs.readFileSync(manifest.fsPath, 'utf8');
+        const originals = new Map([entryPath, plainInstallerPath].map(file => [file, fs.readFileSync(file, 'utf8')]));
+        const loaderFolder = path.join(project, 'src/melonloader');
+        const helpers = path.join(project, 'src/archive/loaderFiles.ts');
+
+        await writeAndSettle(manifest, JSON.stringify({ ...JSON.parse(originalManifest), vortex: { modLoaders: ['melonloader'] } }, null, 4));
+        fs.rmSync(entryPath);
+        fs.rmSync(plainInstallerPath);
+        try {
+            await vscode.window.showTextDocument(fixtureUri(FIXTURE_FOLDERS.typescript, 'tsconfig.json'));
+            await vscode.commands.executeCommand(COMMAND_CREATE_MISSING_FILES);
+
+            assert.ok(fs.readFileSync(entryPath, 'utf8').includes('registerMelonLoader(context);'));
+            assert.ok(fs.existsSync(path.join(loaderFolder, 'register.ts')));
+            assert.ok(!fs.existsSync(path.join(loaderFolder, 'constants.ts')), 'it holds the game\'s details');
+            assert.ok(!fs.existsSync(plainInstallerPath));
+        } finally {
+            originals.forEach((text, file) => fs.writeFileSync(file, text));
+            await writeAndSettle(manifest, originalManifest);
+            fs.rmSync(loaderFolder, { recursive: true, force: true });
+            fs.rmSync(helpers, { force: true });
+            await vscode.commands.executeCommand('workbench.action.closeAllEditors');
+        }
+    });
+
+    test('Create Missing Files writes nothing for mod loaders it does not know', async () => {
+        const manifest = fixtureUri(FIXTURE_FOLDERS.typescript, 'package.json');
+        const rollupConfig = fixtureUri(FIXTURE_FOLDERS.typescript, 'rollup.config.mjs').fsPath;
+        const originalManifest = fs.readFileSync(manifest.fsPath, 'utf8');
+        const config = fs.readFileSync(rollupConfig, 'utf8');
+
+        await writeAndSettle(manifest, JSON.stringify({ ...JSON.parse(originalManifest), vortex: { modLoaders: ['future-loader'] } }, null, 4));
+        fs.rmSync(rollupConfig);
+        try {
+            await vscode.window.showTextDocument(fixtureUri(FIXTURE_FOLDERS.typescript, 'tsconfig.json'));
+            await vscode.commands.executeCommand(COMMAND_CREATE_MISSING_FILES);
+            assert.ok(!fs.existsSync(rollupConfig));
+        } finally {
+            await writeAndSettle(manifest, originalManifest);
+            fs.writeFileSync(rollupConfig, config);
+            await vscode.commands.executeCommand('workbench.action.closeAllEditors');
+        }
     });
 
     test('runTask waits for the exit code', async () => {
@@ -426,6 +476,12 @@ async function openRendererSocket(port: number): Promise<WebSocket> {
         socket.addEventListener('error', () => reject(new Error('could not open a CDP connection')), { once: true });
     });
     return socket;
+}
+
+/** A file written behind VS Code's back reaches a document that is still open a moment later, and commands read the document */
+async function writeAndSettle(uri: vscode.Uri, text: string): Promise<void> {
+    fs.writeFileSync(uri.fsPath, text);
+    await waitFor(() => (findOpenDocument(uri)?.getText() ?? text) === text, `${uri.fsPath} didn't reach its open document`);
 }
 
 async function waitFor(condition: () => unknown, message: string, timeoutMs = 30_000): Promise<void> {

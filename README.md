@@ -11,7 +11,7 @@ Create, check and extend game support extensions for [Vortex](https://www.nexusm
 ## ✨ Features
 
 - **Sidebar** — shows at a glance whether a game extension's dependencies, problems, Nexus Mods id and deployed build are in order and whether Vortex is running, and puts building, deploying, attaching, libraries and snippets one click away
-- **New game support extension** — pick the game from the Nexus Mods game list (or enter it by hand) and get a TypeScript project that installs, builds and packages right away
+- **New game support extension** — pick the game from the Nexus Mods game list (or enter it by hand) and get a TypeScript project that installs, builds and packages right away, with Godot Mod Loader, MelonLoader or BepInEx support if the game uses one
 - **One standard layout** — metadata and the game art path in `package.json`, rollup bundling straight into `.pack/`, and Node-only build scripts that generate `info.json` and zip the release
 - **Live checks** — missing fields, a wrong game art, missing generated files, a mismatched `@types/bluebird`, TypeScript 7 and lockfiles that break CI are reported in the Problems panel while you edit
 - **Create Missing Files** — restores generated files you deleted, without touching any file that exists
@@ -32,7 +32,8 @@ Run **Vortex: New Game Support Extension** from the command palette (`Ctrl+Shift
 2. The game, from the Nexus Mods list or entered by hand (name and Nexus Mods domain)
 3. A short name; the extension is created in `<short name>-support`
 4. The game's Steam app id and executable (optional, see the settings)
-5. The author, unless `vortexHelper.author` is set
+5. The game's engine and, for Unity and Godot, which [mod loaders](#mod-loaders) to support
+6. The author, unless `vortexHelper.author` is set
 
 The helper writes every file, opens the new folder and runs `npm run install-deps` there. In a folder you haven't trusted yet, the install waits until you trust it. Cancelling any question creates nothing.
 
@@ -71,6 +72,22 @@ A generated extension looks like this:
 
 `npm run build` creates `.pack/`, exactly what Vortex loads, and `npm run package` the release zip in `dist/`.
 
+### Mod loaders
+
+After the executable the wizard asks for the game's engine: Unreal Engine, Unity, Godot, Source, GameMaker, Frostbite or Other. For Unity and Godot it then offers the mod loaders below. With nothing ticked, or for any other engine, you get the project above, which copies the file types in `MOD_FILES` into a mods folder.
+
+A ticked loader replaces that plain installer. Its code goes into its own folder under `src/`, and `main()` calls it in one line.
+
+| Loader                                 | Engine | What the extension does |
+| -------------------------------------- | ------ | ----------------------- |
+| **Godot Mod Loader** (`src/gml/`)      | Godot  | Downloads the official v7.0.1 release with a SHA-256 check and installs it next to the game's executable, installs mods as the zips the loader reads, adds the loader's setup argument when Vortex starts the game, and clears its caches after a deploy, a purge or a game update. v7.0.1 supports Godot 4.1 to 4.3, and `GML_RELEASE` in `src/gml/constants.ts` holds the version. |
+| **MelonLoader** (`src/melonloader/`)   | Unity  | Installs `.dll` mods into `Mods` and `.cfg` files into `UserData`, can install MelonLoader itself as a mod, and warns while it is missing. |
+| **BepInEx** (`src/bepinex/`)           | Unity  | Registers the game with Vortex's BepInEx support and installs plugins into `BepInEx/plugins`. The wizard asks for the game's Unity build: for Mono, Vortex downloads BepInEx by itself; for IL2CPP, the extension links the bleeding-edge builds and warns while it is missing. |
+
+With MelonLoader and BepInEx both ticked, `src/loaders/` routes each mod to the right loader: a `_melonloader` or `_bepinex` file in the archive decides, then a path that names a loader, then whichever loader is installed, and MelonLoader is the default.
+
+The choice is recorded in `package.json` as `vortex.modLoaders`, so **Vortex: Create Missing Files** restores the right version of each file.
+
 ### Sidebar
 
 The Vortex icon in the activity bar opens an overview of the game extensions in the window:
@@ -91,7 +108,7 @@ While the view is visible and VS Code has focus, it asks the debug port for Vort
 | ---------------------------------------- | -------------------------------------------------------------------------------------------------------- |
 | **Vortex: New Game Support Extension**   | Creates a new game support extension                                                                     |
 | **Vortex: Install Dependencies**         | Runs `npm run install-deps` in a game extension (needs a trusted workspace)                              |
-| **Vortex: Create Missing Files**         | Restores the generated files a game extension lacks; `package.json`, `README.md` and `src/common/constants` are never recreated |
+| **Vortex: Create Missing Files**         | Restores the generated files a game extension lacks; `package.json`, `README.md` and the `constants.ts` files are never recreated |
 | **Vortex: Run Workspace Checks**         | Checks every game extension in the workspace and writes the findings to the log                          |
 | **Vortex: Open Extension Documentation** | Opens the Nexus Mods guide to creating a game extension                                                  |
 | **Vortex: Add Vortex Library**           | Installs a library Vortex provides at runtime and adds it to `vortex.externals` (needs a trusted workspace) |
@@ -204,7 +221,7 @@ Also available on [Open VSX](https://open-vsx.org/extension/der-floh/vortex-exte
 | `src/debug/`       | Debug in Vortex: build, deploy, start Vortex and attach                                       |
 | `src/snippets/`    | The snippets and the completion provider that offers them                                     |
 | `src/sidebar/`     | The Vortex view: its rows, what they read from a project, and the watch on Vortex itself      |
-| `src/templates/`   | The generated project: its files, the `package.json` builder, the file registry and writer    |
+| `src/templates/`   | The generated project: its files, the mod loader profiles, the `package.json` builder, the registry and writer |
 | `src/utils/`       | Generic helpers that know nothing about Vortex                                                |
 | `src/types/`       | Types shared between the folders                                                              |
 | `src/test/`        | Mocha unit and integration tests, run inside a VS Code extension host                         |

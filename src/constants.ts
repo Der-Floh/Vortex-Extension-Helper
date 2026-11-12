@@ -85,6 +85,13 @@ export const VORTEX_API_SOURCE = 'git+https://github.com/Nexus-Mods/vortex-api.g
 export const PLACEHOLDER_STEAM_APP_ID = 'STEAM_APP_ID';
 export const PLACEHOLDER_EXECUTABLE = 'GAME_EXECUTABLE.exe';
 
+export const MOD_LOADER_GML = 'gml';
+export const MOD_LOADER_MELON_LOADER = 'melonloader';
+export const MOD_LOADER_BEPINEX = 'bepinex';
+/** The names Vortex's BepInEx extension uses for a game's Unity build */
+export const BEPINEX_BUILD_MONO = 'unitymono';
+export const BEPINEX_BUILD_IL2CPP = 'unityil2cpp';
+
 /** The versions `resolve-version` of the shared release workflow accepts */
 export const VERSION_PATTERN = /^[0-9]+(\.[0-9]+){1,3}(-[0-9A-Za-z.-]+)?$/;
 /** A leading letter keeps the generated folder a valid URL scheme for the source map prefix */

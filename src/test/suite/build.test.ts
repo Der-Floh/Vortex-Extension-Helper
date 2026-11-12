@@ -6,33 +6,60 @@ import { promisify } from 'util';
 import * as vscode from 'vscode';
 import { readProjectSnapshot } from '../../checks/projectSnapshot';
 import { validateProject } from '../../checks/validation';
+import { MOD_LOADER_GML, PACKAGE_LOCK_PATH } from '../../constants';
 import { renderProject } from '../../templates/registry';
 import type { ProjectValues } from '../../types/project';
 import { TS_FIXTURE_VALUES, writeOutputs } from '../fixtures/createFixtureWorkspace';
+import { LOADER_OUTCOMES } from '../fixtures/loaderOutcomes';
 
 const runShell = promisify(exec);
 const BUILD_TIMEOUT_MS = 10 * 60_000;
+const NODE_MODULES = 'node_modules';
 
 // Installs from npm and GitHub, so it only runs when asked for: VORTEX_HELPER_BUILD_TEST=1 npm test
 (process.env.VORTEX_HELPER_BUILD_TEST === '1' ? suite : suite.skip)('Generated projects build', () => {
     const scratch = process.env.VORTEX_HELPER_SCRATCH ?? '';
+    let installedFolder: string | undefined;
 
-    test('installs, type checks, builds and packages', async function () {
-        this.timeout(BUILD_TIMEOUT_MS);
-        const folder = path.join(scratch, 'build-typescript');
-        writeOutputs(folder, renderProject(TS_FIXTURE_VALUES));
-
+    /** Every outcome has the same dependencies, so only the first one installs them */
+    async function installDependencies(folder: string): Promise<void> {
+        if (installedFolder) {
+            fs.symlinkSync(path.join(installedFolder, NODE_MODULES), path.join(folder, NODE_MODULES), 'junction');
+            fs.copyFileSync(path.join(installedFolder, PACKAGE_LOCK_PATH), path.join(folder, PACKAGE_LOCK_PATH));
+            return;
+        }
         await npm(folder, 'run', 'install-deps');
-        await npm(folder, 'run', 'package');
+        installedFolder = folder;
+    }
 
-        assertPack(folder, TS_FIXTURE_VALUES);
-        assertDebuggable(folder);
-        await assertDeploys(folder, TS_FIXTURE_VALUES);
-        assert.ok(fs.readFileSync(path.join(folder, 'package-lock.json'), 'utf8').includes('node_modules/@rollup/rollup-linux-x64-gnu'));
-        const workspaceFolder: vscode.WorkspaceFolder = { uri: vscode.Uri.file(folder), name: path.basename(folder), index: 0 };
-        const errors = validateProject(await readProjectSnapshot({ folder: workspaceFolder }))
-            .filter(finding => finding.severity === 'error');
-        assert.deepStrictEqual(errors, []);
+    for (const { id, choice } of LOADER_OUTCOMES) {
+        test(`${id}: installs, type checks, builds and packages`, async function () {
+            this.timeout(BUILD_TIMEOUT_MS);
+            const folder = path.join(scratch, `build-${id}`);
+            const values: ProjectValues = { ...TS_FIXTURE_VALUES, ...choice };
+            writeOutputs(folder, renderProject(values));
+
+            await installDependencies(folder);
+            await npm(folder, 'run', 'package');
+
+            assertPack(folder, values);
+            assertDebuggable(folder);
+            await assertDeploys(folder, values);
+            assert.ok(fs.readFileSync(path.join(folder, PACKAGE_LOCK_PATH), 'utf8').includes('node_modules/@rollup/rollup-linux-x64-gnu'));
+            const workspaceFolder: vscode.WorkspaceFolder = { uri: vscode.Uri.file(folder), name: path.basename(folder), index: 0 };
+            const errors = validateProject(await readProjectSnapshot({ folder: workspaceFolder }))
+                .filter(finding => finding.severity === 'error');
+            assert.deepStrictEqual(errors, []);
+        });
+    }
+
+    test('the Godot Mod Loader release the template pins exists', async () => {
+        const constants = renderProject({ ...TS_FIXTURE_VALUES, modLoaders: [MOD_LOADER_GML] }).find(output => output.path === 'src/gml/constants.ts')?.content as string;
+        const url = /apiUrl: '([^']+)'/.exec(constants)?.[1];
+        const assetName = /assetName: '([^']+)'/.exec(constants)?.[1];
+        assert.ok(url && assetName);
+        const release = await (await fetch(url, { headers: { 'User-Agent': 'vortex-extension-helper-tests' } })).json() as { assets: { name: string }[] };
+        assert.ok(release.assets.some(asset => asset.name === assetName), `${assetName} is not in ${url}`);
     });
 });
 

@@ -1,4 +1,9 @@
 import type * as vscode from 'vscode';
+import type { BEPINEX_BUILD_IL2CPP, BEPINEX_BUILD_MONO, MOD_LOADER_BEPINEX, MOD_LOADER_GML, MOD_LOADER_MELON_LOADER } from '../constants';
+
+export type ModLoaderId = typeof MOD_LOADER_GML | typeof MOD_LOADER_MELON_LOADER | typeof MOD_LOADER_BEPINEX;
+
+export type BepInExBuild = typeof BEPINEX_BUILD_MONO | typeof BEPINEX_BUILD_IL2CPP;
 
 /** A workspace folder that holds a Vortex game extension */
 export interface VortexProject {
@@ -23,6 +28,10 @@ export interface ProjectValues {
     readonly steamAppId?: string;
     /** Empty or undefined writes the placeholder */
     readonly executable?: string;
+    /** Empty or undefined keeps the plain installer */
+    readonly modLoaders?: readonly ModLoaderId[];
+    /** Answered when `modLoaders` has BepInEx */
+    readonly bepInExBuild?: BepInExBuild;
 }
 
 export type Severity = 'error' | 'warning' | 'information';

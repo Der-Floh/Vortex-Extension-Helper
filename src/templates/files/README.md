@@ -7,7 +7,7 @@ This extension adds support for {{gameName}} to [Vortex Mod Manager](https://www
 ### Features
 
 - Finds {{gameName}} in your Steam library.
-- Installs mods into the game's mods folder.
+{{readmeFeatures}}
 
 ## How to install
 
@@ -17,7 +17,7 @@ You can also manually install it by downloading the archive file from the [Lates
 
 Afterwards, restart Vortex and you can begin installing supported {{gameName}} mods with Vortex.
 
-## How to build
+{{readmeLoaderSection}}## How to build
 
 To build the extension from source:
 
@@ -76,6 +76,6 @@ The `${workspaceFolderBasename}:///*` key in `.vscode/launch.json` is the source
 
 ## Development notes
 
-- `GAME.modsPath` and `MOD_FILES.extensions` in `src/common/constants.ts` decide where mods are installed and which files count as mods. Check both for {{gameName}}.
+{{readmeModsNote}}
 - **If {{gameName}} never shows up in Vortex**, check `GAME.requiredFilePaths` first. Vortex only treats a game as discovered when every required file exists under the folder `findGame` returns, and it reports nothing when one is missing — the game is simply absent from the games list. Stores sometimes install a game into a subfolder of that folder, in which case every path in `GAME` needs the subfolder in front, for example `Game/Game.exe`.
 - The extension can only import modules Vortex provides at runtime: `vortex-api`, `bluebird`, Node's built-in modules, and the libraries offered by **Vortex: Add Vortex Library** in [Vortex Extension Helper](https://marketplace.visualstudio.com/items?itemName=der-floh.vortex-extension-helper). Rollup doesn't bundle npm packages, so any other import fails when Vortex loads the extension.

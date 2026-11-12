@@ -1,5 +1,7 @@
 import * as path from 'path';
+// slot:inspection-imports
 import { MOD_FILES } from '../common/constants';
+// endslot
 
 /**
  * Filters the file list Vortex passes to installers down to files.
@@ -10,6 +12,7 @@ import { MOD_FILES } from '../common/constants';
 export function contentFiles(files: string[]): string[] {
     return files.filter(file => !file.endsWith(path.sep) && !file.endsWith('/'));
 }
+// slot:inspection-plain-installer
 
 /**
  * Finds the mod files in an archive by their extension.
@@ -20,3 +23,4 @@ export function contentFiles(files: string[]): string[] {
 export function findModFiles(files: string[]): string[] {
     return contentFiles(files).filter(file => MOD_FILES.extensions.includes(path.extname(file).toLowerCase()));
 }
+// endslot

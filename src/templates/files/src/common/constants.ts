@@ -18,12 +18,13 @@ export const GAME = {
     logo: 'gameart.jpg',
     steamAppId: '{{steamAppIdValue}}',
     exePath: '{{exePathValue}}',
-    modsPath: 'mods',
+    modsPath: '{{modsPathValue}}',
     requiredFilePaths: [
         '{{exePathValue}}',
     ],
 };
 
+// slot:constants-plain-installer
 /**
  * Files an archive must contain to be installed as a {{gameName}} mod. Change
  * `extensions` to the file types the game loads as mods.
@@ -37,6 +38,7 @@ export const INSTALLERS = {
     mods: { id: '{{idPrefix}}-mods', priority: 25 },
 };
 
+// endslot
 /** Ids of the notifications this extension sends or dismisses. */
 export const NOTIFICATION_IDS = {
     directoryNotWritable: '{{idPrefix}}-writable-warning',

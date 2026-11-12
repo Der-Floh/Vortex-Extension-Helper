@@ -2,8 +2,10 @@ import * as path from 'path';
 import * as vscode from 'vscode';
 import type { VortexDiagnostics } from '../checks/vortexDiagnostics';
 import { DISPLAY_NAME_PREFIX, GAMEART_EXTENSION, GAMEART_PATH, PACKAGE_JSON_PATH } from '../constants';
+import { modLoadersOf } from '../project/projectManifest';
 import { pickVortexProject } from '../project/projectPicker';
 import type { VortexWorkspaceTracker } from '../project/vortexWorkspaceTracker';
+import { profileFor } from '../templates/loaders/profiles';
 import { writeMissingFiles } from '../templates/projectWriter';
 import { restorableOutputs, unrestorablePaths } from '../templates/registry';
 import { restoreValues } from '../templates/render';
@@ -27,7 +29,14 @@ export async function handleCreateMissingFiles(tracker: VortexWorkspaceTracker, 
         return;
     }
 
-    const outputs = restorableOutputs(restoreValues(manifest.name, gameNameOf(manifest)))
+    const modLoaders = modLoadersOf(manifest);
+    const profile = profileFor(modLoaders);
+    if (!profile) {
+        showError(`${project.folder.name} was generated for mod loaders this version doesn't know (${modLoaders.join(', ')}), so its files can't be restored.`);
+        return;
+    }
+
+    const outputs = restorableOutputs(restoreValues(manifest.name, gameNameOf(manifest)), profile)
         .map(output => withGameartPath(output, manifest.gameart));
     let written: string[];
     try {
@@ -38,7 +47,7 @@ export async function handleCreateMissingFiles(tracker: VortexWorkspaceTracker, 
         return;
     }
 
-    const notRestored = await missingFiles(root, unrestorablePaths());
+    const notRestored = await missingFiles(root, unrestorablePaths(profile));
     const created = written.length > 0
         ? `Created ${written.length} missing file${written.length === 1 ? '' : 's'} in ${project.folder.name}: ${written.join(', ')}.`
         : `No generated files are missing in ${project.folder.name}.`;

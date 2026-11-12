@@ -336,7 +336,7 @@
         "package": "node ./node_modules/@vscode/vsce/vsce package --no-dependencies",
         "compile-tests": "node esbuild.mjs --tests",
         "pretest": "npm run check-types && npm run compile-tests",
-        "check-types": "node ./node_modules/typescript/bin/tsc --noEmit",
+        "check-types": "node ./node_modules/typescript/bin/tsc --noEmit && node ./node_modules/typescript/bin/tsc --noEmit -p src/templates/files/tsconfig.json",
         "lint": "node ./node_modules/eslint/bin/eslint.js src",
         "test": "node ./out/test/runTests.js"
     },

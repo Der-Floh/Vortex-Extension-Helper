@@ -1,5 +1,6 @@
-import { DEBUG_PORT_DEFAULT, PLACEHOLDER_EXECUTABLE, PLACEHOLDER_STEAM_APP_ID } from '../constants';
+import { BEPINEX_BUILD_MONO, DEBUG_PORT_DEFAULT, PLACEHOLDER_EXECUTABLE, PLACEHOLDER_STEAM_APP_ID } from '../constants';
 import type { ProjectValues } from '../types/project';
+import type { LoaderProfile } from './loaders/loaderProfile';
 import { packageNameFor } from './packageJson';
 
 const PLACEHOLDER = /(?<!\$)\{\{([A-Za-z]+)\}\}/g;
@@ -35,16 +36,31 @@ export function commentText(value: string): string {
 }
 
 /** The values of every placeholder the templates use */
-export function placeholderValues(values: ProjectValues): TemplateValues {
+export function placeholderValues(values: ProjectValues, profile: LoaderProfile): TemplateValues {
+    const readmeValues = { gameName: commentText(values.gameName) };
     return {
+        ...readmeValues,
+        ...profilePlaceholders(profile),
         packageName: packageNameFor(values.shortName),
         idPrefix: values.shortName,
-        gameName: commentText(values.gameName),
         gameIdValue: jsStringBody(values.gameId),
         gameNameValue: jsStringBody(values.gameName),
         steamAppIdValue: jsStringBody(values.steamAppId || PLACEHOLDER_STEAM_APP_ID),
         exePathValue: jsStringBody(values.executable || PLACEHOLDER_EXECUTABLE),
+        modsPathValue: jsStringBody(profile.modsPath(values.executable ?? '')),
+        bepinexUnityBuildValue: values.bepInExBuild ?? BEPINEX_BUILD_MONO,
         debugPort: String(DEBUG_PORT_DEFAULT),
+        readmeFeatures: renderTemplate(profile.readme.features, readmeValues),
+        readmeModsNote: renderTemplate(profile.readme.modsNote, readmeValues),
+        readmeLoaderSection: renderTemplate(profile.readme.section(values), readmeValues),
+    };
+}
+
+/** The placeholders that depend only on the selected mod loaders, so a restored file gets them too */
+export function profilePlaceholders(profile: LoaderProfile): TemplateValues {
+    return {
+        entryDescription: profile.entryDescription,
+        setupDescription: profile.setupDescription,
     };
 }
 

@@ -1,13 +1,15 @@
 import { types, util } from 'vortex-api';
+// slot:index-imports
 import { GAME, INSTALLERS } from './common/constants';
 import { findGame } from './detection/discovery';
 import { installMods, testSupportedMods } from './installers/mods';
+// endslot
 import { prepareForModding } from './setup/prepareForModding';
 
 /**
  * Vortex extension entry point for {{gameName}}.
  *
- * Registers the game and the installer for its mods.
+ * {{entryDescription}}
  *
  * Vortex also calls this with a stub context while it installs or updates the
  * extension, so `context.api` may only be used inside callbacks and `once`.
@@ -31,7 +33,9 @@ function main(context: types.IExtensionContext): boolean {
         details: { steamAppId: GAME.steamAppId },
     });
 
+    // slot:index-registrations
     context.registerInstaller(INSTALLERS.mods.id, INSTALLERS.mods.priority, testSupportedMods, installMods);
+    // endslot
 
     return true;
 }
