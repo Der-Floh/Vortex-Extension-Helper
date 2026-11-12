@@ -72,6 +72,8 @@ async function buildTests() {
         .filter((file) => file.endsWith('.test.ts'))
         .map((file) => `src/test/suite/${file}`);
 
+    // The runner loads every compiled test, so one whose source is gone would keep running
+    fs.rmSync('out/test/suite', { recursive: true, force: true });
     await Promise.all([
         esbuild.build({
             ...testOptions,
