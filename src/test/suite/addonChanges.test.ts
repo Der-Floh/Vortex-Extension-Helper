@@ -6,7 +6,7 @@ import { mergeImportClash } from '../../templates/addons/importMerge';
 import { resolveAddons, type AddonChoices } from '../../templates/addons/resolveAddons';
 import { readProjectValues } from '../../templates/projectValues';
 import type { ProjectValues } from '../../types/project';
-import { mergeLines, mergeTexts, wholeFileConflict } from '../../utils/threeWayMerge';
+import { diffLines, mergeLines, mergeTexts, wholeFileConflict } from '../../utils/threeWayMerge';
 import { addonOutcomes } from '../fixtures/addonOutcomes';
 import {
     addRequest,
@@ -86,6 +86,15 @@ suite('Three-way merge', () => {
 
     test('an insertion inside a region the other side replaces is marked', () => {
         assert.strictEqual(mergeLines(base, ['a', 'b', 'mine', 'c', 'd', 'e'], ['a', 'e'], LABELS).conflicts, 1);
+    });
+
+    test('a deleted block takes its own closing line, not an equal one above it', () => {
+        const before = ['head', 'm1', 'end', '};', '', 'x', '};', '', 'tail'];
+        assert.deepStrictEqual(diffLines(before, ['head', 'm2', 'end', '};', '', 'tail']), [
+            { start: 1, end: 2, lines: ['m2'] },
+            { start: 5, end: 8, lines: [] },
+        ]);
+        assert.deepStrictEqual(diffLines(['a', '', 'b'], ['a', '', 'x', '', 'b']), [{ start: 2, end: 2, lines: ['x', ''] }]);
     });
 
     test('text keeps the line endings of the project\'s version', () => {

@@ -103,7 +103,32 @@ export function diffLines(before: readonly string[], after: readonly string[]): 
         i = matchedBefore + 1;
         j = matchedAfter + 1;
     }
-    return hunks;
+    return slidDown(hunks, before);
+}
+
+/**
+ * Moves each pure deletion or insertion as far down as the lines allow, the way git compacts a diff, so it ends
+ * where a block ends instead of at the first equal line: deleting a constant takes its own closing brace, not the
+ * one of the constant above.
+ */
+function slidDown(hunks: readonly Hunk[], before: readonly string[]): Hunk[] {
+    return hunks.map((hunk, index) => {
+        const limit = index + 1 < hunks.length ? hunks[index + 1].start : before.length;
+        let { start, end, lines } = hunk;
+        if (lines.length === 0) {
+            while (end < limit && before[start] === before[end]) {
+                start++;
+                end++;
+            }
+        } else if (start === end) {
+            while (start < limit && lines[0] === before[start]) {
+                lines = [...lines.slice(1), lines[0]];
+                start++;
+            }
+            end = start;
+        }
+        return { start, end, lines };
+    });
 }
 
 export function linesOf(text: string): string[] {
