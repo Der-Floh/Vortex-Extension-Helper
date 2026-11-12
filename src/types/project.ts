@@ -50,6 +50,33 @@ export interface AddonRecord {
     readonly options: Readonly<Record<string, string>>;
 }
 
+/** An add-on as a list of them shows it */
+export interface AddonSummary {
+    readonly id: string;
+    readonly name: string;
+    readonly description: string;
+    /** The label of its category */
+    readonly category: string;
+}
+
+/** A project's add-ons and those it could add, for the sidebar */
+export interface AddonListing {
+    /** The label of the project's engine; undefined while it records none and its add-ons don't tell */
+    readonly engine?: string;
+    /** The visible add-ons it has, with the recorded version and, when it differs, the helper's */
+    readonly added: readonly (AddonSummary & { readonly version: string; readonly current?: string })[];
+    readonly available: readonly AddonSummary[];
+    /** Add-ons for its engine that can't be combined with what it has, with the reason */
+    readonly blocked: readonly (AddonSummary & { readonly reason: string })[];
+    /** The rows span several categories, so they're grouped */
+    readonly grouped: boolean;
+}
+
+/** What a sidebar row passes to the commands that add or remove an add-on */
+export interface AddonTarget extends ProjectTarget {
+    readonly addon?: string;
+}
+
 /** Names to add with their values, and names to take out while they still have the given values */
 export interface EntryChange {
     readonly add: Readonly<Record<string, string>>;

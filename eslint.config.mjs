@@ -22,6 +22,7 @@ const HOST_FREE = [
     'src/checks/validation.ts',
     'src/project/projectManifest.ts',
     'src/templates/addons/addon.ts',
+    'src/templates/addons/addonListing.ts',
     'src/templates/addons/changeAddons.ts',
     'src/templates/addons/composeAddons.ts',
     'src/templates/addons/discoveredCatalogue.ts',

@@ -18,6 +18,7 @@ export const ACTIVITY_BUILD: Activity = { id: 'build', label: 'building' };
 export const ACTIVITY_PACKAGE: Activity = { id: 'package', label: 'being packaged' };
 export const ACTIVITY_DEPLOY: Activity = { id: 'deploy', label: 'being deployed' };
 export const ACTIVITY_DEBUG: Activity = { id: 'debug', label: 'starting a debug session' };
+export const ACTIVITY_ADDONS: Activity = { id: 'addons', label: 'changing its add-ons' };
 
 export function libraryActivityId(name: string): string {
     return `library:${name}`;

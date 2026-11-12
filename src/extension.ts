@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { VortexDiagnostics } from './checks/vortexDiagnostics';
 import {
+    COMMAND_ADD_ADDONS,
     COMMAND_ADD_VORTEX_LIBRARY,
     COMMAND_ATTACH_TO_VORTEX,
     COMMAND_BUILD,
@@ -15,11 +16,13 @@ import {
     COMMAND_OPEN_VORTEX_LOG,
     COMMAND_PACKAGE_ZIP,
     COMMAND_REFRESH_SIDEBAR,
+    COMMAND_REMOVE_ADDON,
     COMMAND_REMOVE_VORTEX_LIBRARY,
     COMMAND_RUN_WORKSPACE_CHECKS,
     MANIFEST,
 } from './constants';
 import { watchVortexDebugSessions } from './debug/debugSessionWatcher';
+import { handleAddAddons } from './handlers/addAddons';
 import { handleAddVortexLibrary } from './handlers/addVortexLibrary';
 import { handleAttachToVortex } from './handlers/attachToVortex';
 import { handleBuild } from './handlers/build';
@@ -33,13 +36,14 @@ import { handleOpenDocumentation } from './handlers/openDocumentation';
 import { handleOpenPluginsFolder } from './handlers/openPluginsFolder';
 import { handleOpenVortexLog } from './handlers/openVortexLog';
 import { handlePackageZip } from './handlers/packageZip';
+import { handleRemoveAddon } from './handlers/removeAddon';
 import { handleRemoveVortexLibrary } from './handlers/removeVortexLibrary';
 import { handleRunWorkspaceChecks } from './handlers/runWorkspaceChecks';
 import { ProjectActivity } from './project/projectActivity';
 import { VortexWorkspaceTracker } from './project/vortexWorkspaceTracker';
 import { createSidebarView, SidebarProvider } from './sidebar/sidebarProvider';
 import { COMPLETION_SELECTOR, VortexCompletionProvider } from './snippets/vortexCompletionProvider';
-import type { LibraryTarget, ProjectTarget } from './types/project';
+import type { AddonTarget, LibraryTarget, ProjectTarget } from './types/project';
 import type { SnippetTarget } from './types/snippet';
 import { errorMessage } from './utils/errors';
 import { Logger } from './utils/logger';
@@ -76,7 +80,9 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.commands.registerCommand(COMMAND_INSERT_SNIPPET, (target?: SnippetTarget) => handleInsertSnippet(tracker, target)),
         vscode.commands.registerCommand(COMMAND_OPEN_PLUGINS_FOLDER, (target?: ProjectTarget) => handleOpenPluginsFolder(tracker, target)),
         vscode.commands.registerCommand(COMMAND_OPEN_VORTEX_LOG, handleOpenVortexLog),
-        vscode.commands.registerCommand(COMMAND_REFRESH_SIDEBAR, () => sidebar.refresh())
+        vscode.commands.registerCommand(COMMAND_REFRESH_SIDEBAR, () => sidebar.refresh()),
+        vscode.commands.registerCommand(COMMAND_ADD_ADDONS, (target?: AddonTarget) => handleAddAddons(tracker, diagnostics, activity, target)),
+        vscode.commands.registerCommand(COMMAND_REMOVE_ADDON, (target?: AddonTarget) => handleRemoveAddon(tracker, diagnostics, activity, target))
     );
 
     tracker.initialize()

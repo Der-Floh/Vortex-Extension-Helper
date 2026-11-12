@@ -1,7 +1,8 @@
 import * as assert from 'assert';
 import type { Addon, AddonManifest, Catalogue } from '../../templates/addons/addon';
+import { addonListing, projectEngine } from '../../templates/addons/addonListing';
 import { DISCOVERED_CATALOGUE } from '../../templates/addons/discoveredCatalogue';
-import { askAddons, MENU_DONE, type AddonPromptUi, type ChecklistItem, type MenuEntry } from '../../wizard/addonPrompts';
+import { askAddons, askAddonsFor, askOptions, MENU_DONE, type AddonPromptUi, type ChecklistItem, type MenuEntry } from '../../wizard/addonPrompts';
 import { applyChecklist, tickedAddons } from '../../wizard/addonSelection';
 
 interface Script {
@@ -89,13 +90,13 @@ suite('Engine and add-on questions', () => {
 
     test('an engine without add-ons asks nothing more and stays plain', async () => {
         const { ui, asked } = scripted({ engine: 'Empty engine' });
-        assert.deepStrictEqual(await askAddons(SINGLE, ui), { addons: [], addonOptions: {} });
+        assert.deepStrictEqual(await askAddons(SINGLE, ui), { engine: 'empty', addons: [], addonOptions: {} });
         assert.deepStrictEqual(asked, ['engine']);
     });
 
     test('with a single category its checklist comes without a menu', async () => {
         const { ui, asked, checklists } = scripted({ engine: 'Test engine', checklists: [[]] });
-        assert.deepStrictEqual(await askAddons(SINGLE, ui), { addons: [], addonOptions: {} });
+        assert.deepStrictEqual(await askAddons(SINGLE, ui), { engine: 'test', addons: [], addonOptions: {} });
         assert.deepStrictEqual(asked, ['engine', 'checklist first']);
         assert.deepStrictEqual(checklists[0].map(item => item.addon.manifest.id), ['alpha', 'beta']);
     });
@@ -107,13 +108,13 @@ suite('Engine and add-on questions', () => {
 
     test('an add-on without options asks nothing more', async () => {
         const { ui, asked } = scripted({ engine: 'Test engine', checklists: [['alpha']] });
-        assert.deepStrictEqual(await askAddons(SINGLE, ui), { addons: ['alpha'], addonOptions: {} });
+        assert.deepStrictEqual(await askAddons(SINGLE, ui), { engine: 'test', addons: ['alpha'], addonOptions: {} });
         assert.deepStrictEqual(asked, ['engine', 'checklist first']);
     });
 
     test('the options of the picked add-ons come last', async () => {
         const { ui, asked } = scripted({ engine: 'Test engine', checklists: [['beta', 'alpha']], options: ['sour'] });
-        assert.deepStrictEqual(await askAddons(SINGLE, ui), { addons: ['beta', 'alpha'], addonOptions: { flavour: 'sour' } });
+        assert.deepStrictEqual(await askAddons(SINGLE, ui), { engine: 'test', addons: ['beta', 'alpha'], addonOptions: { flavour: 'sour' } });
         assert.deepStrictEqual(asked, ['engine', 'checklist first', 'option Flavour']);
     });
 
@@ -125,7 +126,7 @@ suite('Engine and add-on questions', () => {
     suite('the menu', () => {
         test('comes first with Done on top, and Done with nothing picked stays plain', async () => {
             const { ui, asked, menus } = scripted({ engine: 'Test engine', menu: [MENU_DONE] });
-            assert.deepStrictEqual(await askAddons(SYNTHETIC, ui), { addons: [], addonOptions: {} });
+            assert.deepStrictEqual(await askAddons(SYNTHETIC, ui), { engine: 'test', addons: [], addonOptions: {} });
             assert.deepStrictEqual(asked, ['engine', 'menu']);
             assert.deepStrictEqual(menus[0].map(entry => entry.id), [MENU_DONE, 'first', 'second']);
             assert.match(menus[0][0].description, /No add-ons/);
@@ -140,7 +141,7 @@ suite('Engine and add-on questions', () => {
 
         test('a pick ticks what it depends on, and the menu shows both', async () => {
             const { ui, menus, checklists } = scripted({ engine: 'Test engine', menu: ['second', 'first', MENU_DONE], checklists: [['user'], ['base']] });
-            assert.deepStrictEqual(await askAddons(SYNTHETIC, ui), { addons: ['user', 'base'], addonOptions: {} });
+            assert.deepStrictEqual(await askAddons(SYNTHETIC, ui), { engine: 'test', addons: ['user', 'base'], addonOptions: {} });
             assert.deepStrictEqual(checklists[1].map(item => [item.addon.manifest.id, item.ticked]), [['base', true], ['rival', false]]);
             assert.strictEqual(menus[1][0].description, 'Add-on base and Add-on user');
         });
@@ -154,13 +155,13 @@ suite('Engine and add-on questions', () => {
 
         test('ticking something that conflicts unticks the other, and the user is told', async () => {
             const { ui, told } = scripted({ engine: 'Test engine', menu: ['first', 'first', MENU_DONE], checklists: [['base'], ['base', 'rival']] });
-            assert.deepStrictEqual(await askAddons(SYNTHETIC, ui), { addons: ['rival'], addonOptions: {} });
+            assert.deepStrictEqual(await askAddons(SYNTHETIC, ui), { engine: 'test', addons: ['rival'], addonOptions: {} });
             assert.deepStrictEqual(told, ['Unticked Add-on base, which can\'t be combined with Add-on rival.']);
         });
 
         test('options are asked after Done', async () => {
             const { ui, asked } = scripted({ engine: 'Test engine', menu: ['second', MENU_DONE], checklists: [['asking']], options: ['sour'] });
-            assert.deepStrictEqual(await askAddons(SYNTHETIC, ui), { addons: ['asking'], addonOptions: { flavour: 'sour' } });
+            assert.deepStrictEqual(await askAddons(SYNTHETIC, ui), { engine: 'test', addons: ['asking'], addonOptions: { flavour: 'sour' } });
             assert.deepStrictEqual(asked, ['engine', 'menu', 'checklist second', 'menu', 'option Flavour']);
         });
     });
@@ -174,6 +175,54 @@ suite('Engine and add-on questions', () => {
 
         test('hidden dependencies are never shown ticked', () => {
             assert.deepStrictEqual([...tickedAddons(['melonloader'], DISCOVERED_CATALOGUE)], ['melonloader']);
+        });
+    });
+
+    suite('for a project that has add-ons', () => {
+        const TEST_ENGINE = SYNTHETIC.engines[0];
+
+        test('offers only what it can still add, and Done says what it has', async () => {
+            const { ui, menus, checklists } = scripted({ menu: ['second', MENU_DONE], checklists: [['user']] });
+            const picks = await askAddonsFor(TEST_ENGINE, { ids: ['asking'], nothingPicked: 'Adds nothing yet; the project has Add-on asking' }, SYNTHETIC, ui);
+            assert.deepStrictEqual(picks, { addons: ['user'], addonOptions: {} });
+            assert.deepStrictEqual(menus[0].map(entry => entry.id), [MENU_DONE, 'first', 'second']);
+            assert.strictEqual(menus[0][0].description, 'Adds nothing yet; the project has Add-on asking');
+            assert.deepStrictEqual(checklists[0].map(item => item.addon.manifest.id), ['user']);
+        });
+
+        test('leaves out what can\'t join what it has, so a single category comes without the menu', async () => {
+            const { ui, asked, checklists } = scripted({ checklists: [['user']] });
+            assert.deepStrictEqual(await askAddonsFor(TEST_ENGINE, { ids: ['base'], nothingPicked: '' }, SYNTHETIC, ui), { addons: ['user'], addonOptions: {} });
+            assert.deepStrictEqual(asked, ['checklist second']);
+            assert.deepStrictEqual(checklists[0].map(item => item.addon.manifest.id), ['user', 'asking']);
+        });
+
+        test('asks only the options of the add-ons it adds', async () => {
+            const { ui, asked } = scripted({ checklists: [[]] });
+            assert.deepStrictEqual(await askAddonsFor(TEST_ENGINE, { ids: ['asking', 'base'], nothingPicked: '' }, SYNTHETIC, ui), { addons: [], addonOptions: {} });
+            assert.deepStrictEqual(asked, ['checklist second']);
+            assert.deepStrictEqual(await askOptions(['asking'], ['base'], SYNTHETIC, scripted({ options: ['sweet'] }).ui), { flavour: 'sweet' });
+            assert.deepStrictEqual(await askOptions(['user'], ['asking'], SYNTHETIC, scripted({}).ui), {});
+        });
+    });
+
+    suite('a project\'s add-ons', () => {
+        const record = (ids: readonly string[]) => ({ addons: Object.fromEntries(ids.map(id => [id, '1.0.0'])), options: {} });
+
+        test('its engine is the recorded one, else the one all its add-ons are for', () => {
+            assert.strictEqual(projectEngine('godot', record(['melonloader']), DISCOVERED_CATALOGUE), 'godot');
+            assert.strictEqual(projectEngine(undefined, record(['melonloader', 'loaderPackages']), DISCOVERED_CATALOGUE), 'unity');
+            assert.strictEqual(projectEngine(undefined, undefined, DISCOVERED_CATALOGUE), undefined);
+        });
+
+        test('the sidebar lists what it has, what it could add and what can\'t join it', () => {
+            const listed = addonListing('test', { addons: { base: '0.9.0' }, options: {} }, SYNTHETIC);
+            assert.deepStrictEqual(listed.added, [{ id: 'base', name: 'Add-on base', description: 'For tests', category: 'First', version: '0.9.0', current: '1.0.0' }]);
+            assert.deepStrictEqual(listed.available.map(addon => addon.id), ['user', 'asking']);
+            assert.deepStrictEqual(listed.blocked.map(addon => [addon.id, addon.reason]), [['rival', 'Add-on base can\'t be combined with Add-on rival.']]);
+            assert.strictEqual(listed.engine, 'Test engine');
+            assert.ok(listed.grouped);
+            assert.deepStrictEqual(addonListing(undefined, undefined, SYNTHETIC), { added: [], available: [], blocked: [], grouped: false });
         });
     });
 });

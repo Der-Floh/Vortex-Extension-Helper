@@ -16,8 +16,10 @@ import { TargetNotEmptyError, writeNewProject } from '../../templates/projectWri
 import { renderProject } from '../../templates/registry';
 import { findOpenDocument } from '../../utils/fileSystemUtils';
 import { runTask } from '../../utils/taskUtils';
+import { DEFAULT_ADDON_CHANGE_DEPS, runAddonChange, type AddonChangeDeps } from '../../wizard/addonChangeFlow';
 import { resumePendingInstall, savePendingInstall, type PendingInstall } from '../../wizard/pendingInstall';
 import { FIXTURE_FOLDERS, TS_FIXTURE_VALUES } from '../fixtures/createFixtureWorkspace';
+import { TEST_CATALOGUE } from '../fixtures/testAddon';
 
 class MemoryState implements vscode.Memento {
     private readonly values = new Map<string, unknown>();
@@ -188,6 +190,60 @@ suite('Vortex Extension Helper integration', () => {
             await writeAndSettle(manifest, originalManifest);
             await vscode.commands.executeCommand('workbench.action.closeAllEditors');
         }
+    });
+
+    suite('changing a project\'s add-ons', () => {
+        const NO_CHECKS = { validateFolder: async () => undefined };
+        const QUIET: AddonChangeDeps = {
+            ...DEFAULT_ADDON_CHANGE_DEPS,
+            confirm: async () => true,
+            install: async () => {
+                throw new Error('npm isn\'t expected to run');
+            },
+            showConflicts: async () => undefined,
+        };
+        const projectFolder = () => {
+            const folder = vscode.workspace.workspaceFolders?.find(candidate => candidate.name === FIXTURE_FOLDERS.typescript);
+            assert.ok(folder);
+            return folder;
+        };
+        const contentsOf = (root: string) => new Map(listFiles(root).map(file => [file, fs.readFileSync(path.join(root, file), 'utf8')]));
+
+        test('adding Godot Mod Loader writes and records it, and removing it gives the project back', async () => {
+            const folder = projectFolder();
+            const root = folder.uri.fsPath;
+            const before = contentsOf(root);
+            const activity = new ProjectActivity();
+
+            assert.ok(await runAddonChange({ folder }, { kind: 'add', addons: ['gml'], options: {} }, NO_CHECKS, activity, QUIET));
+            assert.ok(fs.existsSync(path.join(root, 'src/gml/register.ts')));
+            assert.ok(fs.readFileSync(path.join(root, 'src/index.ts'), 'utf8').includes('registerGodotModLoader(context);'));
+            assert.ok(!fs.existsSync(path.join(root, 'src/installers/mods.ts')), 'Godot Mod Loader replaces the plain installer');
+            assert.deepStrictEqual(Object.keys(JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')).vortex.addons), ['gml']);
+
+            assert.ok(await runAddonChange({ folder }, { kind: 'remove', addons: ['gml'] }, NO_CHECKS, activity, QUIET));
+            assert.deepStrictEqual(contentsOf(root), before);
+            assert.ok(!fs.existsSync(path.join(root, 'src/gml')), 'the add-on\'s folder goes with its last file');
+            await vscode.commands.executeCommand('workbench.action.closeAllEditors');
+        });
+
+        test('a failing npm puts every file back', async () => {
+            const folder = projectFolder();
+            const root = folder.uri.fsPath;
+            const before = contentsOf(root);
+            const failing: AddonChangeDeps = {
+                ...QUIET,
+                catalogue: TEST_CATALOGUE,
+                install: async () => {
+                    throw new Error('npm failed');
+                },
+            };
+
+            assert.strictEqual(await runAddonChange({ folder }, { kind: 'add', addons: ['everything'], options: {} }, NO_CHECKS, new ProjectActivity(), failing), false);
+            assert.deepStrictEqual(contentsOf(root), before);
+            assert.ok(!fs.existsSync(path.join(root, '.github')), 'the folders it created are gone too');
+            await vscode.commands.executeCommand('workbench.action.closeAllEditors');
+        });
     });
 
     test('runTask waits for the exit code', async () => {

@@ -4,6 +4,7 @@ import * as path from 'path';
 import * as vscode from 'vscode';
 import pkg from '../../../package.json';
 import {
+    COMMAND_ADD_ADDONS,
     COMMAND_ADD_VORTEX_LIBRARY,
     COMMAND_ATTACH_TO_VORTEX,
     COMMAND_BUILD,
@@ -18,6 +19,7 @@ import {
     COMMAND_OPEN_VORTEX_LOG,
     COMMAND_PACKAGE_ZIP,
     COMMAND_REFRESH_SIDEBAR,
+    COMMAND_REMOVE_ADDON,
     COMMAND_REMOVE_VORTEX_LIBRARY,
     COMMAND_RUN_WORKSPACE_CHECKS,
     CONTEXT_DETECTION_DONE,
@@ -54,6 +56,8 @@ suite('Manifest', () => {
                 COMMAND_OPEN_PLUGINS_FOLDER,
                 COMMAND_OPEN_VORTEX_LOG,
                 COMMAND_REFRESH_SIDEBAR,
+                COMMAND_ADD_ADDONS,
+                COMMAND_REMOVE_ADDON,
             ],
             [
                 'vortexHelper.newGameSupportExtension',
@@ -72,6 +76,8 @@ suite('Manifest', () => {
                 'vortexHelper.openPluginsFolder',
                 'vortexHelper.openVortexLog',
                 'vortexHelper.refreshSidebar',
+                'vortexHelper.addAddons',
+                'vortexHelper.removeAddon',
             ]
         );
     });
@@ -99,6 +105,8 @@ suite('Manifest', () => {
             [COMMAND_OPEN_PLUGINS_FOLDER]: CONTEXT_IS_VORTEX_WORKSPACE,
             [COMMAND_OPEN_VORTEX_LOG]: CONTEXT_IS_VORTEX_WORKSPACE,
             [COMMAND_REFRESH_SIDEBAR]: 'false',
+            [COMMAND_ADD_ADDONS]: `${CONTEXT_IS_VORTEX_WORKSPACE} && isWorkspaceTrusted`,
+            [COMMAND_REMOVE_ADDON]: `${CONTEXT_IS_VORTEX_WORKSPACE} && isWorkspaceTrusted`,
         });
     });
 

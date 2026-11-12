@@ -112,12 +112,24 @@ async function statIfExists(uri: vscode.Uri): Promise<vscode.FileStat | undefine
     }
 }
 
-async function readBytesIfExists(uri: vscode.Uri): Promise<Uint8Array | undefined> {
+export async function readBytesIfExists(uri: vscode.Uri): Promise<Uint8Array | undefined> {
     try {
         return await vscode.workspace.fs.readFile(uri);
     } catch {
         return undefined;
     }
+}
+
+/** The files below a folder, as paths relative to `root` with `/`; none if the folder doesn't exist */
+export async function filesBelow(root: vscode.Uri, folder: string): Promise<string[]> {
+    let entries: [string, vscode.FileType][];
+    try {
+        entries = await vscode.workspace.fs.readDirectory(vscode.Uri.joinPath(root, folder));
+    } catch {
+        return [];
+    }
+    const nested = await Promise.all(entries.map(([name, type]) => type === vscode.FileType.Directory ? filesBelow(root, `${folder}/${name}`) : Promise.resolve([`${folder}/${name}`])));
+    return nested.flat();
 }
 
 async function haveSameBytes(first: vscode.Uri, second: vscode.Uri): Promise<boolean> {

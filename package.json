@@ -143,6 +143,18 @@
                 "title": "Refresh",
                 "category": "Vortex",
                 "icon": "$(refresh)"
+            },
+            {
+                "command": "vortexHelper.addAddons",
+                "title": "Add Add-ons",
+                "category": "Vortex",
+                "icon": "$(add)"
+            },
+            {
+                "command": "vortexHelper.removeAddon",
+                "title": "Remove Add-on",
+                "category": "Vortex",
+                "icon": "$(trash)"
             }
         ],
         "viewsContainers": {
@@ -276,6 +288,14 @@
                 {
                     "command": "vortexHelper.refreshSidebar",
                     "when": "false"
+                },
+                {
+                    "command": "vortexHelper.addAddons",
+                    "when": "vortexHelper.isVortexWorkspace && isWorkspaceTrusted"
+                },
+                {
+                    "command": "vortexHelper.removeAddon",
+                    "when": "vortexHelper.isVortexWorkspace && isWorkspaceTrusted"
                 }
             ]
         },

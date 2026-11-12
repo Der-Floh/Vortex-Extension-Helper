@@ -19,6 +19,8 @@ export const COMMAND_INSERT_SNIPPET = pkg.contributes.commands[12].command;
 export const COMMAND_OPEN_PLUGINS_FOLDER = pkg.contributes.commands[13].command;
 export const COMMAND_OPEN_VORTEX_LOG = pkg.contributes.commands[14].command;
 export const COMMAND_REFRESH_SIDEBAR = pkg.contributes.commands[15].command;
+export const COMMAND_ADD_ADDONS = pkg.contributes.commands[16].command;
+export const COMMAND_REMOVE_ADDON = pkg.contributes.commands[17].command;
 
 export const BUILTIN_SHOW_PROBLEMS = 'workbench.actions.view.problems';
 export const BUILTIN_REVEAL_IN_OS = 'revealFileInOS';
