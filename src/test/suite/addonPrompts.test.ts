@@ -49,6 +49,18 @@ function syntheticAddon(manifest: Partial<AddonManifest> & Pick<AddonManifest, '
     return { manifest: { version: '1.0.0', name: `Add-on ${manifest.id}`, description: 'For tests', engines: ['test'], ...manifest }, files: [], hash: '' };
 }
 
+const FLAVOUR = { title: 'Flavour', choices: [{ value: 'sweet', label: 'Sweet' }, { value: 'sour', label: 'Sour' }] };
+
+/** One category with an option, and an engine without add-ons */
+const SINGLE: Catalogue = {
+    engines: [{ id: 'test', label: 'Test engine', examples: '' }, { id: 'empty', label: 'Empty engine', examples: '' }],
+    categories: [{ id: 'first', label: 'First', description: 'The only category' }],
+    addons: [
+        syntheticAddon({ id: 'alpha', category: 'first' }),
+        syntheticAddon({ id: 'beta', category: 'first', options: { flavour: FLAVOUR } }),
+    ],
+};
+
 /** Two categories, a dependency across them, a conflict and an option */
 const SYNTHETIC: Catalogue = {
     engines: [{ id: 'test', label: 'Test engine', examples: '' }],
@@ -57,54 +69,57 @@ const SYNTHETIC: Catalogue = {
         syntheticAddon({ id: 'base', category: 'first' }),
         syntheticAddon({ id: 'rival', category: 'first', conflicts: ['base'] }),
         syntheticAddon({ id: 'user', category: 'second', dependsOn: ['base'] }),
-        syntheticAddon({ id: 'asking', category: 'second', options: { flavour: { title: 'Flavour', choices: [{ value: 'sweet', label: 'Sweet' }, { value: 'sour', label: 'Sour' }] } } }),
+        syntheticAddon({ id: 'asking', category: 'second', options: { flavour: FLAVOUR } }),
     ],
 };
 
 suite('Engine and add-on questions', () => {
-    test('the engines are the agreed ones, in order', () => {
-        assert.deepStrictEqual(DISCOVERED_CATALOGUE.engines.map(engine => engine.label), ['Unreal Engine', 'Unity', 'Godot', 'Source', 'GameMaker', 'Frostbite', 'Other']);
+    test('the agreed engines come in their order, and Other last', () => {
+        const AGREED = ['Unreal Engine', 'Unity', 'Godot', 'Source', 'GameMaker', 'Frostbite', 'Other'];
+        const labels = DISCOVERED_CATALOGUE.engines.map(engine => engine.label);
+        assert.deepStrictEqual(labels.filter(label => AGREED.includes(label)), AGREED);
+        assert.strictEqual(labels.at(-1), 'Other');
     });
 
     test('cancelling the engine ends the questions', async () => {
         const { ui, asked } = scripted({});
-        assert.strictEqual(await askAddons(DISCOVERED_CATALOGUE, ui), undefined);
+        assert.strictEqual(await askAddons(SINGLE, ui), undefined);
         assert.deepStrictEqual(asked, ['engine']);
     });
 
     test('an engine without add-ons asks nothing more and stays plain', async () => {
-        const { ui, asked } = scripted({ engine: 'Frostbite' });
-        assert.deepStrictEqual(await askAddons(DISCOVERED_CATALOGUE, ui), { addons: [], addonOptions: {} });
+        const { ui, asked } = scripted({ engine: 'Empty engine' });
+        assert.deepStrictEqual(await askAddons(SINGLE, ui), { addons: [], addonOptions: {} });
         assert.deepStrictEqual(asked, ['engine']);
     });
 
     test('with a single category its checklist comes without a menu', async () => {
-        const { ui, asked, checklists } = scripted({ engine: 'Unity', checklists: [[]] });
-        assert.deepStrictEqual(await askAddons(DISCOVERED_CATALOGUE, ui), { addons: [], addonOptions: {} });
-        assert.deepStrictEqual(asked, ['engine', 'checklist modLoaders']);
-        assert.deepStrictEqual(checklists[0].map(item => item.addon.manifest.id), ['bepinex', 'melonloader']);
+        const { ui, asked, checklists } = scripted({ engine: 'Test engine', checklists: [[]] });
+        assert.deepStrictEqual(await askAddons(SINGLE, ui), { addons: [], addonOptions: {} });
+        assert.deepStrictEqual(asked, ['engine', 'checklist first']);
+        assert.deepStrictEqual(checklists[0].map(item => item.addon.manifest.id), ['alpha', 'beta']);
     });
 
     test('cancelling the only checklist ends the questions', async () => {
-        const { ui } = scripted({ engine: 'Unity' });
-        assert.strictEqual(await askAddons(DISCOVERED_CATALOGUE, ui), undefined);
+        const { ui } = scripted({ engine: 'Test engine' });
+        assert.strictEqual(await askAddons(SINGLE, ui), undefined);
     });
 
     test('an add-on without options asks nothing more', async () => {
-        const { ui, asked } = scripted({ engine: 'Godot', checklists: [['gml']] });
-        assert.deepStrictEqual(await askAddons(DISCOVERED_CATALOGUE, ui), { addons: ['gml'], addonOptions: {} });
-        assert.deepStrictEqual(asked, ['engine', 'checklist modLoaders']);
+        const { ui, asked } = scripted({ engine: 'Test engine', checklists: [['alpha']] });
+        assert.deepStrictEqual(await askAddons(SINGLE, ui), { addons: ['alpha'], addonOptions: {} });
+        assert.deepStrictEqual(asked, ['engine', 'checklist first']);
     });
 
     test('the options of the picked add-ons come last', async () => {
-        const { ui, asked } = scripted({ engine: 'Unity', checklists: [['melonloader', 'bepinex']], options: ['unityil2cpp'] });
-        assert.deepStrictEqual(await askAddons(DISCOVERED_CATALOGUE, ui), { addons: ['melonloader', 'bepinex'], addonOptions: { unityBuild: 'unityil2cpp' } });
-        assert.deepStrictEqual(asked, ['engine', 'checklist modLoaders', 'option BepInEx build']);
+        const { ui, asked } = scripted({ engine: 'Test engine', checklists: [['beta', 'alpha']], options: ['sour'] });
+        assert.deepStrictEqual(await askAddons(SINGLE, ui), { addons: ['beta', 'alpha'], addonOptions: { flavour: 'sour' } });
+        assert.deepStrictEqual(asked, ['engine', 'checklist first', 'option Flavour']);
     });
 
     test('cancelling an option ends the questions', async () => {
-        const { ui } = scripted({ engine: 'Unity', checklists: [['bepinex']] });
-        assert.strictEqual(await askAddons(DISCOVERED_CATALOGUE, ui), undefined);
+        const { ui } = scripted({ engine: 'Test engine', checklists: [['beta']] });
+        assert.strictEqual(await askAddons(SINGLE, ui), undefined);
     });
 
     suite('the menu', () => {

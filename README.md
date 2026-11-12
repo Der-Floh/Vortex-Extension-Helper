@@ -11,7 +11,7 @@ Create, check and extend game support extensions for [Vortex](https://www.nexusm
 ## ✨ Features
 
 - **Sidebar** — shows at a glance whether a game extension's dependencies, problems, Nexus Mods id and deployed build are in order and whether Vortex is running, and puts building, deploying, attaching, libraries and snippets one click away
-- **New game support extension** — pick the game from the Nexus Mods game list (or enter it by hand) and get a TypeScript project that installs, builds and packages right away, with Godot Mod Loader, MelonLoader or BepInEx support if the game uses one
+- **New game support extension** — pick the game from the Nexus Mods game list (or enter it by hand) and get a TypeScript project that installs, builds and packages right away, with add-ons such as Godot Mod Loader, MelonLoader or BepInEx support
 - **One standard layout** — metadata and the game art path in `package.json`, rollup bundling straight into `.pack/`, and Node-only build scripts that generate `info.json` and zip the release
 - **Live checks** — missing fields, a wrong game art, missing generated files, a mismatched `@types/bluebird`, TypeScript 7 and lockfiles that break CI are reported in the Problems panel while you edit
 - **Create Missing Files** — restores generated files you deleted, without touching any file that exists
@@ -32,7 +32,7 @@ Run **Vortex: New Game Support Extension** from the command palette (`Ctrl+Shift
 2. The game, from the Nexus Mods list or entered by hand (name and Nexus Mods domain)
 3. A short name; the extension is created in `<short name>-support`
 4. The game's Steam app id and executable (optional, see the settings)
-5. The game's engine and, for Unity and Godot, which [mod loaders](#mod-loaders) to support
+5. The game's engine and the [add-ons](#add-ons) to include
 6. The author, unless `vortexHelper.author` is set
 
 The helper writes every file, opens the new folder and runs `npm run install-deps` there. In a folder you haven't trusted yet, the install waits until you trust it. Cancelling any question creates nothing.
@@ -72,21 +72,23 @@ A generated extension looks like this:
 
 `npm run build` creates `.pack/`, exactly what Vortex loads, and `npm run package` the release zip in `dist/`.
 
-### Mod loaders
+### Add-ons
 
-After the executable the wizard asks for the game's engine: Unreal Engine, Unity, Godot, Source, GameMaker, Frostbite or Other. For Unity and Godot it then offers the mod loaders below. With nothing ticked, or for any other engine, you get the project above, which copies the file types in `MOD_FILES` into a mods folder.
+After the executable the wizard asks for the game's engine: Unreal Engine, Unity, Godot, Source, GameMaker, Frostbite or Other. It then offers the add-ons for that engine, grouped by category: a menu lists the categories with what is ticked in each, and when all of an engine's add-ons are in one category, its checklist comes right away. With nothing ticked, or for an engine without add-ons, you get the project above, which copies the file types in `MOD_FILES` into a mods folder.
 
-A ticked loader replaces that plain installer. Its code goes into its own folder under `src/`, and `main()` calls it in one line.
+An add-on's code goes into its own folder under `src/`, and `main()` calls it in one line. These come with the extension:
 
-| Loader                                 | Engine | What the extension does |
+| Add-on                                 | Engine | What the extension does |
 | -------------------------------------- | ------ | ----------------------- |
 | **Godot Mod Loader** (`src/gml/`)      | Godot  | Downloads the official v7.0.1 release with a SHA-256 check and installs it next to the game's executable, installs mods as the zips the loader reads, adds the loader's setup argument when Vortex starts the game, and clears its caches after a deploy, a purge or a game update. v7.0.1 supports Godot 4.1 to 4.3, and `GML_RELEASE` in `src/gml/constants.ts` holds the version. |
 | **MelonLoader** (`src/melonloader/`)   | Unity  | Installs `.dll` mods into `Mods` and `.cfg` files into `UserData`, can install MelonLoader itself as a mod, and warns while it is missing. |
 | **BepInEx** (`src/bepinex/`)           | Unity  | Registers the game with Vortex's BepInEx support and installs plugins into `BepInEx/plugins`. The wizard asks for the game's Unity build: for Mono, Vortex downloads BepInEx by itself; for IL2CPP, the extension links the bleeding-edge builds and warns while it is missing. |
 
-With MelonLoader and BepInEx both ticked, `src/loaders/` routes each mod to the right loader: a `_melonloader` or `_bepinex` file in the archive decides, then a path that names a loader, then whichever loader is installed, and MelonLoader is the default.
+A mod loader replaces the plain installer. With MelonLoader and BepInEx both ticked, `src/loaders/` routes each mod to the right loader: a `_melonloader` or `_bepinex` file in the archive decides, then a path that names a loader, then whichever loader is installed, and MelonLoader is the default.
 
-The choice is recorded in `package.json` as `vortex.modLoaders`, so **Vortex: Create Missing Files** restores the right version of each file.
+The add-ons and their versions are recorded in `package.json` as `vortex.addons`, so **Vortex: Create Missing Files** restores exactly their files. For a project made with an add-on this version of the helper doesn't have, or has in another version, it restores only the files no add-on changes.
+
+Anyone can write an add-on: it is a folder with an `addon.json`, which the build finds by itself. [CONTRIBUTING.md](./CONTRIBUTING.md) explains how.
 
 ### Sidebar
 
@@ -200,7 +202,7 @@ Vortex Extension Helper runs where your workspace is, so it also works over Remo
 
 GitHub: [Der-Floh/Vortex-Extension-Helper](https://github.com/Der-Floh/Vortex-Extension-Helper)
 
-Bug reports and feature requests are welcome via [Issues](https://github.com/Der-Floh/Vortex-Extension-Helper/issues).
+Bug reports and feature requests are welcome via [Issues](https://github.com/Der-Floh/Vortex-Extension-Helper/issues). To add an add-on to the wizard, see [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 Also available on [Open VSX](https://open-vsx.org/extension/der-floh/vortex-extension-helper) and [Nexus Mods](https://www.nexusmods.com/site/mods/1669).
 
@@ -221,7 +223,7 @@ Also available on [Open VSX](https://open-vsx.org/extension/der-floh/vortex-exte
 | `src/debug/`       | Debug in Vortex: build, deploy, start Vortex and attach                                       |
 | `src/snippets/`    | The snippets and the completion provider that offers them                                     |
 | `src/sidebar/`     | The Vortex view: its rows, what they read from a project, and the watch on Vortex itself      |
-| `src/templates/`   | The generated project: its files, the mod loader profiles, the `package.json` builder, the registry and writer |
+| `src/templates/`   | The generated project: the baseline's files, the add-on folders and their catalogue, the `package.json` builder, the registry and writer |
 | `src/utils/`       | Generic helpers that know nothing about Vortex                                                |
 | `src/types/`       | Types shared between the folders                                                              |
 | `src/test/`        | Mocha unit and integration tests, run inside a VS Code extension host                         |
@@ -242,6 +244,9 @@ npm test
 
 # Also install, build and package a generated project (needs network)
 VORTEX_HELPER_BUILD_TEST=1 npm test
+
+# Record each add-on's version and content after changing one
+npm run lock-addons
 
 # Package the extension as a .vsix
 npm run package

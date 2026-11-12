@@ -1,7 +1,7 @@
 import * as assert from 'assert';
 import { VORTEX_LIBRARIES } from '../../constants';
 import { addonRecordOf } from '../../project/projectManifest';
-import { findAddon, HOOK_MODULES, type Addon, type Catalogue } from '../../templates/addons/addon';
+import { findAddon, HOOK_MODULES, selectableAddons, type Addon, type Catalogue } from '../../templates/addons/addon';
 import { nextToExecutable } from '../../templates/addons/composeAddons';
 import { DISCOVERED_CATALOGUE } from '../../templates/addons/discoveredCatalogue';
 import { resolveAddons, type AddonChoices } from '../../templates/addons/resolveAddons';
@@ -254,9 +254,10 @@ suite('The built-in add-ons', () => {
         }
     }
 
-    test('the add-ons are the agreed ones', () => {
-        const visible = DISCOVERED_CATALOGUE.addons.filter(addon => !addon.manifest.hidden).map(addon => addon.manifest.id);
-        assert.deepStrictEqual(visible.sort(), ['bepinex', 'gml', 'melonloader']);
+    test('the agreed add-ons are there, for their engines', () => {
+        const offered = (engine: string) => selectableAddons(DISCOVERED_CATALOGUE, engine).map(addon => addon.manifest.id);
+        assert.ok(offered('godot').includes('gml'));
+        assert.ok(['bepinex', 'melonloader'].every(id => offered('unity').includes(id)));
         assert.deepStrictEqual(findAddon(DISCOVERED_CATALOGUE, 'loaders')?.manifest.when, ['melonloader', 'bepinex']);
     });
 
