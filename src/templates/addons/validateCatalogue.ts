@@ -1,7 +1,9 @@
 import * as path from 'path';
+import { SOURCE_FOLDER, VORTEX_LIBRARIES } from '../../constants';
 import { isRecord } from '../../utils/jsonUtils';
+import { BASELINE_DEV_DEPENDENCIES, BASELINE_SCRIPTS } from '../packageJson';
 import { BASE_PLACEHOLDER_KEYS } from '../render';
-import { HOOK_MODULES, type AddonHooks, type AddonManifest } from './addon';
+import { BASELINE_GAME_FIELDS, HOOK_MODULES, hookFunction, type AddonHooks, type AddonManifest } from './addon';
 
 /** What `esbuild.addons.mjs` found, before anything is known to be valid */
 export interface CatalogueInput {
@@ -10,6 +12,8 @@ export interface CatalogueInput {
     readonly addons: readonly RawAddon[];
     /** The baseline's own folders below `src`, which an add-on can't take */
     readonly reservedFolders: readonly string[];
+    /** Every path the baseline project writes, package.json included, which `projectFiles` can't take */
+    readonly baselineFiles: readonly string[];
 }
 
 export interface RawAddon {
@@ -28,6 +32,7 @@ interface Known {
     readonly engines: ReadonlySet<string>;
     readonly categories: ReadonlySet<string>;
     readonly reserved: ReadonlySet<string>;
+    readonly baselineFiles: ReadonlySet<string>;
 }
 
 interface CheckedAddon {
@@ -38,9 +43,15 @@ interface CheckedAddon {
 /** Every field an addon.json may have */
 export const MANIFEST_FIELDS: ReadonlySet<string> = new Set([
     '$schema', 'id', 'version', 'name', 'description', 'category', 'engines', 'hidden', 'dependsOn', 'conflicts', 'when',
-    'supersedes', 'replacesPlainInstaller', 'modsPath', 'hooks', 'options', 'readme',
+    'supersedes', 'replacesPlainInstaller', 'modsPath', 'hooks', 'options', 'readme', 'projectFiles', 'packageJson',
+    'vortexLibraries', 'gitignore',
 ]);
 const ID_LISTS = ['dependsOn', 'conflicts', 'when', 'supersedes'] as const;
+const PACKAGE_JSON_FIELDS = ['devDependencies', 'scripts'] as const;
+const PACKAGE_JSON_BASELINE: Readonly<Record<typeof PACKAGE_JSON_FIELDS[number], Readonly<Record<string, string>>>> = {
+    devDependencies: BASELINE_DEV_DEPENDENCIES,
+    scripts: BASELINE_SCRIPTS,
+};
 const ADDON_ID = /^[a-z][a-zA-Z0-9]*$/;
 const ENTRY_ID = /^[a-z][a-zA-Z0-9]*$/;
 const SEMVER = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/;
@@ -48,13 +59,20 @@ const IDENTIFIER = /^[A-Za-z_$][A-Za-z0-9_$]*$/;
 const PLACEHOLDER_NAME = /^[A-Za-z]+$/;
 const CHOICE_VALUE = /^[A-Za-z0-9_.-]+$/;
 const IMPORT_SPECIFIER = /(?:from\s+|import\s*\(\s*)(['"])([^'"]+)\1/g;
+const TYPESCRIPT_FILE = /\.[cm]?tsx?$/;
 const MODS_PATH_BASES = ['game', 'executable'];
+const LIBRARY_NAMES = VORTEX_LIBRARIES.map(library => library.name);
 
 /** Everything that can be wrong with the add-on folders, so a build or a test can refuse them */
 export function validateCatalogue(input: CatalogueInput): CatalogueProblem[] {
     const engines = checkEntries(input.engines, 'catalogue/engines.json', ['id', 'label', 'examples']);
     const categories = checkEntries(input.categories, 'catalogue/categories.json', ['id', 'label', 'description']);
-    const known: Known = { engines: engines.ids, categories: categories.ids, reserved: new Set(input.reservedFolders) };
+    const known: Known = {
+        engines: engines.ids,
+        categories: categories.ids,
+        reserved: new Set(input.reservedFolders),
+        baselineFiles: new Set(input.baselineFiles),
+    };
     const problems: CatalogueProblem[] = [...engines.problems, ...categories.problems].map(message => ({ message }));
 
     const checked = new Map<string, CheckedAddon>();
@@ -101,6 +119,10 @@ function checkManifest(addon: RawAddon, known: Known): { problems: string[]; man
         ...checkHooks(manifest.hooks, addon.files),
         ...checkOptions(manifest.options, manifest.hidden === true),
         ...checkReadme(manifest.readme),
+        ...checkProjectFiles(manifest.projectFiles, addon.files, known),
+        ...checkPackageJson(manifest.packageJson),
+        ...checkVortexLibraries(manifest.vortexLibraries),
+        ...checkGitignore(manifest.gitignore),
     ];
     return { problems, manifest: problems.length === 0 ? manifest as unknown as AddonManifest : undefined };
 }
@@ -112,7 +134,7 @@ function checkIdentity(manifest: Record<string, unknown>, folder: string, known:
         ...id === folder ? [] : [`"id" must be the folder's name, ${folder}.`],
         ...known.reserved.has(folder) ? [`${folder} is a folder of the baseline project and can't be an add-on.`] : [],
         ...typeof version === 'string' && SEMVER.test(version) ? [] : ['"version" must be a version like 1.0.0.'],
-        ...['name', 'description'].flatMap(field => isText(manifest[field]) ? [] : [`"${field}" must be text.`]),
+        ...['name', 'description'].flatMap(field => isLine(manifest[field]) ? [] : [`"${field}" must be text on one line.`]),
         ...typeof category === 'string' && known.categories.has(category) ? [] : [`"category" must be one of ${listOf([...known.categories])}.`],
         ...['hidden', 'replacesPlainInstaller'].flatMap(field => manifest[field] === undefined || typeof manifest[field] === 'boolean' ? [] : [`"${field}" must be true or false.`]),
     ];
@@ -154,20 +176,41 @@ function checkHooks(hooks: unknown, files: RawAddon['files']): string[] {
     if (!isRecord(hooks)) {
         return ['"hooks" must be an object.'];
     }
-    return Object.entries(hooks).flatMap(([hook, name]) => {
+    return Object.entries(hooks).flatMap(([hook, value]) => {
         if (!Object.hasOwn(HOOK_MODULES, hook)) {
             return [`"hooks" has an unknown hook "${hook}"; there are ${listOf(Object.keys(HOOK_MODULES))}.`];
         }
-        if (typeof name !== 'string' || !IDENTIFIER.test(name)) {
-            return [`"hooks.${hook}" must be the name of a function.`];
+        const shape = hook === 'game' ? checkGameHook(value) : checkFunctionName(`hooks.${hook}`, value);
+        if (shape.length > 0) {
+            return shape;
         }
         const module = HOOK_MODULES[hook as keyof AddonHooks];
+        const name = hookFunction(hooks as AddonHooks, hook as keyof AddonHooks) ?? '';
         const text = files.find(file => file.path === module)?.text;
         if (text === undefined) {
             return [`"hooks.${hook}" needs ${module} in the add-on's folder.`];
         }
         return exportsName(text, name) ? [] : [`${module} doesn't export ${name}.`];
     });
+}
+
+function checkFunctionName(field: string, name: unknown): string[] {
+    return typeof name === 'string' && IDENTIFIER.test(name) ? [] : [`"${field}" must be the name of a function.`];
+}
+
+function checkGameHook(game: unknown): string[] {
+    if (!isRecord(game) || !Object.keys(game).every(key => key === 'export' || key === 'fields')) {
+        return ['"hooks.game" must be { "export": the function\'s name, "fields": the registerGame fields it returns }.'];
+    }
+    const fields = game.fields;
+    if (!isTextList(fields) || fields.length === 0 || new Set(fields).size !== fields.length || !fields.every(field => IDENTIFIER.test(field))) {
+        return [...checkFunctionName('hooks.game.export', game.export), '"hooks.game.fields" must name each registerGame field the function returns, once.'];
+    }
+    const taken = fields.filter(field => BASELINE_GAME_FIELDS.includes(field));
+    return [
+        ...checkFunctionName('hooks.game.export', game.export),
+        ...taken.length > 0 ? [`The baseline's registerGame sets ${listOf(taken)} already, so "hooks.game" can't return ${taken.length === 1 ? 'it' : 'them'}.`] : [],
+    ];
 }
 
 function checkOptions(options: unknown, hidden: boolean): string[] {
@@ -227,6 +270,79 @@ function checkReadme(readme: unknown): string[] {
         && Object.keys(readme).every(key => key === 'features' || key === 'notes')
         && [readme.features, readme.notes].every(lines => lines === undefined || isTextList(lines));
     return valid ? [] : ['"readme" may hold "features" and "notes", each a list of text.'];
+}
+
+function checkProjectFiles(projectFiles: unknown, files: RawAddon['files'], known: Known): string[] {
+    if (projectFiles === undefined) {
+        return [];
+    }
+    if (!isRecord(projectFiles) || Object.keys(projectFiles).length === 0) {
+        return ['"projectFiles" must map files of the add-on\'s folder to their paths in the project.'];
+    }
+    const targets = Object.values(projectFiles);
+    return [
+        ...Object.entries(projectFiles).flatMap(([file, target]) => checkProjectFile(file, target, files, known)),
+        ...new Set(targets).size === targets.length ? [] : ['"projectFiles" writes two files to the same path.'],
+    ];
+}
+
+function checkProjectFile(file: string, target: unknown, files: RawAddon['files'], known: Known): string[] {
+    if (!files.some(candidate => candidate.path === file)) {
+        return [`"projectFiles" names ${file}, which isn't in the add-on's folder.`];
+    }
+    if (TYPESCRIPT_FILE.test(file)) {
+        return [`"projectFiles" can't move ${file}: TypeScript stays in the add-on's folder, where it is type-checked.`];
+    }
+    if (typeof target !== 'string' || !isProjectPath(target)) {
+        return [`"projectFiles" must give ${file} a path in the project, relative and with /.`];
+    }
+    if (target === SOURCE_FOLDER || target.startsWith(`${SOURCE_FOLDER}/`)) {
+        return [`"projectFiles" can't write ${file} into ${SOURCE_FOLDER}; what goes there belongs in the add-on's folder.`];
+    }
+    return known.baselineFiles.has(target) ? [`"projectFiles" can't write ${file} to ${target}, which the baseline project writes.`] : [];
+}
+
+function checkPackageJson(packageJson: unknown): string[] {
+    if (packageJson === undefined) {
+        return [];
+    }
+    const fields: readonly string[] = PACKAGE_JSON_FIELDS;
+    if (!isRecord(packageJson) || Object.keys(packageJson).length === 0 || !Object.keys(packageJson).every(key => fields.includes(key))) {
+        return [`"packageJson" may hold ${listOf(fields.map(field => `"${field}"`))}.`];
+    }
+    return PACKAGE_JSON_FIELDS.flatMap(field => {
+        const entries = packageJson[field];
+        if (entries === undefined) {
+            return [];
+        }
+        if (!isRecord(entries) || Object.keys(entries).length === 0 || !Object.entries(entries).every(([name, value]) => isText(name) && isText(value))) {
+            return [`"packageJson.${field}" must map names to text.`];
+        }
+        const names = Object.keys(entries);
+        const taken = names.filter(name => Object.hasOwn(PACKAGE_JSON_BASELINE[field], name));
+        const libraries = field === 'devDependencies' ? names.filter(name => LIBRARY_NAMES.includes(name)) : [];
+        return [
+            ...taken.length > 0 ? [`The baseline's package.json has ${listOf(taken)} in "${field}" already.`] : [],
+            ...libraries.length > 0 ? [`Vortex provides ${listOf(libraries)} at runtime; list ${libraries.length === 1 ? 'it' : 'them'} in "vortexLibraries" instead.`] : [],
+        ];
+    });
+}
+
+function checkVortexLibraries(libraries: unknown): string[] {
+    if (libraries === undefined) {
+        return [];
+    }
+    const valid = isTextList(libraries) && libraries.length > 0 && new Set(libraries).size === libraries.length
+        && libraries.every(name => LIBRARY_NAMES.includes(name));
+    return valid ? [] : [`"vortexLibraries" must list some of ${listOf(LIBRARY_NAMES)}, each once.`];
+}
+
+function checkGitignore(lines: unknown): string[] {
+    if (lines === undefined) {
+        return [];
+    }
+    const valid = isTextList(lines) && lines.length > 0 && lines.every(isLine);
+    return valid ? [] : ['"gitignore" must list lines for .gitignore, each on one line.'];
 }
 
 function checkAcrossAddons(addons: ReadonlyMap<string, CheckedAddon>): CatalogueProblem[] {
@@ -291,9 +407,9 @@ function checkPlaceholderNames(addons: ReadonlyMap<string, CheckedAddon>): Requi
 /** Only the generated `main()` and `prepareForModding` may import a hook module, so a superseded add-on can drop it */
 function checkHookImports(addons: ReadonlyMap<string, CheckedAddon>): Required<CatalogueProblem>[] {
     const hookTargets = new Set([...addons.values()].flatMap(({ manifest }) => Object.keys(manifest.hooks ?? {})
-        .map(hook => `src/${manifest.id}/${path.posix.parse(HOOK_MODULES[hook as keyof AddonHooks]).name}`)));
+        .map(hook => `${SOURCE_FOLDER}/${manifest.id}/${path.posix.parse(HOOK_MODULES[hook as keyof AddonHooks]).name}`)));
     return [...addons.values()].flatMap(({ manifest, files }) => files.flatMap(file => {
-        const from = path.posix.dirname(`src/${manifest.id}/${file.path}`);
+        const from = path.posix.dirname(`${SOURCE_FOLDER}/${manifest.id}/${file.path}`);
         return [...(file.text ?? '').matchAll(IMPORT_SPECIFIER)]
             .map(match => match[2])
             .filter(specifier => specifier.startsWith('.') && hookTargets.has(path.posix.join(from, specifier)))
@@ -301,22 +417,35 @@ function checkHookImports(addons: ReadonlyMap<string, CheckedAddon>): Required<C
     }));
 }
 
-/** Two add-ons that can be picked together must not both own the mods folder or take over the same add-on */
+/** Two add-ons that can be picked together must not both own one thing of the project */
 function checkPairs(addons: ReadonlyMap<string, CheckedAddon>): Required<CatalogueProblem>[] {
     const manifests = [...addons.values()].map(addon => addon.manifest);
-    const problems: Required<CatalogueProblem>[] = [];
-    for (const [index, first] of manifests.entries()) {
-        for (const second of manifests.slice(index + 1).filter(other => canMeet(first, other))) {
-            if (first.modsPath && second.modsPath && !settled(first, second, manifests)) {
-                problems.push({ folder: first.id, message: `${first.id} and ${second.id} both set "modsPath". Add a hidden add-on with "when" and "supersedes" for both, or list one in the other's "conflicts".` });
-            }
-            const overlap = (first.supersedes ?? []).filter(id => second.supersedes?.includes(id));
-            if (overlap.length > 0 && !settled(first, second, manifests)) {
-                problems.push({ folder: first.id, message: `${first.id} and ${second.id} both take over ${listOf(overlap)}. One of them must supersede the other, or a third one both.` });
-            }
-        }
-    }
-    return problems;
+    return manifests.flatMap((first, index) => manifests.slice(index + 1)
+        .filter(second => canMeet(first, second))
+        .flatMap(second => pairProblems(first, second, settled(first, second, manifests))
+            .map(problem => ({ folder: first.id, message: `${first.id} and ${second.id} ${problem}` }))));
+}
+
+/** What two add-ons that meet both claim; `settled` when one of them, or a third, takes the other over */
+function pairProblems(first: AddonManifest, second: AddonManifest, settled: boolean): string[] {
+    const takeOver = 'One of them must supersede the other, or a third one both.';
+    const overlap = shared(first.supersedes, second.supersedes);
+    const fields = shared(first.hooks?.game?.fields, second.hooks?.game?.fields);
+    const targets = shared(Object.values(first.projectFiles ?? {}), Object.values(second.projectFiles ?? {}));
+    return [
+        ...first.modsPath && second.modsPath && !settled
+            ? ['both set "modsPath". Add a hidden add-on with "when" and "supersedes" for both, or list one in the other\'s "conflicts".']
+            : [],
+        ...overlap.length > 0 && !settled ? [`both take over ${listOf(overlap)}. ${takeOver}`] : [],
+        ...fields.length > 0 && !settled ? [`both return ${listOf(fields)} for registerGame. ${takeOver}`] : [],
+        ...targets.length > 0 ? [`both write ${listOf(targets)}.`] : [],
+        ...PACKAGE_JSON_FIELDS.flatMap(field => {
+            const theirs = second.packageJson?.[field] ?? {};
+            return Object.entries(first.packageJson?.[field] ?? {})
+                .filter(([name, value]) => Object.hasOwn(theirs, name) && theirs[name] !== value)
+                .map(([name]) => `give ${name} different values in "packageJson.${field}".`);
+        }),
+    ];
 }
 
 function canMeet(first: AddonManifest, second: AddonManifest): boolean {
@@ -335,6 +464,10 @@ function settled(first: AddonManifest, second: AddonManifest, manifests: readonl
         && (glue.when ?? []).every(id => together.has(id)));
 }
 
+function shared(first: readonly string[] | undefined, second: readonly string[] | undefined): string[] {
+    return (first ?? []).filter(item => second?.includes(item));
+}
+
 function exportsName(text: string, name: string): boolean {
     return new RegExp(`export\\s+(?:async\\s+)?function\\s+${name}\\b|export\\s+const\\s+${name}\\b`).test(text);
 }
@@ -343,8 +476,18 @@ function isRelativeFolder(folder: string): boolean {
     return !folder.includes('\\') && !path.posix.isAbsolute(folder) && !folder.split('/').includes('..');
 }
 
+/** A file below the project folder, written the way the generated outputs name their paths */
+function isProjectPath(file: string): boolean {
+    return isText(file) && !file.includes('\\') && !/^[A-Za-z]:/.test(file) && !path.posix.isAbsolute(file)
+        && path.posix.normalize(file) === file && file !== '.' && file !== '..' && !file.startsWith('../') && !file.endsWith('/');
+}
+
 function isText(value: unknown): value is string {
     return typeof value === 'string' && value.trim().length > 0;
+}
+
+function isLine(value: unknown): value is string {
+    return isText(value) && !/[\r\n]/.test(value);
 }
 
 function isTextList(value: unknown): value is string[] {

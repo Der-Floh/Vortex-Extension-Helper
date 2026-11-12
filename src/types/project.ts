@@ -10,6 +10,18 @@ export interface ProjectTarget {
     readonly project?: VortexProject;
 }
 
+/** A library Vortex provides at runtime, which a game extension can require without bundling it */
+export interface VortexLibrary {
+    readonly name: string;
+    readonly source: string;
+    readonly description: string;
+}
+
+/** What a sidebar row passes to the commands that install or remove a library */
+export interface LibraryTarget extends ProjectTarget {
+    readonly library?: VortexLibrary;
+}
+
 /** The answers of the New Game Support Extension wizard */
 export interface ProjectValues {
     readonly shortName: string;

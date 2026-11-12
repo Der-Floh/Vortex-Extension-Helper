@@ -5,7 +5,8 @@ import { fileURLToPath } from 'node:url';
 import * as esbuild from 'esbuild';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
-const ADDONS_FOLDER = path.join(ROOT, 'src', 'templates', 'files', 'src');
+const TEMPLATES_FOLDER = path.join(ROOT, 'src', 'templates', 'files');
+const ADDONS_FOLDER = path.join(TEMPLATES_FOLDER, 'src');
 const CATALOGUE_FOLDER = path.join(ROOT, 'src', 'templates', 'catalogue');
 const ENGINES_FILE = path.join(CATALOGUE_FOLDER, 'engines.json');
 const CATEGORIES_FILE = path.join(CATALOGUE_FOLDER, 'categories.json');
@@ -16,6 +17,10 @@ const README = 'addon.md';
 const VIRTUAL_MODULE = 'virtual:template-addons';
 const NAMESPACE = 'template-addons';
 const BINARY_EXTENSIONS = new Set(['.7z', '.dll', '.exe', '.gif', '.ico', '.jpeg', '.jpg', '.pck', '.png', '.webp', '.zip']);
+/** The templates drop the leading dot of these names, see `registry.ts` */
+const DOTLESS_NAMES = new Map([['vscode', '.vscode'], ['gitignore', '.gitignore']]);
+/** Written by `buildPackageJson`, not from a template */
+const GENERATED_MANIFEST = 'package.json';
 
 const byCodeUnit = (left, right) => (left < right ? -1 : left > right ? 1 : 0);
 const readText = file => fs.readFileSync(file, 'utf8').replace(/\r\n/g, '\n');
@@ -55,6 +60,7 @@ export function discoverAddons() {
     const addonFolders = folders.filter(folder => fs.existsSync(path.join(ADDONS_FOLDER, folder, MANIFEST)));
     return {
         reservedFolders: folders.filter(folder => !addonFolders.includes(folder)),
+        baselineFiles: baselineFiles(addonFolders),
         addons: addonFolders.map(readAddon),
     };
 }
@@ -93,6 +99,7 @@ async function loadCatalogue() {
         categories,
         addons: addons.map(({ folder, manifest, files }) => ({ folder, manifest, files })),
         reservedFolders: discovered.reservedFolders,
+        baselineFiles: discovered.baselineFiles,
     });
     return {
         errors: problems.map(problem => ({
@@ -120,6 +127,16 @@ async function loadValidator() {
     });
     const module = await import(`data:text/javascript;base64,${Buffer.from(result.outputFiles[0].text).toString('base64')}`);
     return { validateCatalogue: module.validateCatalogue, inputs: Object.keys(result.metafile.inputs).map(input => path.resolve(ROOT, input)) };
+}
+
+/** The paths of the project without add-ons, as `registry.ts` writes them */
+function baselineFiles(addonFolders) {
+    const inAddon = file => addonFolders.some(folder => file.startsWith(`src/${folder}/`));
+    const withDot = file => {
+        const [first, ...rest] = file.split('/');
+        return [DOTLESS_NAMES.get(first) ?? first, ...rest].join('/');
+    };
+    return [GENERATED_MANIFEST, ...filesBelow(TEMPLATES_FOLDER).filter(file => !inAddon(file)).map(withDot)];
 }
 
 function readAddon(folder) {

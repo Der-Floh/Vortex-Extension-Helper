@@ -13,9 +13,9 @@ import {
     PLACEHOLDER_STEAM_APP_ID,
     VERSION_PATTERN,
     VORTEX_API_SOURCE,
+    VORTEX_LIBRARIES,
 } from '../constants';
 import { DEPENDENCY_FIELDS, dependencySpec, externalsOf } from '../project/projectManifest';
-import { VORTEX_LIBRARIES } from '../project/vortexLibraries';
 import { requiredFiles } from '../templates/registry';
 import type { Finding, ProjectSnapshot, Severity } from '../types/project';
 import { commandLabel } from '../utils/commandLabel';

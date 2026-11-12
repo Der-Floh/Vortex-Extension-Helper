@@ -17,13 +17,13 @@ import {
     ROW_LIBRARY_AVAILABLE,
     ROW_LIBRARY_UNLISTED,
     ROW_SNIPPET,
+    VORTEX_LIBRARIES,
 } from '../../constants';
 import type { CdpProbe, ProbeResult } from '../../debug/cdpProbe';
 import type { DebugHost } from '../../debug/debugSessionWatcher';
 import type { DeploymentState } from '../../debug/packDeployment';
 import type { VortexLauncher } from '../../debug/vortexLauncher';
 import { ACTIVITY_BUILD, ACTIVITY_DEPENDENCIES, ACTIVITY_DEPLOY, libraryActivity, ProjectActivity } from '../../project/projectActivity';
-import { VORTEX_LIBRARIES } from '../../project/vortexLibraries';
 import type { FolderState } from '../../project/vortexWorkspaceTracker';
 import { NexusGameLookup } from '../../sidebar/nexusGameLookup';
 import { readProjectStatus, type ProjectStatus } from '../../sidebar/projectStatus';

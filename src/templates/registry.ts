@@ -1,4 +1,4 @@
-import { CONSTANTS_PATH, ENTRY_PATH, GAMEART_PATH, PACKAGE_JSON_PATH } from '../constants';
+import { CONSTANTS_PATH, ENTRY_PATH, GAMEART_PATH, GITIGNORE_PATH, PACKAGE_JSON_PATH } from '../constants';
 import type { AddonRecord, GeneratedOutput, ProjectValues, Severity } from '../types/project';
 import type { Catalogue } from './addons/addon';
 import { composeAddons, PLAIN_COMPOSITION, type Composition } from './addons/composeAddons';
@@ -35,7 +35,7 @@ import vscodeTasks from './files/vscode/tasks.json?text';
 export const GENERATED_FILES: readonly GeneratedFileSpec[] = Object.freeze([
     spec('rollup.config.mjs', rollupConfig, { required: 'error' }),
     spec('tsconfig.json', tsconfig, { required: 'error' }),
-    spec('.gitignore', gitignore),
+    spec(GITIGNORE_PATH, gitignore),
     spec('README.md', readme, { templated: true, restorable: false }),
     spec('.vscode/tasks.json', vscodeTasks),
     spec('.vscode/settings.json', vscodeSettings),
@@ -66,7 +66,7 @@ export function renderProject(values: ProjectValues, catalogue: Catalogue = DISC
     const composition = compositionOf(resolveAddons({ addons: values.addons ?? [], options: values.addonOptions ?? {} }, catalogue));
     const placeholders = placeholderValues(values, composition);
     return [
-        { path: PACKAGE_JSON_PATH, content: buildPackageJson(values, composition.record) },
+        { path: PACKAGE_JSON_PATH, content: buildPackageJson(values, composition.packageJson) },
         ...filesOf(composition).map(file => render(file, placeholders, composition)),
     ];
 }
@@ -85,7 +85,7 @@ export function restorableOutputs(values: TemplateValues, composition: Compositi
 /** The baseline files no add-on changes, which can be restored even when a project's add-ons aren't available */
 export function independentOutputs(values: TemplateValues): readonly GeneratedOutput[] {
     return GENERATED_FILES
-        .filter(file => file.restorable && !file.plainOnly && !isSlotted(file))
+        .filter(file => file.restorable && !file.plainOnly && !changedByAddons(file))
         .map(file => render(file, values, PLAIN_COMPOSITION));
 }
 
@@ -106,13 +106,27 @@ export function compositionOf(resolution: Resolution): Composition {
     return composeAddons(resolution.resolved);
 }
 
+/** @throws Error if two files would be written to the same path */
 function filesOf(composition: Composition): readonly GeneratedFileSpec[] {
     const baseline = composition.keepsPlainInstaller ? GENERATED_FILES : GENERATED_FILES.filter(file => !file.plainOnly);
-    return [...baseline, ...composition.files];
+    const files = [...baseline.map(file => withAddonLines(file, composition)), ...composition.files];
+    const paths = [PACKAGE_JSON_PATH, ...files.map(file => file.path)];
+    const clash = paths.find((file, index) => paths.indexOf(file) !== index);
+    if (clash) {
+        throw new Error(`Two files would be written to ${clash}.`);
+    }
+    return files;
 }
 
-function isSlotted(file: GeneratedFileSpec): boolean {
-    return typeof file.source === 'string' && file.source.includes('// slot:');
+function withAddonLines(file: GeneratedFileSpec, composition: Composition): GeneratedFileSpec {
+    return file.path === GITIGNORE_PATH && composition.gitignore && typeof file.source === 'string'
+        ? Object.freeze({ ...file, source: `${file.source}${composition.gitignore}` })
+        : file;
+}
+
+/** A slotted file takes the add-ons' code, and `.gitignore` their lines */
+function changedByAddons(file: GeneratedFileSpec): boolean {
+    return file.path === GITIGNORE_PATH || (typeof file.source === 'string' && file.source.includes('// slot:'));
 }
 
 function render(file: GeneratedFileSpec, values: TemplateValues, composition: Composition): GeneratedOutput {

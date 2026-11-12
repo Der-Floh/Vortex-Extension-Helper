@@ -1,19 +1,42 @@
 import * as assert from 'assert';
+import { VORTEX_LIBRARIES } from '../../constants';
 import { addonRecordOf } from '../../project/projectManifest';
-import { findAddon, HOOK_MODULES, type Catalogue } from '../../templates/addons/addon';
+import { findAddon, HOOK_MODULES, type Addon, type Catalogue } from '../../templates/addons/addon';
 import { nextToExecutable } from '../../templates/addons/composeAddons';
 import { DISCOVERED_CATALOGUE } from '../../templates/addons/discoveredCatalogue';
 import { resolveAddons, type AddonChoices } from '../../templates/addons/resolveAddons';
 import { compositionOf, GENERATED_FILES, independentOutputs, renderProject, restorableOutputs, restorationOf, unrestorablePaths } from '../../templates/registry';
-import { restoreValues } from '../../templates/render';
+import { placeholderKeys, restoreValues } from '../../templates/render';
 import { fillSlots, SLOT_NAMES } from '../../templates/slots';
 import type { GeneratedOutput, ProjectValues } from '../../types/project';
 import { addonOutcomes } from '../fixtures/addonOutcomes';
 import { TS_FIXTURE_VALUES } from '../fixtures/createFixtureWorkspace';
+import { TEST_ADDON, TEST_CATALOGUE } from '../fixtures/testAddon';
 
 const BASELINE_PATHS = ['package.json', ...GENERATED_FILES.map(file => file.path)];
 const PLAIN_ONLY = GENERATED_FILES.filter(file => file.plainOnly).map(file => file.path);
 const HOOK_FILES: readonly string[] = Object.values(HOOK_MODULES);
+const NO_CHOICES: AddonChoices = { addons: [], options: {} };
+const RESTORE_VALUES = restoreValues(`${TS_FIXTURE_VALUES.shortName}-support`, TS_FIXTURE_VALUES.gameName);
+
+const byNpmOrder = (left: string, right: string) => left.localeCompare(right, 'en');
+
+/** Where a file of an add-on's folder ends up in the project */
+function projectPathOf(addon: Addon, file: string): string {
+    const moved = addon.manifest.projectFiles;
+    return moved && Object.hasOwn(moved, file) ? moved[file] : `src/${addon.manifest.id}/${file}`;
+}
+
+/** Everything the add-ons ask package.json for, each library with its source from the catalogue */
+function expectedAdditions(addons: readonly Addon[]) {
+    const libraries = [...new Set(addons.flatMap(addon => addon.manifest.vortexLibraries ?? []))];
+    return {
+        devDependencies: Object.assign({}, ...addons.map(addon => addon.manifest.packageJson?.devDependencies ?? {}),
+            ...libraries.map(name => ({ [name]: VORTEX_LIBRARIES.find(library => library.name === name)?.source }))),
+        scripts: Object.assign({}, ...addons.map(addon => addon.manifest.packageJson?.scripts ?? {})),
+        externals: libraries,
+    };
+}
 
 function textOf(outputs: readonly GeneratedOutput[], path: string): string {
     const output = outputs.find(candidate => candidate.path === path);
@@ -62,10 +85,12 @@ suite('Template slots', () => {
 });
 
 suite('Every add-on outcome', () => {
-    for (const { label, choices } of addonOutcomes(DISCOVERED_CATALOGUE)) {
+    const plainManifest = JSON.parse(textOf(render(NO_CHOICES), 'package.json'));
+
+    for (const { label, choices } of addonOutcomes(TEST_CATALOGUE)) {
         suite(label, () => {
-            const outputs = render(choices);
-            const resolution = resolveAddons(choices, DISCOVERED_CATALOGUE);
+            const outputs = render(choices, TS_FIXTURE_VALUES, TEST_CATALOGUE);
+            const resolution = resolveAddons(choices, TEST_CATALOGUE);
             assert.ok(resolution.ok, label);
             const { addons, superseded } = resolution.resolved;
             const replaced = addons.some(addon => addon.manifest.replacesPlainInstaller);
@@ -75,36 +100,42 @@ suite('Every add-on outcome', () => {
                     ...BASELINE_PATHS.filter(path => !replaced || !PLAIN_ONLY.includes(path)),
                     ...addons.flatMap(addon => addon.files
                         .filter(file => !superseded.has(addon.manifest.id) || !HOOK_FILES.includes(file.path))
-                        .map(file => `src/${addon.manifest.id}/${file.path}`)),
+                        .map(file => projectPathOf(addon, file.path))),
                 ];
                 assert.deepStrictEqual(outputs.map(output => output.path).sort(), expected.sort());
             });
 
             test('leaves no placeholder and no slot marker', () => {
                 for (const output of textOutputs(outputs)) {
-                    assert.ok(!output.content.includes('{{'), `${output.path} has a leftover placeholder`);
+                    assert.deepStrictEqual(placeholderKeys(output.content), [], `${output.path} has a leftover placeholder`);
                     assert.ok(!/\/\/ (slot:|endslot)/.test(output.content), `${output.path} has a leftover slot marker`);
                 }
             });
 
-            test('records exactly its add-ons and changes nothing else in package.json', () => {
+            test('records exactly its add-ons and adds to package.json only what they ask for', () => {
                 const manifest = JSON.parse(textOf(outputs, 'package.json'));
-                const { vortex, ...rest } = manifest;
-                assert.deepStrictEqual(rest, JSON.parse(textOf(render({ addons: [], options: {} }), 'package.json')));
-                const record = addonRecordOf(manifest);
+                const { vortex, devDependencies, scripts, ...rest } = manifest;
+                const { devDependencies: plainDependencies, scripts: plainScripts, ...plainRest } = plainManifest;
+                const additions = expectedAdditions(addons);
+                assert.deepStrictEqual(rest, plainRest);
+                assert.deepStrictEqual(devDependencies, { ...plainDependencies, ...additions.devDependencies });
+                assert.deepStrictEqual(Object.keys(devDependencies), Object.keys(devDependencies).sort(byNpmOrder));
+                assert.deepStrictEqual(Object.entries(scripts), [...Object.entries(plainScripts), ...Object.entries(additions.scripts)]);
                 if (addons.length === 0) {
                     assert.strictEqual(vortex, undefined);
                     return;
                 }
+                const record = addonRecordOf(manifest);
                 assert.deepStrictEqual(record?.addons, Object.fromEntries(addons.map(addon => [addon.manifest.id, addon.manifest.version])));
                 assert.deepStrictEqual(record?.options, resolution.resolved.options);
+                assert.deepStrictEqual(vortex.externals, additions.externals.length > 0 ? additions.externals : undefined);
             });
 
             test('Create Missing Files restores exactly what was generated', () => {
-                const restoration = restorationOf(addonRecordOf(JSON.parse(textOf(outputs, 'package.json'))));
+                const restoration = restorationOf(addonRecordOf(JSON.parse(textOf(outputs, 'package.json'))), TEST_CATALOGUE);
                 assert.ok(restoration.ok);
                 const composition = compositionOf(restoration);
-                const restored = restorableOutputs(restoreValues(`${TS_FIXTURE_VALUES.shortName}-support`, TS_FIXTURE_VALUES.gameName), composition);
+                const restored = restorableOutputs(RESTORE_VALUES, composition);
                 for (const output of restored) {
                     assert.deepStrictEqual(output.content, outputs.find(candidate => candidate.path === output.path)?.content, output.path);
                 }
@@ -112,6 +143,66 @@ suite('Every add-on outcome', () => {
             });
         });
     }
+});
+
+suite('The hooks and fields of an add-on, through the test add-on', () => {
+    const choices = { addons: [TEST_ADDON.manifest.id], options: { flavour: 'spicy' } };
+    const outputs = render(choices, TS_FIXTURE_VALUES, TEST_CATALOGUE);
+    const manifest = JSON.parse(textOf(outputs, 'package.json'));
+    const withTestAddon = (changes: Partial<Addon['manifest']>): Catalogue => ({
+        ...TEST_CATALOGUE,
+        addons: TEST_CATALOGUE.addons.map(addon => addon === TEST_ADDON ? { ...addon, manifest: { ...addon.manifest, ...changes } } : addon),
+    });
+
+    test('main() spreads the game hook into registerGame, after the baseline\'s fields', () => {
+        const entry = textOf(outputs, 'src/index.ts');
+        assert.ok(entry.includes('import { everythingGameFields } from \'./everything/game\';'));
+        assert.ok(entry.includes('        details: { steamAppId: GAME.steamAppId },\n        ...everythingGameFields(context),\n    });'));
+        assert.ok(entry.includes('registerEverything(context);'));
+        assert.ok(entry.includes('context.registerInstaller(INSTALLERS.mods.id'), 'the plain installer stays');
+    });
+
+    test('the setup hook runs in prepareForModding', () => {
+        const setup = textOf(outputs, 'src/setup/prepareForModding.ts');
+        assert.ok(setup.includes('import { prepareEverything } from \'../everything/setup\';'));
+        assert.ok(setup.includes('    await prepareEverything(discovery, api);\n}'));
+    });
+
+    test('a project file is written where it belongs, and leaves its own ${{ }} expressions alone', () => {
+        const workflow = textOf(outputs, '.github/workflows/release.yml');
+        assert.ok(workflow.startsWith(`name: Release ${TS_FIXTURE_VALUES.shortName}-support\n`));
+        assert.ok(workflow.includes('${{ github.ref_name }}'));
+        assert.ok(!outputs.some(output => output.path.endsWith('release.yml') && output.path.startsWith('src/')));
+    });
+
+    test('package.json gets the dev dependencies in npm\'s order, the scripts after the baseline\'s and the libraries as externals', () => {
+        assert.strictEqual(manifest.devDependencies.semver, '^7.6.0');
+        assert.strictEqual(manifest.devDependencies['winapi-bindings'], VORTEX_LIBRARIES.find(library => library.name === 'winapi-bindings')?.source);
+        assert.deepStrictEqual(Object.keys(manifest.scripts).at(-1), 'everything:check');
+        assert.deepStrictEqual(Object.keys(manifest.vortex), ['addons', 'addonOptions', 'externals']);
+        assert.deepStrictEqual(manifest.vortex.externals, ['winapi-bindings']);
+    });
+
+    test('.gitignore ends with the add-on\'s lines, below its name', () => {
+        assert.ok(textOf(outputs, '.gitignore').endsWith('.pack\n\n# Everything\n*.everything\n'));
+    });
+
+    test('the option reaches the code, the README section and the README notes', () => {
+        assert.ok(textOf(outputs, 'src/everything/flavour.ts').includes('\'spicy\''));
+        const readme = textOf(outputs, 'README.md');
+        assert.ok(readme.includes(`## Everything\n\nThe spicy flavour of everything for ${TS_FIXTURE_VALUES.gameName}.`));
+        assert.ok(readme.includes(`- Spicy suits ${TS_FIXTURE_VALUES.gameName}.`));
+        assert.ok(readme.includes('- Does everything at once.'));
+    });
+
+    test('without the add-ons, Create Missing Files leaves .gitignore alone, which they may have added to', () => {
+        assert.ok(!independentOutputs(RESTORE_VALUES).some(output => output.path === '.gitignore'));
+    });
+
+    test('two files at one path are refused', () => {
+        const clashing = withTestAddon({ projectFiles: { 'release.yml': 'rollup.config.mjs' } });
+        assert.throws(() => render(choices, TS_FIXTURE_VALUES, clashing), /Two files would be written to rollup\.config\.mjs/);
+    });
 });
 
 suite('The built-in add-ons', () => {

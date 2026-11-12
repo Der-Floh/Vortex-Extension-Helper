@@ -6,12 +6,12 @@ import { promisify } from 'util';
 import * as vscode from 'vscode';
 import { readProjectSnapshot } from '../../checks/projectSnapshot';
 import { validateProject } from '../../checks/validation';
-import { PACKAGE_LOCK_PATH } from '../../constants';
-import { DISCOVERED_CATALOGUE } from '../../templates/addons/discoveredCatalogue';
+import { PACKAGE_JSON_PATH, PACKAGE_LOCK_PATH } from '../../constants';
 import { renderProject } from '../../templates/registry';
 import type { ProjectValues } from '../../types/project';
 import { addonOutcomes } from '../fixtures/addonOutcomes';
 import { TS_FIXTURE_VALUES, writeOutputs } from '../fixtures/createFixtureWorkspace';
+import { TEST_CATALOGUE } from '../fixtures/testAddon';
 
 const runShell = promisify(exec);
 const BUILD_TIMEOUT_MS = 10 * 60_000;
@@ -20,25 +20,28 @@ const NODE_MODULES = 'node_modules';
 // Installs from npm and GitHub, so it only runs when asked for: VORTEX_HELPER_BUILD_TEST=1 npm test
 (process.env.VORTEX_HELPER_BUILD_TEST === '1' ? suite : suite.skip)('Generated projects build', () => {
     const scratch = process.env.VORTEX_HELPER_SCRATCH ?? '';
-    let installedFolder: string | undefined;
+    /** The folder that installed each set of dev dependencies */
+    const installed = new Map<string, string>();
 
-    /** Every outcome has the same dependencies, so only the first one installs them */
+    /** Outcomes with the same dev dependencies share the first one's install */
     async function installDependencies(folder: string): Promise<void> {
-        if (installedFolder) {
-            fs.symlinkSync(path.join(installedFolder, NODE_MODULES), path.join(folder, NODE_MODULES), 'junction');
-            fs.copyFileSync(path.join(installedFolder, PACKAGE_LOCK_PATH), path.join(folder, PACKAGE_LOCK_PATH));
+        const key = JSON.stringify(JSON.parse(fs.readFileSync(path.join(folder, PACKAGE_JSON_PATH), 'utf8')).devDependencies);
+        const source = installed.get(key);
+        if (source) {
+            fs.symlinkSync(path.join(source, NODE_MODULES), path.join(folder, NODE_MODULES), 'junction');
+            fs.copyFileSync(path.join(source, PACKAGE_LOCK_PATH), path.join(folder, PACKAGE_LOCK_PATH));
             return;
         }
         await npm(folder, 'run', 'install-deps');
-        installedFolder = folder;
+        installed.set(key, folder);
     }
 
-    addonOutcomes(DISCOVERED_CATALOGUE).forEach(({ label, choices }, index) => {
+    addonOutcomes(TEST_CATALOGUE).forEach(({ label, choices }, index) => {
         test(`${label}: installs, type checks, builds and packages`, async function () {
             this.timeout(BUILD_TIMEOUT_MS);
             const folder = path.join(scratch, `build-${index}`);
             const values: ProjectValues = { ...TS_FIXTURE_VALUES, addons: choices.addons, addonOptions: choices.options };
-            writeOutputs(folder, renderProject(values));
+            writeOutputs(folder, renderProject(values, TEST_CATALOGUE));
 
             await installDependencies(folder);
             await npm(folder, 'run', 'package');

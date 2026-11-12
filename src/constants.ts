@@ -1,4 +1,5 @@
 import pkg from '../package.json';
+import type { VortexLibrary } from './types/project';
 
 export const MANIFEST = pkg;
 
@@ -70,6 +71,7 @@ export const SOURCE_FOLDER = 'src';
 export const ENTRY_PATH = 'src/index.ts';
 export const CONSTANTS_PATH = 'src/common/constants.ts';
 export const GAMEART_PATH = 'assets/gameart.jpg';
+export const GITIGNORE_PATH = '.gitignore';
 /** A root info.json marks the layout from before package.json held the metadata */
 export const LEGACY_INFO_JSON = 'info.json';
 export const PACK_DIR = '.pack';
@@ -84,6 +86,19 @@ export const GAMEART_EXTENSION = '.jpg';
 export const VORTEX_API_SOURCE = 'git+https://github.com/Nexus-Mods/vortex-api.git';
 export const PLACEHOLDER_STEAM_APP_ID = 'STEAM_APP_ID';
 export const PLACEHOLDER_EXECUTABLE = 'GAME_EXECUTABLE.exe';
+
+/** The libraries in the top-level node_modules of Vortex's app.asar (2.8.0), which game extensions can require at runtime */
+export const VORTEX_LIBRARIES: readonly VortexLibrary[] = Object.freeze([
+    { name: 'winapi-bindings', source: 'git+https://github.com/Nexus-Mods/node-winapi-bindings.git', description: 'Windows API: registry, file system, processes and known folders' },
+    { name: 'vortex-parse-ini', source: 'git+https://github.com/Nexus-Mods/vortex-parse-ini.git', description: 'Reads and writes INI files' },
+    { name: 'node-7z', source: 'git+https://github.com/Nexus-Mods/node-7z.git', description: 'Extracts and creates archives with 7-Zip' },
+    { name: '@nexusmods/nexus-api', source: 'git+https://github.com/Nexus-Mods/node-nexus-api.git', description: 'Client for the Nexus Mods API' },
+    { name: 'turbowalk', source: 'git+https://github.com/Nexus-Mods/node-turbowalk.git', description: 'Walks directory trees quickly' },
+    { name: 'exe-version', source: 'git+https://github.com/Nexus-Mods/node-exe-version.git', description: 'Reads the version of an executable' },
+    { name: 'icon-extract', source: 'git+https://github.com/Nexus-Mods/node-icon-extract.git', description: 'Extracts the icon of an executable' },
+    { name: 'permissions', source: 'git+https://github.com/Nexus-Mods/node-permissions.git', description: 'Reads and changes Windows file permissions' },
+    { name: 'wholocks', source: 'git+https://github.com/Nexus-Mods/node-wholocks.git', description: 'Lists the processes that lock a file' },
+].map(library => Object.freeze(library)));
 
 /** The versions `resolve-version` of the shared release workflow accepts */
 export const VERSION_PATTERN = /^[0-9]+(\.[0-9]+){1,3}(-[0-9A-Za-z.-]+)?$/;

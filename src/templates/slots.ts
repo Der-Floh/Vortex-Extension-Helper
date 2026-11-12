@@ -1,6 +1,7 @@
 export const SLOT_NAMES = [
     'index-imports',
     'index-registrations',
+    'game-fields',
     'constants-plain-installer',
     'inspection-imports',
     'inspection-plain-installer',
@@ -8,7 +9,7 @@ export const SLOT_NAMES = [
     'setup-steps',
 ] as const;
 
-/** The marked parts of the baseline's templates that a mod loader replaces */
+/** The marked parts of the baseline's templates that add-ons fill or replace */
 export type SlotName = typeof SLOT_NAMES[number];
 
 export type SlotTexts = Readonly<Partial<Record<SlotName, string>>>;

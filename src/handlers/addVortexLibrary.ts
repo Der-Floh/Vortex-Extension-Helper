@@ -1,14 +1,13 @@
 import * as vscode from 'vscode';
 import type { VortexDiagnostics } from '../checks/vortexDiagnostics';
-import { PACKAGE_JSON_PATH } from '../constants';
+import { PACKAGE_JSON_PATH, VORTEX_LIBRARIES } from '../constants';
 import { saveOpenPackageJson } from '../project/dependencyInstaller';
 import { installDevDependency } from '../project/npmTasks';
 import { libraryActivity, type ProjectActivity } from '../project/projectActivity';
 import { addExternal, dependencyNames, readExternals } from '../project/projectManifest';
 import { pickVortexProject } from '../project/projectPicker';
-import { VORTEX_LIBRARIES, type LibraryTarget, type VortexLibrary } from '../project/vortexLibraries';
 import type { VortexWorkspaceTracker } from '../project/vortexWorkspaceTracker';
-import type { VortexProject } from '../types/project';
+import type { LibraryTarget, VortexLibrary, VortexProject } from '../types/project';
 import { errorMessage } from '../utils/errors';
 import { readCurrentText, readTextIfExists, writeText } from '../utils/fileSystemUtils';
 import { parseLenientJson } from '../utils/jsonUtils';

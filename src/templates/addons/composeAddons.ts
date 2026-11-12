@@ -1,9 +1,11 @@
 import * as path from 'path';
+import { SOURCE_FOLDER, VORTEX_LIBRARIES } from '../../constants';
 import type { AddonRecord } from '../../types/project';
 import { spec, type GeneratedFileSpec } from '../fileSpec';
+import type { PackageAdditions } from '../packageJson';
 import { placeholderKeys, RESTORE_KEYS } from '../render';
 import type { SlotTexts } from '../slots';
-import { HOOK_MODULES, listing, type Addon, type AddonHooks } from './addon';
+import { HOOK_MODULES, hookFunction, listing, type Addon, type AddonHooks } from './addon';
 import { NO_ADDONS, type ResolvedAddons } from './resolveAddons';
 
 export const PLAIN_MODS_PATH = 'mods';
@@ -12,12 +14,17 @@ const PLAIN_SETUP_DESCRIPTION = 'Ensures the mods folder exists and is writable.
 const PLAIN_FEATURE = 'Installs mods into the game\'s mods folder.';
 const PLAIN_NOTE = '`GAME.modsPath` and `MOD_FILES.extensions` in `src/common/constants.ts` decide where mods are installed and which files count as mods. Check both for {{gameName}}.';
 const PLAIN_REGISTRATION = 'context.registerInstaller(INSTALLERS.mods.id, INSTALLERS.mods.priority, testSupportedMods, installMods);';
-const SOURCE_FOLDER = 'src';
 const BULLET = '- ';
 
 interface ImportLine {
     readonly names: string;
     readonly from: string;
+}
+
+interface HookCall {
+    readonly name: string;
+    /** Relative to `src`, without the extension */
+    readonly module: string;
 }
 
 const ENTRY_IMPORTS: readonly ImportLine[] = [
@@ -34,6 +41,7 @@ const SETUP_IMPORTS: readonly ImportLine[] = [
     { names: 'ensureWritableDirOrWarn', from: '../common/notifications' },
     { names: 'resolveGamePath', from: '../detection/discovery' },
 ];
+const PLAIN_INSTALLER_REMOVED: SlotTexts = Object.freeze({ 'constants-plain-installer': '', 'inspection-imports': '', 'inspection-plain-installer': '' });
 
 /** What a set of add-ons makes of the baseline */
 export interface Composition {
@@ -51,8 +59,9 @@ export interface Composition {
     readonly readme: { readonly features: string; readonly notes: string; readonly sections: string };
     /** Every option's value and its choice's prose, before placeholders in the prose are filled */
     readonly optionValues: Readonly<Record<string, string>>;
-    /** What package.json records; nothing for a project without add-ons */
-    readonly record?: AddonRecord;
+    readonly packageJson: PackageAdditions;
+    /** What the add-ons append to `.gitignore`; empty when they add nothing */
+    readonly gitignore: string;
 }
 
 export function composeAddons(resolved: ResolvedAddons): Composition {
@@ -68,7 +77,8 @@ export function composeAddons(resolved: ResolvedAddons): Composition {
         setupDescription: setupDescription(resolved.addons, wired),
         readme: readmeTexts(wired, keepsPlainInstaller),
         optionValues,
-        record: resolved.addons.length > 0 ? recordOf(resolved) : undefined,
+        packageJson: packageAdditions(resolved),
+        gitignore: gitignoreText(resolved.addons),
     };
 }
 
@@ -81,23 +91,37 @@ export function nextToExecutable(executable: string, folder: string): string {
 
 function slotTexts(wired: readonly Addon[], keepsPlainInstaller: boolean): SlotTexts {
     const registers = hookCalls(wired, 'register');
+    const games = hookCalls(wired, 'game');
     const setups = hookCalls(wired, 'setup');
-    if (keepsPlainInstaller && registers.length === 0 && setups.length === 0) {
+    return {
+        ...entrySlots(registers, games, keepsPlainInstaller),
+        ...(keepsPlainInstaller ? {} : PLAIN_INSTALLER_REMOVED),
+        ...(games.length > 0 ? { 'game-fields': games.map(call => `...${call.name}(context),`).join('\n') } : {}),
+        ...(setups.length > 0 ? setupSlots(setups) : {}),
+    };
+}
+
+function entrySlots(registers: readonly HookCall[], games: readonly HookCall[], keepsPlainInstaller: boolean): SlotTexts {
+    if (keepsPlainInstaller && registers.length === 0 && games.length === 0) {
         return {};
     }
-    const entryImports = keepsPlainInstaller ? PLAIN_ENTRY_IMPORTS : ENTRY_IMPORTS;
+    const baseline = keepsPlainInstaller ? PLAIN_ENTRY_IMPORTS : ENTRY_IMPORTS;
     return {
-        'index-imports': importLines([...entryImports, ...registers.map(call => ({ names: call.name, from: `./${call.module}` }))]),
-        'index-registrations': [...keepsPlainInstaller ? [PLAIN_REGISTRATION] : [], ...registers.map(call => `${call.name}(context);`)].join('\n'),
-        ...keepsPlainInstaller ? {} : { 'constants-plain-installer': '', 'inspection-imports': '', 'inspection-plain-installer': '' },
+        'index-imports': importLines([...baseline, ...[...registers, ...games].map(call => ({ names: call.name, from: `./${call.module}` }))]),
+        'index-registrations': [...(keepsPlainInstaller ? [PLAIN_REGISTRATION] : []), ...registers.map(call => `${call.name}(context);`)].join('\n'),
+    };
+}
+
+function setupSlots(setups: readonly HookCall[]): SlotTexts {
+    return {
         'setup-imports': importLines([...SETUP_IMPORTS, ...setups.map(call => ({ names: call.name, from: `../${call.module}` }))]),
         'setup-steps': setups.map(call => `await ${call.name}(discovery, api);`).join('\n'),
     };
 }
 
-function hookCalls(wired: readonly Addon[], hook: keyof AddonHooks): readonly { name: string; module: string }[] {
+function hookCalls(wired: readonly Addon[], hook: keyof AddonHooks): readonly HookCall[] {
     return wired.flatMap(addon => {
-        const name = addon.manifest.hooks?.[hook];
+        const name = hookFunction(addon.manifest.hooks, hook);
         return name ? [{ name, module: `${addon.manifest.id}/${path.posix.parse(HOOK_MODULES[hook]).name}` }] : [];
     });
 }
@@ -118,11 +142,17 @@ function addonFiles(addon: Addon, superseded: boolean, optionKeys: readonly stri
         .filter(file => !(superseded && hookModules.includes(file.path)))
         .map(file => {
             const keys = file.text === undefined ? [] : placeholderKeys(file.text);
-            return spec(`${SOURCE_FOLDER}/${addon.manifest.id}/${file.path}`, file.text ?? new Uint8Array(Buffer.from(file.base64 ?? '', 'base64')), {
+            return spec(projectPathOf(addon, file.path), file.text ?? new Uint8Array(Buffer.from(file.base64 ?? '', 'base64')), {
                 templated: keys.length > 0,
                 restorable: keys.every(key => restoreKeys.has(key)),
             });
         });
+}
+
+/** In `src/<id>/`, unless `projectFiles` puts the file elsewhere */
+function projectPathOf(addon: Addon, file: string): string {
+    const moved = addon.manifest.projectFiles;
+    return moved && Object.hasOwn(moved, file) ? moved[file] : `${SOURCE_FOLDER}/${addon.manifest.id}/${file}`;
 }
 
 function modsPathOf(wired: readonly Addon[]): (executable: string) => string {
@@ -142,7 +172,7 @@ function entryDescription(addons: readonly Addon[], keepsPlainInstaller: boolean
     if (names.length === 0) {
         return PLAIN_ENTRY_DESCRIPTION;
     }
-    const parts = [...keepsPlainInstaller ? ['the installer for its mods'] : [], `the support for ${listing(names)}`];
+    const parts = [...(keepsPlainInstaller ? ['the installer for its mods'] : []), `the support for ${listing(names)}`];
     return `Registers the game and ${listing(parts)}.`;
 }
 
@@ -162,8 +192,8 @@ function runsSetup(addon: Addon, wired: readonly Addon[]): boolean {
 function readmeTexts(wired: readonly Addon[], keepsPlainInstaller: boolean): Composition['readme'] {
     const bullets = (lines: readonly string[]) => lines.map(line => BULLET + line).join('\n');
     return {
-        features: bullets([...keepsPlainInstaller ? [PLAIN_FEATURE] : [], ...wired.flatMap(addon => addon.manifest.readme?.features ?? [])]),
-        notes: bullets([...keepsPlainInstaller ? [PLAIN_NOTE] : [], ...wired.flatMap(addon => addon.manifest.readme?.notes ?? [])]),
+        features: bullets([...(keepsPlainInstaller ? [PLAIN_FEATURE] : []), ...wired.flatMap(addon => addon.manifest.readme?.features ?? [])]),
+        notes: bullets([...(keepsPlainInstaller ? [PLAIN_NOTE] : []), ...wired.flatMap(addon => addon.manifest.readme?.notes ?? [])]),
         sections: wired.flatMap(addon => addon.readme === undefined ? [] : [`${addon.readme.trim()}\n\n`]).join(''),
     };
 }
@@ -174,6 +204,34 @@ function optionPlaceholders(resolved: ResolvedAddons): Record<string, string> {
         const choice = option.choices.find(candidate => candidate.value === value);
         return [[id, value], ...Object.entries(choice?.placeholders ?? {})];
     })));
+}
+
+/** Every add-on's additions, including a superseded one's, whose files stay in the project */
+function packageAdditions(resolved: ResolvedAddons): PackageAdditions {
+    const { addons } = resolved;
+    const libraries = [...new Set(addons.flatMap(addon => addon.manifest.vortexLibraries ?? []))];
+    return {
+        record: addons.length > 0 ? recordOf(resolved) : undefined,
+        devDependencies: Object.fromEntries([
+            ...addons.flatMap(addon => Object.entries(addon.manifest.packageJson?.devDependencies ?? {})),
+            ...libraries.map(name => [name, librarySource(name)]),
+        ]),
+        scripts: Object.fromEntries(addons.flatMap(addon => Object.entries(addon.manifest.packageJson?.scripts ?? {}))),
+        externals: libraries,
+    };
+}
+
+/** @throws Error if Vortex doesn't provide the library */
+function librarySource(name: string): string {
+    const library = VORTEX_LIBRARIES.find(candidate => candidate.name === name);
+    if (!library) {
+        throw new Error(`${name} isn't a library Vortex provides.`);
+    }
+    return library.source;
+}
+
+function gitignoreText(addons: readonly Addon[]): string {
+    return addons.flatMap(addon => addon.manifest.gitignore ? [`\n# ${addon.manifest.name}\n${addon.manifest.gitignore.join('\n')}\n`] : []).join('');
 }
 
 function recordOf(resolved: ResolvedAddons): AddonRecord {

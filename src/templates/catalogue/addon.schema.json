@@ -22,13 +22,11 @@
         },
         "name": {
             "description": "What the wizard shows in its checklist.",
-            "type": "string",
-            "minLength": 1
+            "$ref": "#/definitions/line"
         },
         "description": {
             "description": "One sentence the wizard shows next to the name.",
-            "type": "string",
-            "minLength": 1
+            "$ref": "#/definitions/line"
         },
         "category": {
             "description": "Which checklist of the wizard the add-on is in. The categories are in catalogue/categories.json.",
@@ -58,7 +56,7 @@
             "$ref": "#/definitions/addonIds"
         },
         "supersedes": {
-            "description": "Add-ons whose hooks, README texts and mods folder this one takes over when both take part. Their register.ts and setup.ts aren't generated then.",
+            "description": "Add-ons whose hooks, README texts and mods folder this one takes over when both take part. Their register.ts, setup.ts and game.ts aren't generated then.",
             "$ref": "#/definitions/addonIds"
         },
         "replacesPlainInstaller": {
@@ -94,6 +92,29 @@
                 "setup": {
                     "description": "A function setup.ts exports. prepareForModding awaits it: await name(discovery, api).",
                     "$ref": "#/definitions/functionName"
+                },
+                "game": {
+                    "description": "A function game.ts exports, typed (context: types.IExtensionContext) => Pick<types.IGame, ...>. main() spreads what it returns into registerGame.",
+                    "type": "object",
+                    "required": ["export", "fields"],
+                    "additionalProperties": false,
+                    "properties": {
+                        "export": {
+                            "description": "The function's name.",
+                            "$ref": "#/definitions/functionName"
+                        },
+                        "fields": {
+                            "description": "Every registerGame field the function returns. The baseline's own fields are taken, and two add-ons that can be picked together can't both return one.",
+                            "type": "array",
+                            "minItems": 1,
+                            "uniqueItems": true,
+                            "items": {
+                                "type": "string",
+                                "pattern": "^[A-Za-z_$][A-Za-z0-9_$]*$",
+                                "not": { "enum": ["id", "name", "mergeMods", "queryPath", "supportedTools", "queryModPath", "logo", "executable", "requiredFiles", "setup", "environment", "details"] }
+                            }
+                        }
+                    }
                 }
             }
         },
@@ -120,9 +141,51 @@
                     "items": { "type": "string" }
                 }
             }
+        },
+        "projectFiles": {
+            "description": "Files of the add-on's folder that go elsewhere in the project, such as a GitHub workflow: the file's path in the folder, then its path in the project. Not for TypeScript, which stays in src/<id>/.",
+            "type": "object",
+            "minProperties": 1,
+            "additionalProperties": {
+                "type": "string",
+                "pattern": "^(?!src(/|$))(?!/)(?![A-Za-z]:)(?!(.*/)?\\.\\.?(/|$))[^\\\\]*[^\\\\/]$"
+            }
+        },
+        "packageJson": {
+            "description": "What the add-on adds to the generated package.json. The baseline's own entries are taken.",
+            "type": "object",
+            "minProperties": 1,
+            "additionalProperties": false,
+            "properties": {
+                "devDependencies": {
+                    "description": "Packages the add-on needs to build. Libraries Vortex provides go into vortexLibraries.",
+                    "$ref": "#/definitions/textMap"
+                },
+                "scripts": {
+                    "description": "npm scripts, added after the baseline's.",
+                    "$ref": "#/definitions/textMap"
+                }
+            }
+        },
+        "vortexLibraries": {
+            "description": "Libraries Vortex provides at runtime that the add-on imports. Each is added to devDependencies, so it type-checks, and to \"vortex\": { \"externals\" }, so rollup leaves it to Vortex.",
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": { "enum": ["winapi-bindings", "vortex-parse-ini", "node-7z", "@nexusmods/nexus-api", "turbowalk", "exe-version", "icon-extract", "permissions", "wholocks"] }
+        },
+        "gitignore": {
+            "description": "Lines appended to the generated .gitignore, below the add-on's name.",
+            "type": "array",
+            "minItems": 1,
+            "items": { "$ref": "#/definitions/line" }
         }
     },
     "definitions": {
+        "line": {
+            "type": "string",
+            "pattern": "^[^\\r\\n]*\\S[^\\r\\n]*$"
+        },
         "addonIds": {
             "type": "array",
             "minItems": 1,
@@ -132,6 +195,11 @@
         "functionName": {
             "type": "string",
             "pattern": "^[A-Za-z_$][A-Za-z0-9_$]*$"
+        },
+        "textMap": {
+            "type": "object",
+            "minProperties": 1,
+            "additionalProperties": { "type": "string", "minLength": 1 }
         },
         "option": {
             "type": "object",

@@ -4,12 +4,13 @@ import * as fs from 'fs';
 import Module from 'module';
 import * as path from 'path';
 import { promisify } from 'util';
-import { DISCOVERED_CATALOGUE } from '../../templates/addons/discoveredCatalogue';
-import type { AddonChoices } from '../../templates/addons/resolveAddons';
+import { BASELINE_GAME_FIELDS } from '../../templates/addons/addon';
+import { resolveAddons, type AddonChoices } from '../../templates/addons/resolveAddons';
 import { renderProject } from '../../templates/registry';
 import type { ProjectValues } from '../../types/project';
 import { addonOutcomes, outcomeKey } from '../fixtures/addonOutcomes';
 import { writeOutputs } from '../fixtures/createFixtureWorkspace';
+import { TEST_CATALOGUE } from '../fixtures/testAddon';
 
 const runShell = promisify(exec);
 
@@ -21,7 +22,7 @@ const TSC = path.join(REPO_ROOT, 'node_modules', 'typescript', 'bin', 'tsc');
 const COMPILE_TIMEOUT_MS = 300_000;
 
 /** Every outcome of the wizard, in numbered folders so no path gets long */
-const OUTCOMES = addonOutcomes(DISCOVERED_CATALOGUE);
+const OUTCOMES = addonOutcomes(TEST_CATALOGUE);
 const FOLDER_OF = new Map(OUTCOMES.map((outcome, index) => [outcomeKey(outcome.choices), String(index)]));
 
 const MONO = { unityBuild: 'unitymono' };
@@ -241,6 +242,14 @@ function mainOf(choices: AddonChoices): (context: unknown) => boolean {
     return require(path.join(EMIT_FOLDER, folder, 'src', 'index.js')).default;
 }
 
+/** The baseline's registerGame fields and those the game hooks of the add-ons that are wired up declare */
+function gameFieldsOf(choices: AddonChoices): string[] {
+    const resolution = resolveAddons(choices, TEST_CATALOGUE);
+    assert.ok(resolution.ok, `${JSON.stringify(choices)} doesn't resolve`);
+    const { addons, superseded } = resolution.resolved;
+    return [...BASELINE_GAME_FIELDS, ...addons.filter(addon => !superseded.has(addon.manifest.id)).flatMap(addon => addon.manifest.hooks?.game?.fields ?? [])];
+}
+
 /** One program for every outcome, which takes seconds where one run per outcome took a minute */
 async function compileOutcomes(): Promise<void> {
     const template = JSON.parse(fs.readFileSync(path.join(OUTCOMES_FOLDER, '0', 'tsconfig.json'), 'utf8'));
@@ -280,7 +289,7 @@ suite('Generated extensions', () => {
             ...AWKWARD_VALUES,
             addons: outcome.choices.addons,
             addonOptions: outcome.choices.options,
-        })));
+        }, TEST_CATALOGUE)));
         await compileOutcomes();
         moduleInternals._load = function load(request, parent, isMain) {
             return request === 'vortex-api' ? PERMISSIVE_VORTEX_API : originalLoad.call(this, request, parent, isMain);
@@ -297,10 +306,11 @@ suite('Generated extensions', () => {
     });
 
     for (const { label, choices } of OUTCOMES) {
-        test(`${label}: loads with the stub context, registers its game once and gives every installer its own id`, () => {
+        test(`${label}: loads with the stub context, registers its game once with the fields it declares and gives every installer its own id`, () => {
             assert.strictEqual(mainOf(choices)(stubContext()), true);
             const extension = new LoadedExtension(choices);
             assert.strictEqual(extension.games, 1);
+            assert.deepStrictEqual(Object.keys(extension.game).sort(), gameFieldsOf(choices).sort());
             const ids = extension.installers.map(installer => installer.id);
             assert.deepStrictEqual(ids.filter((id, index) => ids.indexOf(id) !== index), []);
         });

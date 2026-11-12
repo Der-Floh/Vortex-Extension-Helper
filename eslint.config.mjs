@@ -21,7 +21,6 @@ const HOST_FREE = [
     'src/constants.ts',
     'src/checks/validation.ts',
     'src/project/projectManifest.ts',
-    'src/project/vortexLibraries.ts',
     'src/templates/addons/addon.ts',
     'src/templates/addons/composeAddons.ts',
     'src/templates/addons/discoveredCatalogue.ts',

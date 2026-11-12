@@ -23,12 +23,12 @@ import {
     ROW_SNIPPET,
     SETTING_DEBUG_PORT,
     SETTING_VORTEX_PLUGINS_FOLDER,
+    VORTEX_LIBRARIES,
 } from '../constants';
 import type { DeploymentState } from '../debug/packDeployment';
 import { ACTIVITY_BUILD, ACTIVITY_DEBUG, ACTIVITY_DEPENDENCIES, ACTIVITY_DEPLOY, ACTIVITY_PACKAGE, libraryActivityId, type Activity } from '../project/projectActivity';
-import { VORTEX_LIBRARIES, type LibraryTarget, type VortexLibrary } from '../project/vortexLibraries';
 import { SNIPPETS } from '../snippets/snippets';
-import type { VortexProject } from '../types/project';
+import type { LibraryTarget, VortexLibrary, VortexProject } from '../types/project';
 import type { SnippetTarget } from '../types/snippet';
 import type { NexusGame } from '../wizard/nexusGames';
 import type { ProjectStatus } from './projectStatus';

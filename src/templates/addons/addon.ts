@@ -32,11 +32,26 @@ export interface ModsPath {
     readonly path: string;
 }
 
+export interface GameHook {
+    /** The function `game.ts` exports; `main()` spreads what it returns into `registerGame` */
+    readonly export: string;
+    /** The `registerGame` fields the function returns, none of which the baseline sets */
+    readonly fields: readonly string[];
+}
+
 export interface AddonHooks {
     /** Exported by `register.ts` and called with the extension context in `main()` */
     readonly register?: string;
     /** Exported by `setup.ts` and awaited with the discovery and the api in `prepareForModding` */
     readonly setup?: string;
+    /** Called with the extension context inside `registerGame` */
+    readonly game?: GameHook;
+}
+
+export interface AddonPackageJson {
+    readonly devDependencies?: Readonly<Record<string, string>>;
+    /** Added after the baseline's scripts */
+    readonly scripts?: Readonly<Record<string, string>>;
 }
 
 /** The contents of an add-on's `addon.json`, described for contributors by `catalogue/addon.schema.json` */
@@ -61,6 +76,13 @@ export interface AddonManifest {
     readonly hooks?: AddonHooks;
     readonly options?: Readonly<Record<string, AddonOption>>;
     readonly readme?: { readonly features?: readonly string[]; readonly notes?: readonly string[] };
+    /** Files of the add-on's folder that are written elsewhere in the project, keyed by their path in the folder */
+    readonly projectFiles?: Readonly<Record<string, string>>;
+    readonly packageJson?: AddonPackageJson;
+    /** Names from `VORTEX_LIBRARIES`, added as dev dependencies and to `vortex.externals` */
+    readonly vortexLibraries?: readonly string[];
+    /** Lines appended to the project's `.gitignore` */
+    readonly gitignore?: readonly string[];
 }
 
 /** One file of an add-on, relative to its folder with `/` separators; a binary file is carried as base64 */
@@ -89,7 +111,18 @@ export interface Catalogue {
 export const HOOK_MODULES: Readonly<Record<keyof AddonHooks, string>> = Object.freeze({
     register: 'register.ts',
     setup: 'setup.ts',
+    game: 'game.ts',
 });
+
+/** The fields the baseline's `registerGame` sets, which no game hook may return */
+export const BASELINE_GAME_FIELDS: readonly string[] = Object.freeze([
+    'id', 'name', 'mergeMods', 'queryPath', 'supportedTools', 'queryModPath', 'logo', 'executable', 'requiredFiles', 'setup', 'environment', 'details',
+]);
+
+/** The function a hook calls, which its module has to export */
+export function hookFunction(hooks: AddonHooks | undefined, hook: keyof AddonHooks): string | undefined {
+    return hook === 'game' ? hooks?.game?.export : hooks?.[hook];
+}
 
 export function findAddon(catalogue: Catalogue, id: string): Addon | undefined {
     return catalogue.addons.find(addon => addon.manifest.id === id);

@@ -31,6 +31,8 @@ function main(context: types.IExtensionContext): boolean {
         setup: util.toBlue((discovery: types.IDiscoveryResult) => prepareForModding(discovery, context.api)),
         environment: { SteamAPPId: GAME.steamAppId },
         details: { steamAppId: GAME.steamAppId },
+        // slot:game-fields
+        // endslot
     });
 
     // slot:index-registrations
