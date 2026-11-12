@@ -1,0 +1,10 @@
+{
+    "$schema": "../../../catalogue/addon.schema.json",
+    "id": "loaderPackages",
+    "version": "1.0.0",
+    "name": "Loader packages",
+    "description": "Recognizes a mod loader's own release in an archive, for the Unity loaders.",
+    "category": "modLoaders",
+    "engines": ["unity"],
+    "hidden": true
+}

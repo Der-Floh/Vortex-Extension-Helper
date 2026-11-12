@@ -1,9 +1,4 @@
 import type * as vscode from 'vscode';
-import type { BEPINEX_BUILD_IL2CPP, BEPINEX_BUILD_MONO, MOD_LOADER_BEPINEX, MOD_LOADER_GML, MOD_LOADER_MELON_LOADER } from '../constants';
-
-export type ModLoaderId = typeof MOD_LOADER_GML | typeof MOD_LOADER_MELON_LOADER | typeof MOD_LOADER_BEPINEX;
-
-export type BepInExBuild = typeof BEPINEX_BUILD_MONO | typeof BEPINEX_BUILD_IL2CPP;
 
 /** A workspace folder that holds a Vortex game extension */
 export interface VortexProject {
@@ -28,10 +23,17 @@ export interface ProjectValues {
     readonly steamAppId?: string;
     /** Empty or undefined writes the placeholder */
     readonly executable?: string;
-    /** Empty or undefined keeps the plain installer */
-    readonly modLoaders?: readonly ModLoaderId[];
-    /** Answered when `modLoaders` has BepInEx */
-    readonly bepInExBuild?: BepInExBuild;
+    /** The add-ons the user picked; what they depend on is added when the project is rendered */
+    readonly addons?: readonly string[];
+    /** The answers to the add-ons' options, by option id */
+    readonly addonOptions?: Readonly<Record<string, string>>;
+}
+
+/** What a project's package.json records in `vortex.addons` and `vortex.addonOptions` */
+export interface AddonRecord {
+    /** Every add-on of the project, including the ones brought in by others, with its version */
+    readonly addons: Readonly<Record<string, string>>;
+    readonly options: Readonly<Record<string, string>>;
 }
 
 export type Severity = 'error' | 'warning' | 'information';

@@ -1,0 +1,49 @@
+{
+    "$schema": "../../../catalogue/addon.schema.json",
+    "id": "bepinex",
+    "version": "1.0.0",
+    "name": "BepInEx",
+    "description": "Uses Vortex's BepInEx support and installs plugins into BepInEx/plugins.",
+    "category": "modLoaders",
+    "engines": ["unity"],
+    "dependsOn": ["loaderPackages"],
+    "replacesPlainInstaller": true,
+    "modsPath": { "base": "executable", "path": "BepInEx/plugins" },
+    "hooks": {
+        "register": "registerBepInEx",
+        "setup": "prepareBepInEx"
+    },
+    "options": {
+        "unityBuild": {
+            "title": "BepInEx build",
+            "placeholder": "Which kind of Unity build is the game?",
+            "choices": [
+                {
+                    "value": "unitymono",
+                    "label": "Mono",
+                    "detail": "The game folder has <game>_Data/Managed/Assembly-CSharp.dll.",
+                    "placeholders": {
+                        "bepinexInstall": "{{gameName}} mods need [BepInEx](https://docs.bepinex.dev). Vortex downloads and installs it the first time you manage the game. It is listed on the Mods page like any other mod and has to stay enabled."
+                    }
+                },
+                {
+                    "value": "unityil2cpp",
+                    "label": "IL2CPP",
+                    "detail": "The game folder has GameAssembly.dll.",
+                    "placeholders": {
+                        "bepinexInstall": "{{gameName}} mods need the IL2CPP build of [BepInEx](https://docs.bepinex.dev). Vortex shows a notification with a link while it is missing. Download the newest `BepInEx-Unity.IL2CPP-win-x64` build from the [bleeding-edge builds](https://builds.bepinex.dev/projects/bepinex_be), drop it on Vortex's Mods page, enable it and deploy."
+                    }
+                }
+            ]
+        }
+    },
+    "readme": {
+        "features": [
+            "Installs BepInEx plugins into `BepInEx/plugins`. A plugin that is already inside a `plugins` folder keeps its subfolders; from any other archive only the `.dll` files are installed.",
+            "Registers the game with Vortex's BepInEx support, which installs BepInEx itself as a mod."
+        ],
+        "notes": [
+            "`BEPINEX` in `src/bepinex/constants.ts` holds the game's Unity build (`unityBuild`) and `architecture`, and `GAME.modsPath` is BepInEx's plugins folder. Check them for {{gameName}}."
+        ]
+    }
+}

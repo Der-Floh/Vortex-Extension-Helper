@@ -139,17 +139,16 @@ suite('Vortex Extension Helper integration', () => {
         await vscode.commands.executeCommand('workbench.action.closeAllEditors');
     });
 
-    test('Create Missing Files restores a mod loader project\'s own versions and never the plain installer', async () => {
+    test('Create Missing Files restores the add-ons a project recorded and never the plain installer', async () => {
         const manifest = fixtureUri(FIXTURE_FOLDERS.typescript, 'package.json');
         const project = path.dirname(manifest.fsPath);
         const entryPath = path.join(project, 'src/index.ts');
         const plainInstallerPath = path.join(project, 'src/installers/mods.ts');
         const originalManifest = fs.readFileSync(manifest.fsPath, 'utf8');
         const originals = new Map([entryPath, plainInstallerPath].map(file => [file, fs.readFileSync(file, 'utf8')]));
-        const loaderFolder = path.join(project, 'src/melonloader');
-        const helpers = path.join(project, 'src/archive/loaderFiles.ts');
+        const addonFolders = ['src/melonloader', 'src/loaderPackages'].map(folder => path.join(project, folder));
 
-        await writeAndSettle(manifest, JSON.stringify({ ...JSON.parse(originalManifest), vortex: { modLoaders: ['melonloader'] } }, null, 4));
+        await writeAndSettle(manifest, JSON.stringify({ ...JSON.parse(originalManifest), vortex: recordedVortexField(['melonloader']) }, null, 4));
         fs.rmSync(entryPath);
         fs.rmSync(plainInstallerPath);
         try {
@@ -157,33 +156,36 @@ suite('Vortex Extension Helper integration', () => {
             await vscode.commands.executeCommand(COMMAND_CREATE_MISSING_FILES);
 
             assert.ok(fs.readFileSync(entryPath, 'utf8').includes('registerMelonLoader(context);'));
-            assert.ok(fs.existsSync(path.join(loaderFolder, 'register.ts')));
-            assert.ok(!fs.existsSync(path.join(loaderFolder, 'constants.ts')), 'it holds the game\'s details');
+            assert.ok(fs.existsSync(path.join(project, 'src/melonloader/register.ts')));
+            assert.ok(fs.existsSync(path.join(project, 'src/loaderPackages/packages.ts')), 'the hidden add-on MelonLoader depends on is recorded too');
+            assert.ok(!fs.existsSync(path.join(project, 'src/melonloader/constants.ts')), 'it holds the game\'s details');
             assert.ok(!fs.existsSync(plainInstallerPath));
         } finally {
             originals.forEach((text, file) => fs.writeFileSync(file, text));
             await writeAndSettle(manifest, originalManifest);
-            fs.rmSync(loaderFolder, { recursive: true, force: true });
-            fs.rmSync(helpers, { force: true });
+            addonFolders.forEach(folder => fs.rmSync(folder, { recursive: true, force: true }));
             await vscode.commands.executeCommand('workbench.action.closeAllEditors');
         }
     });
 
-    test('Create Missing Files writes nothing for mod loaders it does not know', async () => {
+    test('Create Missing Files restores only what no add-on changes when it does not know a recorded add-on', async () => {
         const manifest = fixtureUri(FIXTURE_FOLDERS.typescript, 'package.json');
-        const rollupConfig = fixtureUri(FIXTURE_FOLDERS.typescript, 'rollup.config.mjs').fsPath;
+        const project = path.dirname(manifest.fsPath);
+        const rollupConfig = path.join(project, 'rollup.config.mjs');
+        const entryPath = path.join(project, 'src/index.ts');
         const originalManifest = fs.readFileSync(manifest.fsPath, 'utf8');
-        const config = fs.readFileSync(rollupConfig, 'utf8');
+        const originals = new Map([rollupConfig, entryPath].map(file => [file, fs.readFileSync(file, 'utf8')]));
 
-        await writeAndSettle(manifest, JSON.stringify({ ...JSON.parse(originalManifest), vortex: { modLoaders: ['future-loader'] } }, null, 4));
-        fs.rmSync(rollupConfig);
+        await writeAndSettle(manifest, JSON.stringify({ ...JSON.parse(originalManifest), vortex: { addons: { futureLoader: '1.0.0' } } }, null, 4));
+        originals.forEach((_text, file) => fs.rmSync(file));
         try {
             await vscode.window.showTextDocument(fixtureUri(FIXTURE_FOLDERS.typescript, 'tsconfig.json'));
             await vscode.commands.executeCommand(COMMAND_CREATE_MISSING_FILES);
-            assert.ok(!fs.existsSync(rollupConfig));
+            assert.strictEqual(fs.readFileSync(rollupConfig, 'utf8'), originals.get(rollupConfig));
+            assert.ok(!fs.existsSync(entryPath), 'which add-ons register what is unknown');
         } finally {
+            originals.forEach((text, file) => fs.writeFileSync(file, text));
             await writeAndSettle(manifest, originalManifest);
-            fs.writeFileSync(rollupConfig, config);
             await vscode.commands.executeCommand('workbench.action.closeAllEditors');
         }
     });
@@ -411,6 +413,12 @@ function fixtureUri(folderName: string, relativePath: string): vscode.Uri {
 
 function codes(uri: vscode.Uri): string[] {
     return vscode.languages.getDiagnostics(uri).filter(diagnostic => diagnostic.source === DIAGNOSTIC_SOURCE).map(diagnostic => String(diagnostic.code));
+}
+
+/** The `vortex` field the wizard writes for these add-ons, with everything they bring along */
+function recordedVortexField(addons: readonly string[]): unknown {
+    const [manifest] = renderProject({ ...TS_FIXTURE_VALUES, addons });
+    return JSON.parse(String(manifest.content)).vortex;
 }
 
 async function completionLabels(uri: vscode.Uri): Promise<string[]> {

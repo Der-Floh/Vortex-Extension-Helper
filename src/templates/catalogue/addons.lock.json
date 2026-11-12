@@ -1,0 +1,22 @@
+{
+    "bepinex": {
+        "version": "1.0.0",
+        "hash": "9e387dc2dfd5857f3e2daa57f5ea48b7c3eb599b0ca01e2cd668b75e33abab41"
+    },
+    "gml": {
+        "version": "1.0.0",
+        "hash": "94c701f218c71a6df4222b75d1efb7c56f19abebcf5efa2c32faec1571fb0db1"
+    },
+    "loaderPackages": {
+        "version": "1.0.0",
+        "hash": "468031c4bf568e530b29a85d783a788e04b0db0b47f21df6aa3097627371d05f"
+    },
+    "loaders": {
+        "version": "1.0.0",
+        "hash": "0ad6a06d1f2e8bee3539012ff2eebf3580f26e509da284f9afd1aa09c4005bf0"
+    },
+    "melonloader": {
+        "version": "1.0.0",
+        "hash": "27444a7e301cb3d729ee5970b0a2f26cbf5c3c33777256792ab2243aa141e999"
+    }
+}

@@ -6,11 +6,12 @@ import { promisify } from 'util';
 import * as vscode from 'vscode';
 import { readProjectSnapshot } from '../../checks/projectSnapshot';
 import { validateProject } from '../../checks/validation';
-import { MOD_LOADER_GML, PACKAGE_LOCK_PATH } from '../../constants';
+import { PACKAGE_LOCK_PATH } from '../../constants';
+import { DISCOVERED_CATALOGUE } from '../../templates/addons/discoveredCatalogue';
 import { renderProject } from '../../templates/registry';
 import type { ProjectValues } from '../../types/project';
+import { addonOutcomes } from '../fixtures/addonOutcomes';
 import { TS_FIXTURE_VALUES, writeOutputs } from '../fixtures/createFixtureWorkspace';
-import { LOADER_OUTCOMES } from '../fixtures/loaderOutcomes';
 
 const runShell = promisify(exec);
 const BUILD_TIMEOUT_MS = 10 * 60_000;
@@ -32,11 +33,11 @@ const NODE_MODULES = 'node_modules';
         installedFolder = folder;
     }
 
-    for (const { id, choice } of LOADER_OUTCOMES) {
-        test(`${id}: installs, type checks, builds and packages`, async function () {
+    addonOutcomes(DISCOVERED_CATALOGUE).forEach(({ label, choices }, index) => {
+        test(`${label}: installs, type checks, builds and packages`, async function () {
             this.timeout(BUILD_TIMEOUT_MS);
-            const folder = path.join(scratch, `build-${id}`);
-            const values: ProjectValues = { ...TS_FIXTURE_VALUES, ...choice };
+            const folder = path.join(scratch, `build-${index}`);
+            const values: ProjectValues = { ...TS_FIXTURE_VALUES, addons: choices.addons, addonOptions: choices.options };
             writeOutputs(folder, renderProject(values));
 
             await installDependencies(folder);
@@ -51,10 +52,10 @@ const NODE_MODULES = 'node_modules';
                 .filter(finding => finding.severity === 'error');
             assert.deepStrictEqual(errors, []);
         });
-    }
+    });
 
     test('the Godot Mod Loader release the template pins exists', async () => {
-        const constants = renderProject({ ...TS_FIXTURE_VALUES, modLoaders: [MOD_LOADER_GML] }).find(output => output.path === 'src/gml/constants.ts')?.content as string;
+        const constants = renderProject({ ...TS_FIXTURE_VALUES, addons: ['gml'] }).find(output => output.path === 'src/gml/constants.ts')?.content as string;
         const url = /apiUrl: '([^']+)'/.exec(constants)?.[1];
         const assetName = /assetName: '([^']+)'/.exec(constants)?.[1];
         assert.ok(url && assetName);

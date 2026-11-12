@@ -17,7 +17,7 @@ You can also manually install it by downloading the archive file from the [Lates
 
 Afterwards, restart Vortex and you can begin installing supported {{gameName}} mods with Vortex.
 
-{{readmeLoaderSection}}## How to build
+{{readmeAddonSections}}## How to build
 
 To build the extension from source:
 

@@ -1,9 +1,9 @@
 import * as path from 'path';
 import { types } from 'vortex-api';
 import { contentFiles } from '../archive/inspection';
-import { findPackageRoot, hasExtension } from '../archive/loaderFiles';
 import { GAME } from '../common/constants';
 import { copyInstruction } from '../installers/instructions';
+import { findPackageRoot, hasExtension } from '../loaderPackages/packages';
 import { BEPINEX } from './constants';
 
 /**

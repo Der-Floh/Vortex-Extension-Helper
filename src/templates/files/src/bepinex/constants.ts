@@ -7,7 +7,7 @@ const MONO_FILES = [path.join(CORE_DIR, 'BepInEx.dll'), path.join(CORE_DIR, 'Bep
 const IL2CPP_FILES = [path.join(CORE_DIR, 'BepInEx.Unity.IL2CPP.dll')];
 
 /** The game's Unity build: `unitymono` or `unityil2cpp`. */
-const UNITY_BUILD: string = '{{bepinexUnityBuildValue}}';
+const UNITY_BUILD: string = '{{unityBuild}}';
 const IS_MONO = UNITY_BUILD === 'unitymono';
 
 /** BepInEx, a mod loader for Unity games. Its folder sits next to the game's executable. */

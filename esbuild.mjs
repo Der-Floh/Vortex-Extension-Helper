@@ -1,6 +1,7 @@
 import * as esbuild from 'esbuild';
 import * as fs from 'fs';
 import * as path from 'path';
+import { templateAddonsPlugin } from './esbuild.addons.mjs';
 
 const watch = process.argv.includes('--watch');
 const tests = process.argv.includes('--tests');
@@ -65,7 +66,7 @@ async function buildTests() {
         logLevel: 'silent',
         loader,
         mainFields,
-        plugins: [templateTextPlugin, esbuildProblemMatcherPlugin],
+        plugins: [templateTextPlugin, templateAddonsPlugin(), esbuildProblemMatcherPlugin],
     };
     const testFiles = fs.readdirSync('src/test/suite')
         .filter((file) => file.endsWith('.test.ts'))
@@ -110,6 +111,7 @@ async function main() {
         mainFields,
         plugins: [
             templateTextPlugin,
+            templateAddonsPlugin(),
             esbuildProblemMatcherPlugin,
         ],
     });

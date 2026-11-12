@@ -335,6 +335,7 @@
         "watch:tsc": "node ./node_modules/typescript/bin/tsc --noEmit --watch --project tsconfig.json",
         "package": "node ./node_modules/@vscode/vsce/vsce package --no-dependencies",
         "compile-tests": "node esbuild.mjs --tests",
+        "lock-addons": "node esbuild.addons.mjs --lock",
         "pretest": "npm run check-types && npm run compile-tests",
         "check-types": "node ./node_modules/typescript/bin/tsc --noEmit && node ./node_modules/typescript/bin/tsc --noEmit -p src/templates/files/tsconfig.json",
         "lint": "node ./node_modules/eslint/bin/eslint.js src",

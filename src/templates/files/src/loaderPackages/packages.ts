@@ -1,5 +1,5 @@
 import * as path from 'path';
-import { contentFiles } from './inspection';
+import { contentFiles } from '../archive/inspection';
 
 /**
  * Checks a file's extension, ignoring case.

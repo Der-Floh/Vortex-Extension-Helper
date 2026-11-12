@@ -1,0 +1,186 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "Add-on for new game extensions",
+    "description": "Describes the add-on whose files sit next to this addon.json. They are generated into src/<id>/ of a new project. The build checks everything here again and fails on a problem.",
+    "type": "object",
+    "required": ["id", "version", "name", "description", "category"],
+    "additionalProperties": false,
+    "properties": {
+        "$schema": {
+            "type": "string"
+        },
+        "id": {
+            "description": "The folder's name: a lower-case letter, then letters and digits. The files are generated into src/<id>/.",
+            "type": "string",
+            "pattern": "^[a-z][a-zA-Z0-9]*$",
+            "not": { "enum": ["archive", "common", "detection", "installers", "setup"] }
+        },
+        "version": {
+            "description": "A version like 1.0.0. Raise it whenever a file of the add-on changes, then run npm run lock-addons.",
+            "type": "string",
+            "pattern": "^\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?$"
+        },
+        "name": {
+            "description": "What the wizard shows in its checklist.",
+            "type": "string",
+            "minLength": 1
+        },
+        "description": {
+            "description": "One sentence the wizard shows next to the name.",
+            "type": "string",
+            "minLength": 1
+        },
+        "category": {
+            "description": "Which checklist of the wizard the add-on is in. The categories are in catalogue/categories.json.",
+            "enum": ["modLoaders"]
+        },
+        "engines": {
+            "description": "The engines the add-on is offered for, from catalogue/engines.json. Leave it out to offer it for every engine.",
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": { "enum": ["unreal", "unity", "godot", "source", "gamemaker", "frostbite", "other"] }
+        },
+        "hidden": {
+            "description": "Never shown in the wizard. The add-on only takes part through another add-on's dependsOn, or its own when.",
+            "type": "boolean"
+        },
+        "dependsOn": {
+            "description": "Add-ons that are included along with this one.",
+            "$ref": "#/definitions/addonIds"
+        },
+        "conflicts": {
+            "description": "Add-ons that can't be picked together with this one. Add-ons for different engines never meet, so they don't need it.",
+            "$ref": "#/definitions/addonIds"
+        },
+        "when": {
+            "description": "Included by itself once all of these are picked, for a hidden add-on that makes others work together.",
+            "$ref": "#/definitions/addonIds"
+        },
+        "supersedes": {
+            "description": "Add-ons whose hooks, README texts and mods folder this one takes over when both take part. Their register.ts and setup.ts aren't generated then.",
+            "$ref": "#/definitions/addonIds"
+        },
+        "replacesPlainInstaller": {
+            "description": "The project leaves out the plain installer, which copies the game's mod files into the mods folder (MOD_FILES, INSTALLERS and src/installers/mods.ts).",
+            "type": "boolean"
+        },
+        "modsPath": {
+            "description": "Where Vortex deploys mods that no mod type sends elsewhere. At most one add-on of a project may set it.",
+            "type": "object",
+            "required": ["base", "path"],
+            "additionalProperties": false,
+            "properties": {
+                "base": {
+                    "description": "game: relative to the game folder. executable: relative to the folder of the game's executable.",
+                    "enum": ["game", "executable"]
+                },
+                "path": {
+                    "description": "A relative folder, written with /. Use . for the base folder itself.",
+                    "type": "string",
+                    "pattern": "^(?!/)(?!(.*/)?\\.\\.(/|$))[^\\\\]+$"
+                }
+            }
+        },
+        "hooks": {
+            "description": "The functions the generated project calls.",
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "register": {
+                    "description": "A function register.ts exports. main() calls it with the extension context: name(context).",
+                    "$ref": "#/definitions/functionName"
+                },
+                "setup": {
+                    "description": "A function setup.ts exports. prepareForModding awaits it: await name(discovery, api).",
+                    "$ref": "#/definitions/functionName"
+                }
+            }
+        },
+        "options": {
+            "description": "Questions the wizard asks once the add-ons are picked. A template uses an option's value as {{optionId}}.",
+            "type": "object",
+            "minProperties": 1,
+            "propertyNames": { "pattern": "^[A-Za-z]+$" },
+            "additionalProperties": { "$ref": "#/definitions/option" }
+        },
+        "readme": {
+            "description": "Bullets for the generated README. They may use {{gameName}} and the option placeholders. A section of its own goes into addon.md.",
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "features": {
+                    "description": "Bullets for the list of what the extension does.",
+                    "type": "array",
+                    "items": { "type": "string" }
+                },
+                "notes": {
+                    "description": "Bullets for what the author should check before releasing.",
+                    "type": "array",
+                    "items": { "type": "string" }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "addonIds": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": { "type": "string", "pattern": "^[a-z][a-zA-Z0-9]*$" }
+        },
+        "functionName": {
+            "type": "string",
+            "pattern": "^[A-Za-z_$][A-Za-z0-9_$]*$"
+        },
+        "option": {
+            "type": "object",
+            "required": ["title", "choices"],
+            "additionalProperties": false,
+            "properties": {
+                "title": {
+                    "description": "The question's title.",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "placeholder": {
+                    "description": "The hint in the question's input box.",
+                    "type": "string"
+                },
+                "choices": {
+                    "description": "The answers. The first one is the default.",
+                    "type": "array",
+                    "minItems": 1,
+                    "items": { "$ref": "#/definitions/choice" }
+                }
+            }
+        },
+        "choice": {
+            "type": "object",
+            "required": ["value", "label"],
+            "additionalProperties": false,
+            "properties": {
+                "value": {
+                    "description": "What {{optionId}} becomes in the templates.",
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9_.-]+$"
+                },
+                "label": {
+                    "description": "What the wizard shows.",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "detail": {
+                    "description": "A line the wizard shows below the label.",
+                    "type": "string"
+                },
+                "placeholders": {
+                    "description": "Text that differs between the choices, used as {{name}} in addon.md and the readme bullets. Every choice defines the same names.",
+                    "type": "object",
+                    "propertyNames": { "pattern": "^[A-Za-z]+$" },
+                    "additionalProperties": { "type": "string" }
+                }
+            }
+        }
+    }
+}

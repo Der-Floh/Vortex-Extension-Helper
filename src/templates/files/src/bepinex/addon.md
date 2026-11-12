@@ -1,0 +1,3 @@
+## BepInEx
+
+{{bepinexInstall}}

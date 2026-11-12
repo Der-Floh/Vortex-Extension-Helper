@@ -4,18 +4,37 @@ import * as fs from 'fs';
 import Module from 'module';
 import * as path from 'path';
 import { promisify } from 'util';
+import { DISCOVERED_CATALOGUE } from '../../templates/addons/discoveredCatalogue';
+import type { AddonChoices } from '../../templates/addons/resolveAddons';
 import { renderProject } from '../../templates/registry';
 import type { ProjectValues } from '../../types/project';
+import { addonOutcomes, outcomeKey } from '../fixtures/addonOutcomes';
 import { writeOutputs } from '../fixtures/createFixtureWorkspace';
-import { LOADER_OUTCOMES } from '../fixtures/loaderOutcomes';
 
 const runShell = promisify(exec);
 
 // Inside the repository, so the generated projects find vortex-api in its node_modules
 const REPO_ROOT = path.resolve(__dirname, '../../..');
 const OUTCOMES_FOLDER = path.join(REPO_ROOT, 'out', 'test', 'outcomes');
+const EMIT_FOLDER = path.join(OUTCOMES_FOLDER, 'js');
 const TSC = path.join(REPO_ROOT, 'node_modules', 'typescript', 'bin', 'tsc');
-const COMPILE_TIMEOUT_MS = 120_000;
+const COMPILE_TIMEOUT_MS = 300_000;
+
+/** Every outcome of the wizard, in numbered folders so no path gets long */
+const OUTCOMES = addonOutcomes(DISCOVERED_CATALOGUE);
+const FOLDER_OF = new Map(OUTCOMES.map((outcome, index) => [outcomeKey(outcome.choices), String(index)]));
+
+const MONO = { unityBuild: 'unitymono' };
+const IL2CPP = { unityBuild: 'unityil2cpp' };
+const SELECTIONS = {
+    plain: { addons: [], options: {} },
+    gml: { addons: ['gml'], options: {} },
+    melonLoader: { addons: ['melonloader'], options: {} },
+    bepInExMono: { addons: ['bepinex'], options: MONO },
+    bepInExIl2cpp: { addons: ['bepinex'], options: IL2CPP },
+    bothMono: { addons: ['melonloader', 'bepinex'], options: MONO },
+    bothIl2cpp: { addons: ['melonloader', 'bepinex'], options: IL2CPP },
+} satisfies Record<string, AddonChoices>;
 
 const GAME_ID = 'awkward';
 const GAME_FOLDER = path.join(path.sep, 'games', 'awkward');
@@ -114,6 +133,24 @@ const VORTEX_API_MOCK = {
     },
 };
 
+/** Answers anything an add-on asks of Vortex that the mock above doesn't know, so any add-on can load */
+const ANYTHING: unknown = new Proxy(function anything() { /* callable */ }, {
+    get: (_target, key) => key === 'then' || typeof key === 'symbol' ? undefined : ANYTHING,
+    apply: () => ANYTHING,
+    construct: () => ANYTHING as object,
+});
+
+function permissive<T extends object>(target: T): T {
+    return new Proxy(target, { get: (object, key) => key in object ? Reflect.get(object, key) : ANYTHING });
+}
+
+const PERMISSIVE_VORTEX_API = permissive({
+    ...VORTEX_API_MOCK,
+    util: permissive(VORTEX_API_MOCK.util),
+    selectors: permissive(VORTEX_API_MOCK.selectors),
+    fs: permissive(VORTEX_API_MOCK.fs),
+});
+
 const moduleInternals = Module as unknown as { _load(request: string, parent: unknown, isMain: boolean): unknown };
 
 /** Like Vortex, which hands an extension only a stub while it installs or updates it */
@@ -132,9 +169,10 @@ class LoadedExtension {
     readonly asyncEvents: string[] = [];
     readonly once: (() => void)[] = [];
     game!: RegisteredGame;
+    games = 0;
 
-    constructor(id: string) {
-        const api = {
+    constructor(choices: AddonChoices) {
+        const api = permissive({
             getState: () => ({ persistent: { mods: { [GAME_ID]: world.mods } } }),
             sendNotification: (notification: { id: string }) => world.notifications.push(notification.id),
             dismissNotification: (notificationId: string) => world.dismissed.push(notificationId),
@@ -144,19 +182,20 @@ class LoadedExtension {
             get ext() {
                 return world.bepInExSupport ? { bepinexAddGame: (config: Record<string, unknown>) => world.bepInExGames.push(config) } : {};
             },
-        };
-        const context = {
+        });
+        const context = permissive({
             api,
             registerGame: (game: RegisteredGame) => {
                 this.game = game;
+                this.games += 1;
             },
             registerInstaller: (installerId: string, priority: number, test: Installer['test'], install: Installer['install']) => this.installers.push({ id: installerId, priority, test, install }),
             registerModType: (typeId: string) => this.modTypes.push(typeId),
             registerStartHook: (_priority: number, _hookId: string, hook: StartHook) => this.startHooks.push(hook),
             registerAction: (...args: unknown[]) => this.actions.push(args[4] as string),
             once: (callback: () => void) => this.once.push(callback),
-        };
-        assert.strictEqual(mainOf(id)(context), true);
+        });
+        assert.strictEqual(mainOf(choices)(context), true);
         this.once.forEach(callback => callback());
     }
 
@@ -196,8 +235,26 @@ const VORTEX_BEPINEX_INSTALLERS: Installer[] = [
     },
 ];
 
-function mainOf(id: string): (context: unknown) => boolean {
-    return require(path.join(OUTCOMES_FOLDER, id, 'js', 'index.js')).default;
+function mainOf(choices: AddonChoices): (context: unknown) => boolean {
+    const folder = FOLDER_OF.get(outcomeKey(choices));
+    assert.ok(folder, `no outcome has ${JSON.stringify(choices)}`);
+    return require(path.join(EMIT_FOLDER, folder, 'src', 'index.js')).default;
+}
+
+/** One program for every outcome, which takes seconds where one run per outcome took a minute */
+async function compileOutcomes(): Promise<void> {
+    const template = JSON.parse(fs.readFileSync(path.join(OUTCOMES_FOLDER, '0', 'tsconfig.json'), 'utf8'));
+    fs.writeFileSync(path.join(OUTCOMES_FOLDER, 'tsconfig.json'), JSON.stringify({
+        compilerOptions: { ...template.compilerOptions, rootDir: '.' },
+        include: ['*/src/**/*.ts'],
+    }, null, 4));
+    const index = OUTCOMES.map((outcome, folder) => `${folder}: ${outcome.label}`).join('\n');
+    const failed = (error: Error & { stdout?: string; stderr?: string }): never => {
+        throw new Error(`${error.stdout ?? ''}${error.stderr ?? ''}\nThe numbered folders are:\n${index}`);
+    };
+    await runShell(`node "${TSC}" -p "${OUTCOMES_FOLDER}"`).catch(failed);
+    await runShell(`node "${TSC}" -p "${OUTCOMES_FOLDER}" --noEmit false --noCheck --outDir "${EMIT_FOLDER}" --module node16 --moduleResolution node16 --sourceMap false --inlineSources false`)
+        .catch(failed);
 }
 
 const native = (...segments: string[]) => path.join(...segments);
@@ -216,10 +273,17 @@ const DISCOVERY = { path: GAME_FOLDER };
 suite('Generated extensions', () => {
     const originalLoad = moduleInternals._load;
 
-    suiteSetup(() => {
+    suiteSetup(async function () {
+        this.timeout(COMPILE_TIMEOUT_MS);
         fs.rmSync(OUTCOMES_FOLDER, { recursive: true, force: true });
+        OUTCOMES.forEach((outcome, index) => writeOutputs(path.join(OUTCOMES_FOLDER, String(index)), renderProject({
+            ...AWKWARD_VALUES,
+            addons: outcome.choices.addons,
+            addonOptions: outcome.choices.options,
+        })));
+        await compileOutcomes();
         moduleInternals._load = function load(request, parent, isMain) {
-            return request === 'vortex-api' ? VORTEX_API_MOCK : originalLoad.call(this, request, parent, isMain);
+            return request === 'vortex-api' ? PERMISSIVE_VORTEX_API : originalLoad.call(this, request, parent, isMain);
         };
     });
 
@@ -232,22 +296,18 @@ suite('Generated extensions', () => {
         world = newWorld();
     });
 
-    for (const { id, choice } of LOADER_OUTCOMES) {
-        test(`${id}: compiles against vortex-api and loads with the stub context`, async function () {
-            this.timeout(COMPILE_TIMEOUT_MS);
-            const folder = path.join(OUTCOMES_FOLDER, id);
-            writeOutputs(folder, renderProject({ ...AWKWARD_VALUES, ...choice }));
-
-            await runShell(`node "${TSC}" -p "${folder}"`, { cwd: folder }).catch(failWithCompilerOutput);
-            await runShell(`node "${TSC}" -p "${folder}" --noEmit false --noCheck --outDir "${path.join(folder, 'js')}" --module node16 --moduleResolution node16 --sourceMap false --inlineSources false`, { cwd: folder })
-                .catch(failWithCompilerOutput);
-
-            assert.strictEqual(mainOf(id)(stubContext()), true);
+    for (const { label, choices } of OUTCOMES) {
+        test(`${label}: loads with the stub context, registers its game once and gives every installer its own id`, () => {
+            assert.strictEqual(mainOf(choices)(stubContext()), true);
+            const extension = new LoadedExtension(choices);
+            assert.strictEqual(extension.games, 1);
+            const ids = extension.installers.map(installer => installer.id);
+            assert.deepStrictEqual(ids.filter((id, index) => ids.indexOf(id) !== index), []);
         });
     }
 
     test('plain: installs its file types into the mods folder', async () => {
-        const extension = new LoadedExtension('plain');
+        const extension = new LoadedExtension(SELECTIONS.plain);
         assert.strictEqual(extension.game.queryModPath(), 'mods');
         const { instructions } = await extension.install([native('Wrapper', 'Cool.pak'), native('Wrapper', 'readme.txt')]);
         assert.deepStrictEqual(copies(instructions), ['Cool.pak']);
@@ -256,7 +316,7 @@ suite('Generated extensions', () => {
 
     suite('MelonLoader', () => {
         test('installs into its folders next to the executable', async () => {
-            const extension = new LoadedExtension('melonloader');
+            const extension = new LoadedExtension(SELECTIONS.melonLoader);
             assert.strictEqual(extension.game.queryModPath(), '.');
             const { installer, instructions } = await extension.install([native('Wrapper', 'Cool.dll'), native('Wrapper', 'Cool.cfg'), native('Wrapper', 'readme.txt')]);
             assert.strictEqual(installer, `${GAME_ID}-melonloader-mods`);
@@ -265,7 +325,7 @@ suite('Generated extensions', () => {
         });
 
         test('files already in one of its folders stay there', async () => {
-            const { instructions } = await new LoadedExtension('melonloader').install([
+            const { instructions } = await new LoadedExtension(SELECTIONS.melonLoader).install([
                 native('Wrapper', 'mods', 'Cool.dll'),
                 native('UserLibs', 'Lib.dll'),
                 native('Plugins', 'Plugin.dll'),
@@ -280,13 +340,13 @@ suite('Generated extensions', () => {
         });
 
         test('installs its own release as it is, without a wrapper folder', async () => {
-            const { installer, instructions } = await new LoadedExtension('melonloader').install(MELON_LOADER_RELEASE);
+            const { installer, instructions } = await new LoadedExtension(SELECTIONS.melonLoader).install(MELON_LOADER_RELEASE);
             assert.strictEqual(installer, `${GAME_ID}-melonloader-package`);
             assert.deepStrictEqual(copies(instructions), [native(EXE_FOLDER, 'version.dll'), native(EXE_FOLDER, 'MelonLoader', 'net6', 'MelonLoader.dll'), native(EXE_FOLDER, 'MelonLoader', 'Dependencies', 'Il2CppAssemblyGenerator.dll')]);
         });
 
         test('warns while it is missing', async () => {
-            const extension = new LoadedExtension('melonloader');
+            const extension = new LoadedExtension(SELECTIONS.melonLoader);
             await extension.game.setup(DISCOVERY);
             assert.deepStrictEqual(world.notifications, [`${GAME_ID}-melonloader-missing`]);
 
@@ -300,23 +360,23 @@ suite('Generated extensions', () => {
 
     suite('BepInEx', () => {
         test('Vortex downloads the Mono build by itself', () => {
-            new LoadedExtension('bepinex-mono');
+            new LoadedExtension(SELECTIONS.bepInExMono);
             assert.deepStrictEqual(world.bepInExGames, [{ gameId: GAME_ID, autoDownloadBepInEx: true, forceGithubDownload: false, architecture: 'x64', unityBuild: 'unitymono', installRelPath: EXE_FOLDER }]);
         });
 
         test('Vortex does not download the IL2CPP build', () => {
-            new LoadedExtension('bepinex-il2cpp');
+            new LoadedExtension(SELECTIONS.bepInExIl2cpp);
             assert.deepStrictEqual(world.bepInExGames, [{ gameId: GAME_ID, autoDownloadBepInEx: false, forceGithubDownload: true, architecture: 'x64', unityBuild: 'unityil2cpp', installRelPath: EXE_FOLDER }]);
         });
 
         test('works without Vortex\'s BepInEx support', async () => {
             world.bepInExSupport = false;
-            const { instructions } = await new LoadedExtension('bepinex-mono').install(['Cool.dll']);
+            const { instructions } = await new LoadedExtension(SELECTIONS.bepInExMono).install(['Cool.dll']);
             assert.deepStrictEqual(copies(instructions), ['Cool.dll']);
         });
 
         test('installs into the plugins folder', async () => {
-            const extension = new LoadedExtension('bepinex-mono');
+            const extension = new LoadedExtension(SELECTIONS.bepInExMono);
             assert.strictEqual(extension.game.queryModPath(), `${EXE_FOLDER}/BepInEx/plugins`);
             const { installer, instructions } = await extension.install([native('Wrapper', 'Cool.dll'), native('Wrapper', 'readme.txt')]);
             assert.strictEqual(installer, `${GAME_ID}-bepinex-mods`);
@@ -324,26 +384,26 @@ suite('Generated extensions', () => {
         });
 
         test('a plugin inside a plugins folder keeps its subfolders', async () => {
-            const { instructions } = await new LoadedExtension('bepinex-mono').install([native('BepInEx', 'plugins', 'Cool', 'Cool.dll'), native('BepInEx', 'plugins', 'Cool', 'assets.bundle')]);
+            const { instructions } = await new LoadedExtension(SELECTIONS.bepInExMono).install([native('BepInEx', 'plugins', 'Cool', 'Cool.dll'), native('BepInEx', 'plugins', 'Cool', 'assets.bundle')]);
             assert.deepStrictEqual(copies(instructions), [native('Cool', 'Cool.dll'), native('Cool', 'assets.bundle')]);
         });
 
         test('leaves what Vortex\'s BepInEx support handles to it', async () => {
-            const extension = new LoadedExtension('bepinex-mono');
+            const extension = new LoadedExtension(SELECTIONS.bepInExMono);
             assert.strictEqual((await extension.claimant(BEPINEX_RELEASE))?.id, 'bepis-injector-extensible');
             assert.strictEqual((await extension.claimant([native('plugins', 'Cool.dll')]))?.id, 'bepinex-root');
         });
 
         test('does not take BepInEx itself for a plugin when Vortex\'s support is off', async () => {
             world.bepInExSupport = false;
-            assert.strictEqual(await new LoadedExtension('bepinex-mono').claimant(BEPINEX_RELEASE), undefined);
+            assert.strictEqual(await new LoadedExtension(SELECTIONS.bepInExMono).claimant(BEPINEX_RELEASE), undefined);
         });
 
         test('warns about a missing IL2CPP build only', async () => {
-            await new LoadedExtension('bepinex-mono').game.setup(DISCOVERY);
+            await new LoadedExtension(SELECTIONS.bepInExMono).game.setup(DISCOVERY);
             assert.deepStrictEqual(world.notifications, []);
 
-            const il2cpp = new LoadedExtension('bepinex-il2cpp');
+            const il2cpp = new LoadedExtension(SELECTIONS.bepInExIl2cpp);
             await il2cpp.game.setup(DISCOVERY);
             assert.deepStrictEqual(world.notifications, [`${GAME_ID}-bepinex-missing`]);
 
@@ -359,38 +419,38 @@ suite('Generated extensions', () => {
         const BEPINEX_MODS = `${GAME_ID}-bepinex-mods`;
         const MELON_LOADER_MODS = `${GAME_ID}-melonloader-mods`;
 
-        for (const id of ['both-mono', 'both-il2cpp']) {
-            test(`${id}: Vortex never downloads BepInEx by itself`, () => {
-                new LoadedExtension(id);
+        for (const [name, selection] of [['Mono', SELECTIONS.bothMono], ['IL2CPP', SELECTIONS.bothIl2cpp]] as const) {
+            test(`${name}: Vortex never downloads BepInEx by itself`, () => {
+                new LoadedExtension(selection);
                 assert.strictEqual(world.bepInExGames[0].autoDownloadBepInEx, false);
                 assert.strictEqual(world.bepInExGames[0].forceGithubDownload, true);
             });
         }
 
         test('a marker file decides', async () => {
-            const extension = new LoadedExtension('both-il2cpp');
+            const extension = new LoadedExtension(SELECTIONS.bothIl2cpp);
             assert.strictEqual((await extension.install(['_bepinex', 'Cool.dll'])).installer, BEPINEX_MODS);
             assert.strictEqual((await extension.install(['_melonloader', 'Cool.dll'])).installer, MELON_LOADER_MODS);
         });
 
         test('a marker file is never installed', async () => {
-            const { instructions } = await new LoadedExtension('both-il2cpp').install(['_melonloader', 'Cool.dll']);
+            const { instructions } = await new LoadedExtension(SELECTIONS.bothIl2cpp).install(['_melonloader', 'Cool.dll']);
             assert.deepStrictEqual(copies(instructions), [native(EXE_FOLDER, 'Mods', 'Cool.dll')]);
         });
 
         test('a marker wins over a path that names the other loader', async () => {
-            const { installer } = await new LoadedExtension('both-il2cpp').install(['_melonloader', native('BepInEx version', 'Cool.dll')]);
+            const { installer } = await new LoadedExtension(SELECTIONS.bothIl2cpp).install(['_melonloader', native('BepInEx version', 'Cool.dll')]);
             assert.strictEqual(installer, MELON_LOADER_MODS);
         });
 
         test('otherwise a path that names a loader decides', async () => {
-            const extension = new LoadedExtension('both-il2cpp');
+            const extension = new LoadedExtension(SELECTIONS.bothIl2cpp);
             assert.strictEqual((await extension.install([native('For BepInEx', 'Cool.dll')])).installer, BEPINEX_MODS);
             assert.strictEqual((await extension.install([native('For MelonLoader', 'Cool.dll')])).installer, MELON_LOADER_MODS);
         });
 
         test('otherwise the installed loader decides, and MelonLoader is the default', async () => {
-            const extension = new LoadedExtension('both-il2cpp');
+            const extension = new LoadedExtension(SELECTIONS.bothIl2cpp);
             assert.strictEqual((await extension.install(['Cool.dll'])).installer, MELON_LOADER_MODS);
 
             installed(BEPINEX_IL2CPP_INSTALLED);
@@ -401,7 +461,7 @@ suite('Generated extensions', () => {
         });
 
         test('a loader installed through Vortex counts before it is deployed', async () => {
-            const extension = new LoadedExtension('both-il2cpp');
+            const extension = new LoadedExtension(SELECTIONS.bothIl2cpp);
             world.mods = { bepinex: { type: 'bepinex-injector', attributes: {} } };
             assert.strictEqual((await extension.install(['Cool.dll'])).installer, BEPINEX_MODS);
 
@@ -410,7 +470,7 @@ suite('Generated extensions', () => {
         });
 
         test('MelonLoader\'s files get the game root type, or Vortex would claim them for BepInEx', async () => {
-            const extension = new LoadedExtension('both-il2cpp');
+            const extension = new LoadedExtension(SELECTIONS.bothIl2cpp);
             assert.deepStrictEqual(extension.modTypes, [ROOT_TYPE]);
             assert.deepStrictEqual(typesOf((await extension.install(['Cool.dll'])).instructions), [ROOT_TYPE]);
 
@@ -420,7 +480,7 @@ suite('Generated extensions', () => {
         });
 
         test('BepInEx plugins go to the plugins folder without a mod type', async () => {
-            const extension = new LoadedExtension('both-il2cpp');
+            const extension = new LoadedExtension(SELECTIONS.bothIl2cpp);
             assert.strictEqual(extension.game.queryModPath(), `${EXE_FOLDER}/BepInEx/plugins`);
             const { instructions } = await extension.install(['_bepinex', 'Cool.dll']);
             assert.deepStrictEqual(copies(instructions), ['Cool.dll']);
@@ -428,18 +488,18 @@ suite('Generated extensions', () => {
         });
 
         test('leaves BepInEx itself to Vortex and takes MelonLoader itself', async () => {
-            const extension = new LoadedExtension('both-mono');
+            const extension = new LoadedExtension(SELECTIONS.bothMono);
             assert.strictEqual((await extension.claimant(BEPINEX_RELEASE))?.id, 'bepis-injector-extensible');
             assert.strictEqual((await extension.claimant(MELON_LOADER_RELEASE))?.id, `${GAME_ID}-melonloader-package`);
         });
 
         test('neither installer takes BepInEx itself when Vortex\'s support is off', async () => {
             world.bepInExSupport = false;
-            assert.strictEqual(await new LoadedExtension('both-mono').claimant(BEPINEX_RELEASE), undefined);
+            assert.strictEqual(await new LoadedExtension(SELECTIONS.bothMono).claimant(BEPINEX_RELEASE), undefined);
         });
 
         test('warns when neither or both loaders are installed', async () => {
-            const extension = new LoadedExtension('both-mono');
+            const extension = new LoadedExtension(SELECTIONS.bothMono);
             await extension.game.setup(DISCOVERY);
             assert.deepStrictEqual(world.notifications, [`${GAME_ID}-no-mod-loader`]);
 
@@ -461,7 +521,7 @@ suite('Generated extensions', () => {
         const GAME_CALL = () => ({ executable: EXE, args: ['--keep'], options: {} });
 
         test('registers everything around the loader', () => {
-            const extension = new LoadedExtension('gml');
+            const extension = new LoadedExtension(SELECTIONS.gml);
             assert.strictEqual(extension.game.queryModPath(), `${EXE_FOLDER}/mods`);
             assert.deepStrictEqual(extension.installers.map(installer => [installer.id, installer.priority]), [[`${GAME_ID}-gml-loader`, 10], [`${GAME_ID}-mod-zips`, 20], [`${GAME_ID}-unpacked-mods`, 25]]);
             assert.strictEqual(extension.startHooks.length, 1);
@@ -470,13 +530,13 @@ suite('Generated extensions', () => {
         });
 
         test('installs a mod zip under a lower-case extension', async () => {
-            const { installer, instructions } = await new LoadedExtension('gml').install([native('Wrapper', 'Cool-Mod.ZIP')]);
+            const { installer, instructions } = await new LoadedExtension(SELECTIONS.gml).install([native('Wrapper', 'Cool-Mod.ZIP')]);
             assert.strictEqual(installer, `${GAME_ID}-mod-zips`);
             assert.deepStrictEqual(copies(instructions), ['Cool-Mod.zip']);
         });
 
         test('zips an extracted mod again', async () => {
-            const { installer, instructions } = await new LoadedExtension('gml').install([
+            const { installer, instructions } = await new LoadedExtension(SELECTIONS.gml).install([
                 native('Wrapper', 'mods-unpacked', 'Cool-Mod', 'mod_main.gd'),
                 native('Wrapper', 'mods-unpacked', 'Cool-Mod', 'manifest.json'),
             ]);
@@ -485,17 +545,17 @@ suite('Generated extensions', () => {
         });
 
         test('refuses the loader itself as a mod', async () => {
-            const { installer, instructions } = await new LoadedExtension('gml').install([native('addons', 'mod_loader', 'mod_loader.gd')]);
+            const { installer, instructions } = await new LoadedExtension(SELECTIONS.gml).install([native('addons', 'mod_loader', 'mod_loader.gd')]);
             assert.strictEqual(installer, `${GAME_ID}-gml-loader`);
             assert.deepStrictEqual(instructions.map(instruction => instruction.type), ['error']);
         });
 
         test('leaves other archives alone', async () => {
-            assert.strictEqual(await new LoadedExtension('gml').claimant(['Cool.pak']), undefined);
+            assert.strictEqual(await new LoadedExtension(SELECTIONS.gml).claimant(['Cool.pak']), undefined);
         });
 
         test('warns while the loader is missing in either folder', async () => {
-            const extension = new LoadedExtension('gml');
+            const extension = new LoadedExtension(SELECTIONS.gml);
             await extension.game.setup(DISCOVERY);
             assert.deepStrictEqual(world.notifications, [`${GAME_ID}-gml-missing`]);
 
@@ -514,26 +574,26 @@ suite('Generated extensions', () => {
         test('clears the caches when the game is newer than the hook pack', async () => {
             world.files.set(HOOK_PACK, 100);
             world.files.set(PCK, 200);
-            await new LoadedExtension('gml').game.setup(DISCOVERY);
+            await new LoadedExtension(SELECTIONS.gml).game.setup(DISCOVERY);
             assert.deepStrictEqual(world.removed, [HOOK_PACK, inGame('addons', 'mod_loader', 'decomp')]);
         });
 
         test('keeps a current hook pack', async () => {
             world.files.set(HOOK_PACK, 200);
             world.files.set(PCK, 100);
-            await new LoadedExtension('gml').game.setup(DISCOVERY);
+            await new LoadedExtension(SELECTIONS.gml).game.setup(DISCOVERY);
             assert.deepStrictEqual(world.removed, []);
         });
 
         test('a game with an embedded pck compares against the executable', async () => {
             world.files.set(HOOK_PACK, 200);
             world.files.set(EXE, 100);
-            await new LoadedExtension('gml').game.setup(DISCOVERY);
+            await new LoadedExtension(SELECTIONS.gml).game.setup(DISCOVERY);
             assert.deepStrictEqual(world.removed, []);
         });
 
         test('the start hook adds the setup arguments for this game only', async () => {
-            const [hook] = new LoadedExtension('gml').startHooks;
+            const [hook] = new LoadedExtension(SELECTIONS.gml).startHooks;
             assert.deepStrictEqual((await hook(GAME_CALL())).args, ['--keep'], 'nothing without the setup script');
 
             installed(inGame('addons', 'mod_loader', 'mod_loader_setup.gd'));
@@ -542,7 +602,3 @@ suite('Generated extensions', () => {
         });
     });
 });
-
-function failWithCompilerOutput(error: Error & { stdout?: string; stderr?: string }): never {
-    throw new Error(`${error.stdout ?? ''}${error.stderr ?? ''}` || error.message);
-}

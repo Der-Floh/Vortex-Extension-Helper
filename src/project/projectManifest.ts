@@ -1,4 +1,5 @@
 import { applyEdits, modify, type FormattingOptions } from 'jsonc-parser';
+import type { AddonRecord } from '../types/project';
 import { isRecord, parseLenientJson } from '../utils/jsonUtils';
 
 const VORTEX_KEY = 'vortex';
@@ -46,10 +47,13 @@ export function externalsOf(manifest: unknown): string[] {
     return Array.isArray(externals) ? externals.filter((name): name is string => typeof name === 'string') : [];
 }
 
-/** The mod loaders the project was generated for, from `vortex.modLoaders` */
-export function modLoadersOf(manifest: unknown): string[] {
-    const modLoaders = isRecord(manifest) && isRecord(manifest.vortex) ? manifest.vortex.modLoaders : undefined;
-    return Array.isArray(modLoaders) ? modLoaders.filter((name): name is string => typeof name === 'string') : [];
+/** The add-ons the project was generated with, from `vortex.addons` and `vortex.addonOptions`; none for a project without */
+export function addonRecordOf(manifest: unknown): AddonRecord | undefined {
+    const vortex = isRecord(manifest) && isRecord(manifest.vortex) ? manifest.vortex : undefined;
+    if (!vortex || !isRecord(vortex.addons)) {
+        return undefined;
+    }
+    return { addons: textEntries(vortex.addons), options: isRecord(vortex.addonOptions) ? textEntries(vortex.addonOptions) : {} };
 }
 
 export function readExternals(packageJsonText: string): string[] {
@@ -92,4 +96,8 @@ function detectFormatting(text: string): FormattingOptions {
         tabSize: indent.startsWith('\t') ? 4 : indent.length,
         eol: text.includes('\r\n') ? '\r\n' : '\n',
     };
+}
+
+function textEntries(record: Record<string, unknown>): Record<string, string> {
+    return Object.fromEntries(Object.entries(record).filter((entry): entry is [string, string] => typeof entry[1] === 'string'));
 }

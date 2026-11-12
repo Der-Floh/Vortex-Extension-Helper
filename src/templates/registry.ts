@@ -1,10 +1,12 @@
 import { CONSTANTS_PATH, ENTRY_PATH, GAMEART_PATH, PACKAGE_JSON_PATH } from '../constants';
-import type { GeneratedOutput, ProjectValues, Severity } from '../types/project';
+import type { AddonRecord, GeneratedOutput, ProjectValues, Severity } from '../types/project';
+import type { Catalogue } from './addons/addon';
+import { composeAddons, PLAIN_COMPOSITION, type Composition } from './addons/composeAddons';
+import { DISCOVERED_CATALOGUE } from './addons/discoveredCatalogue';
+import { NO_ADDONS, resolveAddons, resolveRecord, type Resolution } from './addons/resolveAddons';
 import { spec, type GeneratedFileSpec } from './fileSpec';
-import type { LoaderProfile } from './loaders/loaderProfile';
-import { PLAIN_PROFILE, profileFor } from './loaders/profiles';
 import { buildPackageJson } from './packageJson';
-import { placeholderValues, profilePlaceholders, renderTemplate, type TemplateValues } from './render';
+import { compositionPlaceholders, placeholderValues, renderTemplate, type TemplateValues } from './render';
 import { fillSlots } from './slots';
 import readme from './files/README.md?text';
 import gameart from './files/assets/gameart.jpg';
@@ -29,6 +31,7 @@ import vscodeLaunch from './files/vscode/launch.json?text';
 import vscodeSettings from './files/vscode/settings.json?text';
 import vscodeTasks from './files/vscode/tasks.json?text';
 
+/** The baseline: the project without add-ons. The add-ons' own files come from their folders, see `discoveredCatalogue.ts` */
 export const GENERATED_FILES: readonly GeneratedFileSpec[] = Object.freeze([
     spec('rollup.config.mjs', rollupConfig, { required: 'error' }),
     spec('tsconfig.json', tsconfig, { required: 'error' }),
@@ -57,44 +60,64 @@ export const GENERATED_FILES: readonly GeneratedFileSpec[] = Object.freeze([
 /**
  * Every file of a new project, package.json first.
  *
- * @throws Error if no profile covers the selected mod loaders.
+ * @throws Error if the picked add-ons can't be combined.
  */
-export function renderProject(values: ProjectValues): readonly GeneratedOutput[] {
-    const profile = profileFor(values.modLoaders);
-    if (!profile) {
-        throw new Error(`No template covers the mod loaders ${values.modLoaders?.join(', ')}.`);
-    }
-    const placeholders = placeholderValues(values, profile);
+export function renderProject(values: ProjectValues, catalogue: Catalogue = DISCOVERED_CATALOGUE): readonly GeneratedOutput[] {
+    const composition = compositionOf(resolveAddons({ addons: values.addons ?? [], options: values.addonOptions ?? {} }, catalogue));
+    const placeholders = placeholderValues(values, composition);
     return [
-        { path: PACKAGE_JSON_PATH, content: buildPackageJson(values) },
-        ...filesOf(profile).map(file => render(file, placeholders, profile)),
+        { path: PACKAGE_JSON_PATH, content: buildPackageJson(values, composition.record) },
+        ...filesOf(composition).map(file => render(file, placeholders, composition)),
     ];
 }
 
+/** What Create Missing Files restores for a project: exactly the add-ons it recorded, or none */
+export function restorationOf(record: AddonRecord | undefined, catalogue: Catalogue = DISCOVERED_CATALOGUE): Resolution {
+    return record ? resolveRecord(record, catalogue) : { ok: true, resolved: NO_ADDONS };
+}
+
 /** The files Create Missing Files can write for an existing project */
-export function restorableOutputs(values: TemplateValues, profile: LoaderProfile = PLAIN_PROFILE): readonly GeneratedOutput[] {
-    const placeholders = { ...values, ...profilePlaceholders(profile) };
-    return filesOf(profile).filter(file => file.restorable).map(file => render(file, placeholders, profile));
+export function restorableOutputs(values: TemplateValues, composition: Composition = PLAIN_COMPOSITION): readonly GeneratedOutput[] {
+    const placeholders = { ...values, ...compositionPlaceholders(composition, values.gameName) };
+    return filesOf(composition).filter(file => file.restorable).map(file => render(file, placeholders, composition));
+}
+
+/** The baseline files no add-on changes, which can be restored even when a project's add-ons aren't available */
+export function independentOutputs(values: TemplateValues): readonly GeneratedOutput[] {
+    return GENERATED_FILES
+        .filter(file => file.restorable && !file.plainOnly && !isSlotted(file))
+        .map(file => render(file, values, PLAIN_COMPOSITION));
 }
 
 /** The files that are never restored, so Create Missing Files can name them */
-export function unrestorablePaths(profile: LoaderProfile = PLAIN_PROFILE): readonly string[] {
-    return [PACKAGE_JSON_PATH, ...filesOf(profile).filter(file => !file.restorable).map(file => file.path)];
+export function unrestorablePaths(composition: Composition = PLAIN_COMPOSITION): readonly string[] {
+    return [PACKAGE_JSON_PATH, ...filesOf(composition).filter(file => !file.restorable).map(file => file.path)];
 }
 
 export function requiredFiles(): readonly { path: string; severity: Severity }[] {
     return GENERATED_FILES.flatMap(file => file.required ? [{ path: file.path, severity: file.required }] : []);
 }
 
-function filesOf(profile: LoaderProfile): readonly GeneratedFileSpec[] {
-    return profile === PLAIN_PROFILE
-        ? GENERATED_FILES
-        : [...GENERATED_FILES.filter(file => !file.plainOnly), ...profile.files];
+/** @throws Error with the resolution's problem */
+export function compositionOf(resolution: Resolution): Composition {
+    if (!resolution.ok) {
+        throw new Error(resolution.problem);
+    }
+    return composeAddons(resolution.resolved);
 }
 
-function render(file: GeneratedFileSpec, values: TemplateValues, profile: LoaderProfile): GeneratedOutput {
+function filesOf(composition: Composition): readonly GeneratedFileSpec[] {
+    const baseline = composition.keepsPlainInstaller ? GENERATED_FILES : GENERATED_FILES.filter(file => !file.plainOnly);
+    return [...baseline, ...composition.files];
+}
+
+function isSlotted(file: GeneratedFileSpec): boolean {
+    return typeof file.source === 'string' && file.source.includes('// slot:');
+}
+
+function render(file: GeneratedFileSpec, values: TemplateValues, composition: Composition): GeneratedOutput {
     const content = file.templated && typeof file.source === 'string'
-        ? renderTemplate(fillSlots(file.source, profile.slots), values)
+        ? renderTemplate(fillSlots(file.source, composition.slots), values)
         : file.source;
     return { path: file.path, content };
 }

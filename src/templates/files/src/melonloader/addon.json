@@ -1,0 +1,25 @@
+{
+    "$schema": "../../../catalogue/addon.schema.json",
+    "id": "melonloader",
+    "version": "1.0.0",
+    "name": "MelonLoader",
+    "description": "Installs .dll mods into Mods and warns when the loader is missing.",
+    "category": "modLoaders",
+    "engines": ["unity"],
+    "dependsOn": ["loaderPackages"],
+    "replacesPlainInstaller": true,
+    "modsPath": { "base": "game", "path": "." },
+    "hooks": {
+        "register": "registerMelonLoader",
+        "setup": "prepareMelonLoader"
+    },
+    "readme": {
+        "features": [
+            "Installs MelonLoader mods: `.dll` files into `Mods` and `.cfg` files into `UserData`. Files an archive already has in `Mods`, `Plugins`, `UserLibs` or `UserData` stay there.",
+            "Installs MelonLoader itself when you drop its release on the Mods page, and warns when it is missing."
+        ],
+        "notes": [
+            "`src/melonloader/constants.ts` holds MelonLoader's folders and files, and `src/melonloader/modsInstaller.ts` decides where a mod's files go. Mods are installed relative to the game's executable. Check both for {{gameName}}."
+        ]
+    }
+}

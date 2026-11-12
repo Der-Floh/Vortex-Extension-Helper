@@ -1,5 +1,5 @@
 import { DISPLAY_NAME_PREFIX, GAMEART_PATH, PACKAGE_NAME_SUFFIX, PROJECT_VERSION, VORTEX_API_SOURCE } from '../constants';
-import type { ProjectValues } from '../types/project';
+import type { AddonRecord, ProjectValues } from '../types/project';
 
 /** Versions are bumped by hand: Dependabot can't see them. `@types/bluebird` must equal vortex-api's peer. */
 const DEV_DEPENDENCIES: Readonly<Record<string, string>> = {
@@ -30,9 +30,8 @@ export function packageNameFor(shortName: string): string {
     return `${shortName}${PACKAGE_NAME_SUFFIX}`;
 }
 
-/** Builds the package.json of a new project, in the key order and indentation of coalllc-support */
-export function buildPackageJson(values: ProjectValues): string {
-    const modLoaders = values.modLoaders ?? [];
+/** Builds the package.json of a new project, in the key order and indentation of coalllc-support; `record` lists its add-ons */
+export function buildPackageJson(values: ProjectValues, record?: AddonRecord): string {
     const manifest = {
         name: packageNameFor(values.shortName),
         displayName: `${DISPLAY_NAME_PREFIX}${values.gameName}`,
@@ -44,7 +43,12 @@ export function buildPackageJson(values: ProjectValues): string {
         private: true,
         devDependencies: DEV_DEPENDENCIES,
         scripts: SCRIPTS,
-        ...(modLoaders.length > 0 ? { vortex: { modLoaders } } : {}),
+        ...(record ? { vortex: vortexField(record) } : {}),
     };
     return `${JSON.stringify(manifest, null, 4)}\n`;
+}
+
+/** What `vortex` records about the add-ons, so Create Missing Files can restore exactly them */
+function vortexField(record: AddonRecord): Record<string, unknown> {
+    return Object.keys(record.options).length > 0 ? { addons: record.addons, addonOptions: record.options } : { addons: record.addons };
 }

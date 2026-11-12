@@ -7,7 +7,7 @@ import { getConfiguration, type HelperConfiguration } from '../utils/configurati
 import { errorMessage } from '../utils/errors';
 import { Logger } from '../utils/logger';
 import { showError, showInfo, withNotificationProgress } from '../utils/notifications';
-import { askModLoaders } from '../wizard/loaderPrompts';
+import { askAddons } from '../wizard/addonPrompts';
 import { askAuthor, askExecutable, askShortName, askSteamAppId, pickBaseFolder, pickGameIdentity } from '../wizard/newGamePrompts';
 import { fetchNexusGames, type NexusGame } from '../wizard/nexusGames';
 import { savePendingInstall } from '../wizard/pendingInstall';
@@ -54,15 +54,15 @@ async function askProjectValues(games: Promise<NexusGame[] | Error> | undefined,
     if (executable === undefined) {
         return undefined;
     }
-    const loaders = await askModLoaders();
-    if (!loaders) {
+    const addons = await askAddons();
+    if (!addons) {
         return undefined;
     }
     const author = configuration.author?.trim() || await askAuthor();
     if (!author) {
         return undefined;
     }
-    return { baseFolder, project: { shortName, ...game, author, steamAppId, executable, ...loaders } };
+    return { baseFolder, project: { shortName, ...game, author, steamAppId, executable, ...addons } };
 }
 
 async function createProject(baseFolder: vscode.Uri, values: ProjectValues, state: vscode.Memento): Promise<void> {

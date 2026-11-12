@@ -1,0 +1,9 @@
+[
+    { "id": "unreal", "label": "Unreal Engine", "examples": "Palworld, Hogwarts Legacy" },
+    { "id": "unity", "label": "Unity", "examples": "Vampire Survivors, Valheim" },
+    { "id": "godot", "label": "Godot", "examples": "Coal LLC, Brotato" },
+    { "id": "source", "label": "Source", "examples": "Left 4 Dead 2, Garry's Mod" },
+    { "id": "gamemaker", "label": "GameMaker", "examples": "Undertale, Hotline Miami" },
+    { "id": "frostbite", "label": "Frostbite", "examples": "Battlefield 1, Dragon Age: Inquisition" },
+    { "id": "other", "label": "Other", "examples": "Any other engine, or not sure" }
+]

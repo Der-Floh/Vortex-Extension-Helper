@@ -1,0 +1,26 @@
+{
+    "$schema": "../../../catalogue/addon.schema.json",
+    "id": "gml",
+    "version": "1.0.0",
+    "name": "Godot Mod Loader",
+    "description": "For Godot 4.1 to 4.3. Installs the loader for the user, keeps mods as zips and runs its setup when Vortex starts the game.",
+    "category": "modLoaders",
+    "engines": ["godot"],
+    "replacesPlainInstaller": true,
+    "modsPath": { "base": "executable", "path": "mods" },
+    "hooks": {
+        "register": "registerGodotModLoader",
+        "setup": "prepareGodotModLoader"
+    },
+    "readme": {
+        "features": [
+            "Installs Godot Mod Loader for you: it downloads the release set in `src/gml/constants.ts`, checks it against the SHA-256 GitHub publishes, and copies its `addons` folder next to the game's executable.",
+            "Installs mods the way Godot Mod Loader loads them: as zips in the `mods` folder. Extracted mods are zipped again as `<namespace>-<name>.zip`, and archives that hold mod zips install those zips unchanged.",
+            "Starts the game with Godot Mod Loader's setup when you start it from Vortex, so mods keep working after game updates.",
+            "Deletes the loader's caches after every deployment, after purging and after game updates, so it rebuilds them for your current mods and game version."
+        ],
+        "notes": [
+            "`GML_RELEASE` in `src/gml/constants.ts` is the Godot Mod Loader release the extension installs. v7.0.1 supports Godot 4.1 to 4.3, so check the [releases](https://github.com/GodotModding/godot-mod-loader/releases) if {{gameName}} uses another version."
+        ]
+    }
+}
