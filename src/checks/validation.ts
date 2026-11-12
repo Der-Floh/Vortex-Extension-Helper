@@ -20,6 +20,7 @@ import { requiredFiles } from '../templates/registry';
 import type { Finding, ProjectSnapshot, Severity } from '../types/project';
 import { commandLabel } from '../utils/commandLabel';
 import { describeParseError, isRecord, keyNodeAt, nodeAt, parseLenientJson, parseLenientTree, parseStrictJson } from '../utils/jsonUtils';
+import { escapeRegExp } from '../utils/regExp';
 
 /** The fields populate-pack.mjs reads; it fails the build when one is missing or empty */
 const REQUIRED_FIELDS = ['name', 'displayName', 'author', 'version', 'description', 'gameart', 'gameId'];
@@ -275,8 +276,4 @@ function dependencyNode(root: Node, name: string, at: typeof nodeAt = nodeAt): N
 function leadingMajor(range: string): number | undefined {
     const match = /^\s*(?:[~^]|>=?|=)?\s*v?(\d+)/.exec(range);
     return match ? Number(match[1]) : undefined;
-}
-
-function escapeRegExp(value: string): string {
-    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }

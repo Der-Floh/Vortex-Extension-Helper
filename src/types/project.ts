@@ -35,6 +35,8 @@ export interface ProjectValues {
     readonly steamAppId?: string;
     /** Empty or undefined writes the placeholder */
     readonly executable?: string;
+    /** The id of the game's engine, from `catalogue/engines.json`, recorded so add-ons can be offered later */
+    readonly engine?: string;
     /** The add-ons the user picked; what they depend on is added when the project is rendered */
     readonly addons?: readonly string[];
     /** The answers to the add-ons' options, by option id */
@@ -46,6 +48,24 @@ export interface AddonRecord {
     /** Every add-on of the project, including the ones brought in by others, with its version */
     readonly addons: Readonly<Record<string, string>>;
     readonly options: Readonly<Record<string, string>>;
+}
+
+/** Names to add with their values, and names to take out while they still have the given values */
+export interface EntryChange {
+    readonly add: Readonly<Record<string, string>>;
+    readonly remove: Readonly<Record<string, string>>;
+}
+
+/** What adding or removing add-ons changes in a project's package.json */
+export interface AddonManifestChange {
+    /** `vortex.addons` and `vortex.addonOptions` afterwards; undefined takes both out */
+    readonly record?: AddonRecord;
+    /** `vortex.engine`, for a project that doesn't record it yet */
+    readonly engine?: string;
+    readonly devDependencies: EntryChange;
+    /** Plus every script name in the order a new project would list them, so a new one goes in at its place */
+    readonly scripts: EntryChange & { readonly order: readonly string[] };
+    readonly externals: { readonly add: readonly string[]; readonly remove: readonly string[] };
 }
 
 export type Severity = 'error' | 'warning' | 'information';

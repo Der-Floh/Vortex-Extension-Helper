@@ -46,6 +46,15 @@ export function resolveRecord(record: AddonRecord, catalogue: Catalogue): Resolu
     return complete(new Set(Object.keys(record.addons)), record.options, catalogue);
 }
 
+/** The set a project recorded, in this version's definitions whatever versions it names; it fails only for an add-on this version doesn't know */
+export function resolveRecordedSet(record: AddonRecord, catalogue: Catalogue): Resolution {
+    const unknown = Object.keys(record.addons).filter(id => !findAddon(catalogue, id));
+    if (unknown.length > 0) {
+        return failure(`The project has ${listing(unknown)}, which this version doesn't know.`);
+    }
+    return complete(new Set(Object.keys(record.addons)), record.options, catalogue);
+}
+
 function expand(picked: readonly string[], catalogue: Catalogue): Set<string> {
     const active = new Set(picked);
     let changed = true;

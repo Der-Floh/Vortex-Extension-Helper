@@ -132,6 +132,20 @@ export function supportsEngine(addon: Addon, engineId: string): boolean {
     return addon.manifest.engines === undefined || addon.manifest.engines.includes(engineId);
 }
 
+/** The add-ons and everything they depend on, through `dependsOn` */
+export function dependencyClosure(ids: readonly string[], catalogue: Catalogue): Set<string> {
+    const closure = new Set<string>();
+    const pending = [...ids];
+    while (pending.length > 0) {
+        const id = pending.pop()!;
+        if (!closure.has(id)) {
+            closure.add(id);
+            pending.push(...findAddon(catalogue, id)?.manifest.dependsOn ?? []);
+        }
+    }
+    return closure;
+}
+
 /** The add-ons the wizard offers for an engine, in catalogue order */
 export function selectableAddons(catalogue: Catalogue, engineId: string): readonly Addon[] {
     return catalogue.addons.filter(addon => !addon.manifest.hidden && supportsEngine(addon, engineId));

@@ -8,6 +8,7 @@ import { BASELINE_GAME_FIELDS } from '../../templates/addons/addon';
 import { resolveAddons, type AddonChoices } from '../../templates/addons/resolveAddons';
 import { renderProject } from '../../templates/registry';
 import type { ProjectValues } from '../../types/project';
+import { editedProjects } from '../fixtures/addonEdits';
 import { addonOutcomes, outcomeKey } from '../fixtures/addonOutcomes';
 import { writeOutputs } from '../fixtures/createFixtureWorkspace';
 import { TEST_CATALOGUE } from '../fixtures/testAddon';
@@ -24,6 +25,11 @@ const COMPILE_TIMEOUT_MS = 300_000;
 /** Every outcome of the wizard, in numbered folders so no path gets long */
 const OUTCOMES = addonOutcomes(TEST_CATALOGUE);
 const FOLDER_OF = new Map(OUTCOMES.map((outcome, index) => [outcomeKey(outcome.choices), String(index)]));
+
+/** The projects an add-on was added to after the author changed their code, as the planner left them */
+const EDITED = editedProjects()
+    .filter(project => project.kind === 'add' && project.edit.changesCode)
+    .map((project, index) => ({ ...project, folder: `e${index}` }));
 
 const MONO = { unityBuild: 'unitymono' };
 const IL2CPP = { unityBuild: 'unityil2cpp' };
@@ -172,7 +178,8 @@ class LoadedExtension {
     game!: RegisteredGame;
     games = 0;
 
-    constructor(choices: AddonChoices) {
+    /** @param choices - An outcome's selection, or the folder of an edited project */
+    constructor(choices: AddonChoices | string) {
         const api = permissive({
             getState: () => ({ persistent: { mods: { [GAME_ID]: world.mods } } }),
             sendNotification: (notification: { id: string }) => world.notifications.push(notification.id),
@@ -196,7 +203,7 @@ class LoadedExtension {
             registerAction: (...args: unknown[]) => this.actions.push(args[4] as string),
             once: (callback: () => void) => this.once.push(callback),
         });
-        assert.strictEqual(mainOf(choices)(context), true);
+        assert.strictEqual((typeof choices === 'string' ? mainIn(choices) : mainOf(choices))(context), true);
         this.once.forEach(callback => callback());
     }
 
@@ -239,6 +246,10 @@ const VORTEX_BEPINEX_INSTALLERS: Installer[] = [
 function mainOf(choices: AddonChoices): (context: unknown) => boolean {
     const folder = FOLDER_OF.get(outcomeKey(choices));
     assert.ok(folder, `no outcome has ${JSON.stringify(choices)}`);
+    return mainIn(folder);
+}
+
+function mainIn(folder: string): (context: unknown) => boolean {
     return require(path.join(EMIT_FOLDER, folder, 'src', 'index.js')).default;
 }
 
@@ -257,7 +268,7 @@ async function compileOutcomes(): Promise<void> {
         compilerOptions: { ...template.compilerOptions, rootDir: '.' },
         include: ['*/src/**/*.ts'],
     }, null, 4));
-    const index = OUTCOMES.map((outcome, folder) => `${folder}: ${outcome.label}`).join('\n');
+    const index = [...OUTCOMES.map((outcome, folder) => `${folder}: ${outcome.label}`), ...EDITED.map(project => `${project.folder}: ${project.label}`)].join('\n');
     const failed = (error: Error & { stdout?: string; stderr?: string }): never => {
         throw new Error(`${error.stdout ?? ''}${error.stderr ?? ''}\nThe numbered folders are:\n${index}`);
     };
@@ -290,6 +301,7 @@ suite('Generated extensions', () => {
             addons: outcome.choices.addons,
             addonOptions: outcome.choices.options,
         }, TEST_CATALOGUE)));
+        EDITED.forEach(({ folder, result }) => writeOutputs(path.join(OUTCOMES_FOLDER, folder), [...result].map(([file, content]) => ({ path: file, content }))));
         await compileOutcomes();
         moduleInternals._load = function load(request, parent, isMain) {
             return request === 'vortex-api' ? PERMISSIVE_VORTEX_API : originalLoad.call(this, request, parent, isMain);
@@ -304,6 +316,13 @@ suite('Generated extensions', () => {
     setup(() => {
         world = newWorld();
     });
+
+    for (const { label, folder } of EDITED) {
+        test(`${label}: type-checks and loads, registering its game once`, () => {
+            assert.strictEqual(mainIn(folder)(stubContext()), true);
+            assert.strictEqual(new LoadedExtension(folder).games, 1);
+        });
+    }
 
     for (const { label, choices } of OUTCOMES) {
         test(`${label}: loads with the stub context, registers its game once with the fields it declares and gives every installer its own id`, () => {

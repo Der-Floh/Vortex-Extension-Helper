@@ -84,6 +84,8 @@ export const PACKAGE_NAME_SUFFIX = '-support';
 export const DISPLAY_NAME_PREFIX = 'Game: ';
 export const GAMEART_EXTENSION = '.jpg';
 export const VORTEX_API_SOURCE = 'git+https://github.com/Nexus-Mods/vortex-api.git';
+/** The fields of `vortex` in a project's package.json, in the order a new project writes them */
+export const VORTEX_FIELDS = ['engine', 'addons', 'addonOptions', 'externals'] as const;
 export const PLACEHOLDER_STEAM_APP_ID = 'STEAM_APP_ID';
 export const PLACEHOLDER_EXECUTABLE = 'GAME_EXECUTABLE.exe';
 

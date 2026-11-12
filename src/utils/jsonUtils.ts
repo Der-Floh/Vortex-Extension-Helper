@@ -37,6 +37,11 @@ export function keyNodeAt(root: Node | undefined, path: readonly (string | numbe
     return valueNode?.parent?.type === 'property' ? valueNode.parent.children?.[0] : undefined;
 }
 
+/** The order npm writes dependency names in */
+export function compareDependencyNames(left: string, right: string): number {
+    return left.localeCompare(right, 'en');
+}
+
 export function isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

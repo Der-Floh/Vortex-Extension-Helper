@@ -64,11 +64,16 @@ export const GENERATED_FILES: readonly GeneratedFileSpec[] = Object.freeze([
  */
 export function renderProject(values: ProjectValues, catalogue: Catalogue = DISCOVERED_CATALOGUE): readonly GeneratedOutput[] {
     const composition = compositionOf(resolveAddons({ addons: values.addons ?? [], options: values.addonOptions ?? {} }, catalogue));
-    const placeholders = placeholderValues(values, composition);
     return [
         { path: PACKAGE_JSON_PATH, content: buildPackageJson(values, composition.packageJson) },
-        ...filesOf(composition).map(file => render(file, placeholders, composition)),
+        ...renderFiles(values, composition),
     ];
+}
+
+/** Every file of a project with this composition, without package.json */
+export function renderFiles(values: ProjectValues, composition: Composition): readonly GeneratedOutput[] {
+    const placeholders = placeholderValues(values, composition);
+    return filesOf(composition).map(file => render(file, placeholders, composition));
 }
 
 /** What Create Missing Files restores for a project: exactly the add-ons it recorded, or none */

@@ -1,4 +1,4 @@
-import { findAddon, type Catalogue } from '../templates/addons/addon';
+import { dependencyClosure, findAddon, type Catalogue } from '../templates/addons/addon';
 
 export interface ChecklistOutcome {
     /** The picks from now on */
@@ -32,19 +32,6 @@ export function applyChecklist(picked: readonly string[], categoryIds: readonly 
         .filter(id => before.has(id) && !accepted.includes(id) && ticked.has(id))
         .map(id => ({ id, by: next.find(other => other !== id && dependencyClosure([other], catalogue).has(id)) ?? id }));
     return { picked: next, removed, kept };
-}
-
-function dependencyClosure(ids: readonly string[], catalogue: Catalogue): Set<string> {
-    const closure = new Set<string>();
-    const pending = [...ids];
-    while (pending.length > 0) {
-        const id = pending.pop()!;
-        if (!closure.has(id)) {
-            closure.add(id);
-            pending.push(...findAddon(catalogue, id)?.manifest.dependsOn ?? []);
-        }
-    }
-    return closure;
 }
 
 function conflicts(first: string, second: string, catalogue: Catalogue): boolean {

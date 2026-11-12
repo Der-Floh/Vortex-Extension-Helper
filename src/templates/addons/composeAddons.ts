@@ -142,15 +142,15 @@ function addonFiles(addon: Addon, superseded: boolean, optionKeys: readonly stri
         .filter(file => !(superseded && hookModules.includes(file.path)))
         .map(file => {
             const keys = file.text === undefined ? [] : placeholderKeys(file.text);
-            return spec(projectPathOf(addon, file.path), file.text ?? new Uint8Array(Buffer.from(file.base64 ?? '', 'base64')), {
+            return spec(outputPathOf(addon, file.path), file.text ?? new Uint8Array(Buffer.from(file.base64 ?? '', 'base64')), {
                 templated: keys.length > 0,
                 restorable: keys.every(key => restoreKeys.has(key)),
             });
         });
 }
 
-/** In `src/<id>/`, unless `projectFiles` puts the file elsewhere */
-function projectPathOf(addon: Addon, file: string): string {
+/** Where a file of an add-on's folder is written: in `src/<id>/`, unless `projectFiles` puts it elsewhere */
+export function outputPathOf(addon: Addon, file: string): string {
     const moved = addon.manifest.projectFiles;
     return moved && Object.hasOwn(moved, file) ? moved[file] : `${SOURCE_FOLDER}/${addon.manifest.id}/${file}`;
 }
