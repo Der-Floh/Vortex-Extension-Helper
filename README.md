@@ -266,7 +266,7 @@ npm run package
 
 CI runs on every push and pull request through the shared workflows of [Der-Floh/Der-Floh](https://github.com/Der-Floh/Der-Floh/blob/main/.github/CI.md). It runs the unit and integration tests in VS Code and packs a preview VSIX.
 
-To release, bump the version with `npm version x.y.z --no-git-tag-version` and publish a GitHub release `vx.y.z` from a commit whose CI is green. The publish workflow builds and tests the tag, attaches the VSIX to the release and publishes it to the Visual Studio Marketplace and Open VSX. Then it zips the VSIX and adds it to the Nexus Mods page as a new version of its main file, once the repository has the `NEXUSMODS_API_KEY` secret and the `NEXUSMODS_FILE_ID` and `NEXUSMODS_MOD_ID` variables; until then that step is skipped.
+To release, bump the version with `npm version x.y.z --no-git-tag-version`, describe the version in [CHANGELOG.md](./CHANGELOG.md), which the Marketplace shows on its Changelog tab, and publish a GitHub release `vx.y.z` from a commit whose CI is green. The publish workflow builds and tests the tag, attaches the VSIX to the release and publishes it to the Visual Studio Marketplace and Open VSX. Then it zips the VSIX and adds it to the Nexus Mods page as a new version of its main file, once the repository has the `NEXUSMODS_API_KEY` secret and the `NEXUSMODS_FILE_ID` and `NEXUSMODS_MOD_ID` variables; until then that step is skipped.
 
 ---
 
