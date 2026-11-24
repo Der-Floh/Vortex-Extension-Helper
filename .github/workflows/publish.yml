@@ -22,3 +22,17 @@ jobs:
       open-vsx: true
     secrets:
       OPEN_VSX_TOKEN: ${{ secrets.OPEN_VSX_TOKEN }}
+
+  nexus:
+    needs: publish
+    uses: Der-Floh/Der-Floh/.github/workflows/nexus-publish.yml@v1
+    with:
+      package-name: vortex-extension-helper
+      build-command: npm ci && npm run package && mkdir -p dist && zip -j "dist/$(basename *.vsix .vsix).zip" *.vsix
+      file-id: ${{ vars.NEXUSMODS_FILE_ID }}
+      file-name: Vortex Extension Helper
+      file-description: Or search for "Vortex Extension Helper" in your VSCode Extensions Tab
+      mod-id: ${{ vars.NEXUSMODS_MOD_ID }}
+      changelog: ${{ github.event.release.html_url }}
+    secrets:
+      NEXUSMODS_API_KEY: ${{ secrets.NEXUSMODS_API_KEY }}
