@@ -4,7 +4,7 @@ Create, check and extend game support extensions for [Vortex](https://www.nexusm
 
 > This is a community-created VS Code extension and is **not an official product of Nexus Mods**.
 
-> **Breaking change in 0.2.0:** extensions are now detected through `package.json`, which holds the metadata `.pack/info.json` is generated from. Projects with a root `info.json` (the layout earlier versions generated) are no longer recognised; **Vortex: Run Workspace Checks** names them and explains what to move.
+> **Breaking change in 1.0.0:** extensions are now detected through `package.json`, which holds the metadata `.pack/info.json` is generated from. Projects with a root `info.json` (the layout earlier versions generated) are no longer recognised; **Vortex: Run Workspace Checks** names them and explains what to move.
 
 ---
 
