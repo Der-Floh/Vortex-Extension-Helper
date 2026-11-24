@@ -1,0 +1,244 @@
+[size=6][b]Vortex Extension Helper[/b][/size]
+
+Create, check and extend game support extensions for [url=https://www.nexusmods.com/about/vortex/]Vortex[/url]. Vortex Extension Helper generates a complete, buildable extension for any game on Nexus Mods, watches it for the mistakes that break the build or the release, and offers snippets for the Vortex API patterns game extensions need.
+
+[quote]This is a community-created VS Code extension and is [b]not an official product of Nexus Mods[/b].[/quote]
+
+[quote][b]Breaking change in 1.0.0:[/b] extensions are now detected through [font=Courier New]package.json[/font], which holds the metadata [font=Courier New].pack/info.json[/font] is generated from. Projects with a root [font=Courier New]info.json[/font] (the layout earlier versions generated) are no longer recognised; [b]Vortex: Run Workspace Checks[/b] names them and explains what to move.[/quote]
+
+[line]
+
+[size=5][b]✨ Features[/b][/size]
+
+[list]
+[*][b]Sidebar[/b] — shows at a glance whether a game extension's dependencies, problems, Nexus Mods id and deployed build are in order and whether Vortex is running, and puts building, deploying, attaching, libraries and snippets one click away[/*]
+[*][b]New game support extension[/b] — pick the game from the Nexus Mods game list (or enter it by hand) and get a TypeScript project that installs, builds and packages right away, with add-ons such as Godot Mod Loader, MelonLoader or BepInEx support[/*]
+[*][b]Add-ons later[/b] — add an add-on to an extension you have already worked on, or take one out, and your own changes stay[/*]
+[*][b]One standard layout[/b] — metadata and the game art path in [font=Courier New]package.json[/font], rollup bundling straight into [font=Courier New].pack/[/font], and Node-only build scripts that generate [font=Courier New]info.json[/font] and zip the release[/*]
+[*][b]Live checks[/b] — missing fields, a wrong game art, missing generated files, a mismatched [font=Courier New]@types/bluebird[/font], TypeScript 7 and lockfiles that break CI are reported in the Problems panel while you edit[/*]
+[*][b]Create Missing Files[/b] — restores generated files you deleted, without touching any file that exists[/*]
+[*][b]Vortex libraries[/b] — installs the libraries Vortex provides at runtime, such as [font=Courier New]winapi-bindings[/font], and tells rollup to leave their imports to Vortex[/*]
+[*][b]Real debugging[/b] — one command builds the extension, deploys it to Vortex, starts Vortex with its DevTools port open and attaches, so breakpoints in your TypeScript hit while the code runs inside Vortex[/*]
+[*][b]Snippets[/b] — [font=Courier New]t…[/font] snippets for registering the game, installers, deployment events, start hooks and toolbar actions, offered only in the [font=Courier New]src[/font] folder of a game extension[/*]
+[*][b]Multi-root aware[/b] — every workspace folder is checked on its own, without prompts[/*]
+[/list]
+
+[line]
+
+[size=5][b]📥 Installation[/b][/size]
+
+[b]From VS Code (recommended):[/b] open the Extensions view ([font=Courier New]Ctrl+Shift+X[/font] / [font=Courier New]Cmd+Shift+X[/font]), search for [b]Vortex Extension Helper[/b] and click [b]Install[/b]. VS Code then keeps it up to date. It is also on the [url=https://marketplace.visualstudio.com/items?itemName=der-floh.vortex-extension-helper]Visual Studio Marketplace[/url] and, for VSCodium and other editors that use it, on [url=https://open-vsx.org/extension/der-floh/vortex-extension-helper]Open VSX[/url].
+
+[b]From this page:[/b] download the main file and unzip it. In VS Code, run [b]Extensions: Install from VSIX...[/b] from the command palette and pick the [font=Courier New].vsix[/font] file.
+
+[line]
+
+[size=5][b]🧰 Usage[/b][/size]
+
+[size=4][b]Create an extension[/b][/size]
+
+Run [b]Vortex: New Game Support Extension[/b] from the command palette ([font=Courier New]Ctrl+Shift+P[/font] / [font=Courier New]Cmd+Shift+P[/font]) and answer the questions:
+
+[list=1]
+[*]The folder to create the extension in[/*]
+[*]The game, from the Nexus Mods list or entered by hand: its name, its Nexus Mods domain and its numerical Nexus Mods id, which can stay empty while the game isn't on Nexus Mods[/*]
+[*]A short name; the extension is created in [font=Courier New]{short name}-support[/font][/*]
+[*]The game's Steam app id and executable (optional, see the settings)[/*]
+[*]The game's engine and the add-ons to include (see [b]Add-ons[/b] below)[/*]
+[*]The author, unless [font=Courier New]vortexHelper.author[/font] is set[/*]
+[/list]
+
+The helper writes every file, opens the new folder and runs [font=Courier New]npm run install-deps[/font] there. In a folder you haven't trusted yet, the install waits until you trust it. Cancelling any question creates nothing.
+
+A generated extension looks like this:
+
+[code]{short name}-support/
+├── .vscode/
+│   ├── build/
+│   │   ├── deploy-to-vortex.mjs  # copies .pack/ into Vortex's plugins folder
+│   │   ├── package-zip.mjs       # zips .pack/ into dist/{name}-{version}.zip
+│   │   ├── populate-pack.mjs     # copies the game art, generates .pack/info.json
+│   │   ├── start-vortex.mjs      # starts Vortex with its DevTools port, waits for its window
+│   │   └── vortex-paths.mjs      # where Vortex is and where it loads extensions from
+│   ├── launch.json               # F5 builds, deploys, starts Vortex and attaches
+│   ├── settings.json
+│   └── tasks.json                # Ctrl+Shift+B runs npm run build
+├── assets/
+│   └── gameart.jpg               # placeholder game art, replace it
+├── src/
+│   ├── archive/inspection.ts
+│   ├── common/constants.ts       # the game's ids, paths and file types
+│   ├── common/files.ts
+│   ├── common/notifications.ts
+│   ├── detection/discovery.ts
+│   ├── installers/instructions.ts
+│   ├── installers/mods.ts
+│   ├── setup/prepareForModding.ts
+│   └── index.ts
+├── .gitignore
+├── package.json                  # name, displayName, version, description, author, gameId, gameart
+├── README.md
+├── rollup.config.mjs             # bundles src/ into .pack/index.js
+└── tsconfig.json[/code]
+
+[font=Courier New]npm run build[/font] creates [font=Courier New].pack/[/font], exactly what Vortex loads, and [font=Courier New]npm run package[/font] the release zip in [font=Courier New]dist/[/font].
+
+[size=4][b]Add-ons[/b][/size]
+
+After the executable the wizard asks for the game's engine: Unreal Engine, Unity, Godot, Source, GameMaker, Frostbite or Other. It then offers the add-ons for that engine, grouped by category: a menu lists the categories with what is ticked in each, and when all of an engine's add-ons are in one category, its checklist comes right away. With nothing ticked, or for an engine without add-ons, you get the project above, which copies the file types in [font=Courier New]MOD_FILES[/font] into a mods folder.
+
+An add-on's code goes into its own folder under [font=Courier New]src/[/font], and [font=Courier New]main()[/font] calls it in one line. These come with the extension:
+
+[list]
+[*][b]Godot Mod Loader[/b] ([font=Courier New]src/gml/[/font], Godot) — Downloads the official v7.0.1 release with a SHA-256 check and installs it next to the game's executable, installs mods as the zips the loader reads, adds the loader's setup argument when Vortex starts the game, and clears its caches after a deploy, a purge or a game update. v7.0.1 supports Godot 4.1 to 4.3, and [font=Courier New]GML_RELEASE[/font] in [font=Courier New]src/gml/constants.ts[/font] holds the version.[/*]
+[*][b]MelonLoader[/b] ([font=Courier New]src/melonloader/[/font], Unity) — Installs [font=Courier New].dll[/font] mods into [font=Courier New]Mods[/font] and [font=Courier New].cfg[/font] files into [font=Courier New]UserData[/font], can install MelonLoader itself as a mod, and warns while it is missing.[/*]
+[*][b]BepInEx[/b] ([font=Courier New]src/bepinex/[/font], Unity) — Registers the game with Vortex's BepInEx support and installs plugins into [font=Courier New]BepInEx/plugins[/font]. The wizard asks for the game's Unity build: for Mono, Vortex downloads BepInEx by itself; for IL2CPP, the extension links the bleeding-edge builds and warns while it is missing.[/*]
+[/list]
+
+A mod loader replaces the plain installer. With MelonLoader and BepInEx both ticked, [font=Courier New]src/loaders/[/font] routes each mod to the right loader: a [font=Courier New]_melonloader[/font] or [font=Courier New]_bepinex[/font] file in the archive decides, then a path that names a loader, then whichever loader is installed, and MelonLoader is the default.
+
+The add-ons and their versions are recorded in [font=Courier New]package.json[/font] as [font=Courier New]vortex.addons[/font], so [b]Vortex: Create Missing Files[/b] restores exactly their files. For a project made with an add-on this version of the helper doesn't have, or has in another version, it restores only the files no add-on changes.
+
+[size=3][b]Adding and removing them later[/b][/size]
+
+[b]Vortex: Add Add-ons[/b] and [b]Vortex: Remove Add-on[/b], or the buttons in the sidebar's Add-ons section, change the add-ons of an extension you have already worked on. A confirmation lists every file that is created, changed or deleted, and npm runs when the dependencies change. Your own changes stay: each file is merged the way git merges a branch, so an added add-on ends up wired in just as if it had been picked in the wizard, next to your imports and registrations. Where you changed exactly the lines the add-on needs to change, such as [font=Courier New]MOD_FILES[/font] before adding a mod loader, that spot gets [font=Courier New]<<<<<<<[/font] / [font=Courier New]>>>>>>>[/font] conflict markers to resolve with VS Code's Accept buttons. A file of the add-on that you changed is never deleted, and if writing or npm fails, every file is put back as it was.
+
+The wizard records the game's engine as [font=Courier New]vortex.engine[/font], which decides the add-ons offered later. For an extension made before that, the helper takes it from its add-ons or asks once.
+
+Anyone can write an add-on: it is a folder with an [font=Courier New]addon.json[/font], which the build finds by itself. [url=https://github.com/Der-Floh/Vortex-Extension-Helper/blob/main/CONTRIBUTING.md]CONTRIBUTING.md[/url] explains how.
+
+[size=4][b]Sidebar[/b][/size]
+
+The Vortex icon in the activity bar opens an overview of the game extensions in the window:
+
+[list]
+[*][b]The game[/b] — whether its dependencies are installed, what the Problems panel lists for it, whether its Nexus Mods id matches the game, whether Vortex has the current build, and whether Vortex is running with its debug port open; those last two rows offer a button to deploy the build or attach the debugger[/*]
+[*][b]Actions[/b] — debug, build, package, and open Vortex's plugins folder or log[/*]
+[*][b]Vortex Libraries[/b] — every library Vortex provides at runtime, to install or remove[/*]
+[*][b]Add-ons[/b] — the extension's add-ons, to remove, and the others for its engine, to add; those that can't be combined with what it has say why[/*]
+[*][b]Snippets[/b] — every snippet with its code in the tooltip, to insert at the cursor[/*]
+[*][b]Help[/b] — the guides for creating and packaging a game extension, the GitHub repository and the issue tracker[/*]
+[/list]
+
+A row's buttons appear when you hover over or select it. While a game extension is busy with npm, a build, a deploy or starting a debug session, a second action on it is refused, so two npm runs can't overwrite each other's [font=Courier New]package.json[/font].
+
+While the view is visible and VS Code has focus, it asks the debug port for Vortex's state every second and re-reads the project every 5 seconds. While the view is hidden it does neither. The game's name comes from the public Nexus Mods game list, which is loaded once per session and not at all when [font=Courier New]vortexHelper.useNexusApi[/font] is off.
+
+[size=4][b]Commands[/b][/size]
+
+[list]
+[*][b]Vortex: New Game Support Extension[/b] — Creates a new game support extension[/*]
+[*][b]Vortex: Install Dependencies[/b] — Runs [font=Courier New]npm run install-deps[/font] in a game extension (needs a trusted workspace)[/*]
+[*][b]Vortex: Create Missing Files[/b] — Restores the generated files a game extension lacks; [font=Courier New]package.json[/font], [font=Courier New]README.md[/font] and the [font=Courier New]constants.ts[/font] files are never recreated[/*]
+[*][b]Vortex: Run Workspace Checks[/b] — Checks every game extension in the workspace and writes the findings to the log[/*]
+[*][b]Vortex: Open Extension Documentation[/b] — Opens the Nexus Mods guide to creating a game extension[/*]
+[*][b]Vortex: Add Vortex Library[/b] — Installs a library Vortex provides at runtime and adds it to [font=Courier New]vortex.externals[/font] (needs a trusted workspace)[/*]
+[*][b]Vortex: Debug in Vortex[/b] — Builds the extension, deploys it to Vortex, starts Vortex with its DevTools port open and attaches the debugger (needs a trusted workspace)[/*]
+[*][b]Vortex: Build[/b] — Runs [font=Courier New]npm run build[/font] (needs a trusted workspace)[/*]
+[*][b]Vortex: Package Zip[/b] — Runs [font=Courier New]npm run package[/font], which writes the release zip to [font=Courier New]dist/[/font] (needs a trusted workspace)[/*]
+[*][b]Vortex: Deploy to Vortex[/b] — Builds the extension and copies it to Vortex's plugins folder (needs a trusted workspace)[/*]
+[*][b]Vortex: Open Plugins Folder[/b] — Shows Vortex's plugins folder in the file explorer[/*]
+[*][b]Vortex: Open Vortex Log[/b] — Opens Vortex's log[/*]
+[*][b]Vortex: Add Add-ons[/b] — Adds add-ons to an existing game extension, keeping your changes (needs a trusted workspace)[/*]
+[*][b]Vortex: Remove Add-on[/b] — Takes an add-on out of a game extension again, keeping your changes (needs a trusted workspace)[/*]
+[/list]
+
+A workspace folder is a game extension when its [font=Courier New]package.json[/font] has [font=Courier New]vortex-api[/font] in [font=Courier New]devDependencies[/font]. Commands that work on one extension use the extension of the active editor, or ask when several are open.
+
+[size=4][b]Checks[/b][/size]
+
+[b]Errors[/b]
+[list]
+[*][font=Courier New]package.json[/font] isn't valid JSON, or lacks [font=Courier New]name[/font], [font=Courier New]displayName[/font], [font=Courier New]author[/font], [font=Courier New]version[/font], [font=Courier New]description[/font], [font=Courier New]gameart[/font] or [font=Courier New]gameId[/font][/*]
+[*]The game art isn't a [font=Courier New].jpg[/font] or doesn't exist[/*]
+[*][font=Courier New]rollup.config.mjs[/font], [font=Courier New]tsconfig.json[/font], the entry file [font=Courier New]src/index.ts[/font], or the build script [font=Courier New]populate-pack.mjs[/font] or [font=Courier New]package-zip.mjs[/font] is missing[/*]
+[*][font=Courier New]@types/bluebird[/font] differs from the version the installed [font=Courier New]vortex-api[/font] requires; npm refuses to install then[/*]
+[*][font=Courier New]typescript[/font] is missing from [font=Courier New]devDependencies[/font], or is version 7 or later, which has no compiler API for the rollup plugin[/*]
+[/list]
+
+[b]Warnings[/b]
+[list]
+[*][font=Courier New]displayName[/font] doesn't start with [font=Courier New]Game: [/font], [font=Courier New]version[/font] isn't a release version like [font=Courier New]1.0.0[/font], or [font=Courier New]vortex-api[/font] doesn't come from GitHub[/*]
+[/list]
+
+[b]Information[/b]
+[list]
+[*][font=Courier New]vortex-api[/font] isn't installed yet, there is no lockfile, the lockfile lacks rollup's Linux binary or has an old version[/*]
+[*]A Vortex library is installed but missing from [font=Courier New]vortex.externals[/font], or [font=Courier New]src/common/constants[/font] still has the [font=Courier New]STEAM_APP_ID[/font] or [font=Courier New]GAME_EXECUTABLE.exe[/font] placeholder[/*]
+[/list]
+
+[size=4][b]Vortex libraries[/b][/size]
+
+A game extension runs inside Vortex, so it can only import what Vortex provides: [font=Courier New]vortex-api[/font], [font=Courier New]bluebird[/font], Node's built-in modules and the libraries Vortex ships. Rollup doesn't bundle npm packages. [b]Vortex: Add Vortex Library[/b] offers the libraries of Vortex 2.8: [font=Courier New]winapi-bindings[/font], [font=Courier New]vortex-parse-ini[/font], [font=Courier New]node-7z[/font], [font=Courier New]@nexusmods/nexus-api[/font], [font=Courier New]turbowalk[/font], [font=Courier New]exe-version[/font], [font=Courier New]icon-extract[/font], [font=Courier New]permissions[/font] and [font=Courier New]wholocks[/font]. It installs the library as a devDependency for its types and lists it in [font=Courier New]package.json[/font]:
+
+[code]"vortex": {
+    "externals": ["winapi-bindings"]
+}[/code]
+
+The generated [font=Courier New]rollup.config.mjs[/font] reads that list, so rollup leaves the import to Vortex instead of warning about it. The sidebar lists the same libraries, and can remove one again.
+
+[size=4][b]Snippets[/b][/size]
+
+Type [font=Courier New]t[/font] in a source file of a game extension:
+
+[list]
+[*][font=Courier New]tcommonImports[/font] — [font=Courier New]path[/font] and the [font=Courier New]vortex-api[/font] modules most files need[/*]
+[*][font=Courier New]tgameConstants[/font] — The [font=Courier New]GAME[/font], [font=Courier New]INSTALLERS[/font] and [font=Courier New]NOTIFICATION_IDS[/font] constants[/*]
+[*][font=Courier New]tregisterGame[/font] — [font=Courier New]context.registerGame[/font] with [font=Courier New]util.toBlue[/font] for the game lookup and setup[/*]
+[*][font=Courier New]tqueryArgs[/font] — [font=Courier New]queryArgs[/font], which lets Vortex find the game in Steam by itself[/*]
+[*][font=Courier New]tfindGameSteam[/font] — A [font=Courier New]findGame[/font] that looks the game up in the Steam library[/*]
+[*][font=Courier New]tprepareForModding[/font] — A setup that makes sure the mods folder is writable[/*]
+[*][font=Courier New]tregisterInstaller[/font] — [font=Courier New]context.registerInstaller[/font] for an entry of [font=Courier New]INSTALLERS[/font][/*]
+[*][font=Courier New]ttestSupported[/font] — A test function that accepts the archives of this game[/*]
+[*][font=Courier New]tinstallContent[/font] — An installer that copies files into the mods folder[/*]
+[*][font=Courier New]tfatalErrorInstruction[/font] — An instruction that cancels the installation with a message[/*]
+[*][font=Courier New]tdeployEvents[/font] — Handlers for [font=Courier New]did-deploy[/font] and [font=Courier New]did-purge[/font][/*]
+[*][font=Courier New]tdeploymentHandler[/font] — A deployment handler that only acts on this game's profiles[/*]
+[*][font=Courier New]tregisterStartHook[/font] — A start hook that changes how Vortex starts this game[/*]
+[*][font=Courier New]tregisterAction[/font] — A button in the toolbar of the Mods page[/*]
+[*][font=Courier New]tnotifyMissingDependency[/font] — A notification when a file the mods need is missing[/*]
+[*][font=Courier New]tsupportedTools[/font] — A tool Vortex can start next to the game[/*]
+[/list]
+
+[line]
+
+[size=5][b]⚙️ Extension Settings[/b][/size]
+
+[list]
+[*][font=Courier New]vortexHelper.useNexusApi[/font] (default [font=Courier New]true[/font]) — Pick the game from the public Nexus Mods game list. When off, or when the list can't be loaded, the wizard asks for the name, the Nexus Mods domain and the numerical id.[/*]
+[*][font=Courier New]vortexHelper.author[/font] (default empty) — Author written to [font=Courier New]package.json[/font] of new extensions. When empty, the wizard asks for it.[/*]
+[*][font=Courier New]vortexHelper.askSteamAppId[/font] (default [font=Courier New]true[/font]) — Ask for the game's Steam app id. When off, the placeholder [font=Courier New]STEAM_APP_ID[/font] is written, which the checks report.[/*]
+[*][font=Courier New]vortexHelper.askExecutable[/font] (default [font=Courier New]true[/font]) — Ask for the path of the game's executable, including any subfolder. When off, the placeholder [font=Courier New]GAME_EXECUTABLE.exe[/font] is written.[/*]
+[*][font=Courier New]vortexHelper.vortexExecutable[/font] (default empty) — Path to [font=Courier New]Vortex.exe[/font] for [b]Vortex: Debug in Vortex[/b]. When empty, the standard install locations are searched.[/*]
+[*][font=Courier New]vortexHelper.vortexPluginsFolder[/font] (default empty) — Folder the extension is deployed to for debugging. When empty, Vortex's own [font=Courier New]plugins[/font] folder is used.[/*]
+[*][font=Courier New]vortexHelper.debugPort[/font] (default [font=Courier New]9222[/font]) — Port Vortex opens its DevTools protocol on. Generated projects write this default into their [font=Courier New].vscode/launch.json[/font].[/*]
+[/list]
+
+[line]
+
+[size=5][b]🧠 Requirements[/b][/size]
+
+[list]
+[*]VS Code 1.105 or later[/*]
+[*]Node.js and npm, which build the game extensions[/*]
+[*]Git, since npm installs [font=Courier New]vortex-api[/font] from GitHub[/*]
+[*]A trusted workspace for the commands that run npm; detection, checks and snippets also work in Restricted Mode[/*]
+[/list]
+
+Vortex Extension Helper runs where your workspace is, so it also works over Remote SSH, WSL and Dev Containers.
+
+[line]
+
+[size=5][b]🧩 Repository[/b][/size]
+
+GitHub: [url=https://github.com/Der-Floh/Vortex-Extension-Helper]Der-Floh/Vortex-Extension-Helper[/url]
+
+Bug reports and feature requests are welcome via [url=https://github.com/Der-Floh/Vortex-Extension-Helper/issues]Issues[/url]. To add an add-on to the wizard, see [url=https://github.com/Der-Floh/Vortex-Extension-Helper/blob/main/CONTRIBUTING.md]CONTRIBUTING.md[/url]. The README on GitHub also has the developer notes for working on the helper itself.
+
+[line]
+
+[size=5][b]📜 License[/b][/size]
+
+Licensed under the [url=https://github.com/Der-Floh/Vortex-Extension-Helper/blob/main/LICENSE]MIT License[/url].
+
+[url=https://www.buymeacoffee.com/der_floh][img]https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png[/img][/url]

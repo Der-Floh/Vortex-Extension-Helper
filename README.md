@@ -30,7 +30,7 @@ Create, check and extend game support extensions for [Vortex](https://www.nexusm
 Run **Vortex: New Game Support Extension** from the command palette (`Ctrl+Shift+P` / `Cmd+Shift+P`) and answer the questions:
 
 1. The folder to create the extension in
-2. The game, from the Nexus Mods list or entered by hand (name and Nexus Mods domain)
+2. The game, from the Nexus Mods list or entered by hand: its name, its Nexus Mods domain and its numerical Nexus Mods id, which can stay empty while the game isn't on Nexus Mods
 3. A short name; the extension is created in `<short name>-support`
 4. The game's Steam app id and executable (optional, see the settings)
 5. The game's engine and the [add-ons](#add-ons) to include
@@ -101,7 +101,7 @@ Anyone can write an add-on: it is a folder with an `addon.json`, which the build
 
 The Vortex icon in the activity bar opens an overview of the game extensions in the window:
 
-- **The game** — whether its dependencies are installed, what the Problems panel lists for it, whether its Nexus Mods id matches the game, whether Vortex has the current build, and whether Vortex is running with its debug port open
+- **The game** — whether its dependencies are installed, what the Problems panel lists for it, whether its Nexus Mods id matches the game, whether Vortex has the current build, and whether Vortex is running with its debug port open; those last two rows offer a button to deploy the build or attach the debugger
 - **Actions** — debug, build, package, and open Vortex's plugins folder or log
 - **Vortex Libraries** — every library Vortex provides at runtime, to install or remove
 - **Add-ons** — the extension's add-ons, to remove, and the others for its engine, to add; those that can't be combined with what it has say why
@@ -139,9 +139,9 @@ A workspace folder is a game extension when its `package.json` has `vortex-api` 
 | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
 | Error       | `package.json` isn't valid JSON, or lacks `name`, `displayName`, `author`, `version`, `description`, `gameart` or `gameId`                       |
 | Error       | The game art isn't a `.jpg` or doesn't exist                                                                                                     |
-| Error       | `rollup.config.mjs`, a build script, `tsconfig.json` or the entry file `src/index.*` is missing                                                  |
+| Error       | `rollup.config.mjs`, `tsconfig.json`, the entry file `src/index.ts`, or the build script `populate-pack.mjs` or `package-zip.mjs` is missing     |
 | Error       | `@types/bluebird` differs from the version the installed `vortex-api` requires; npm refuses to install then                                     |
-| Error       | A TypeScript extension uses TypeScript 7 or later, which has no compiler API for the rollup plugin                                              |
+| Error       | `typescript` is missing from `devDependencies`, or is version 7 or later, which has no compiler API for the rollup plugin                       |
 | Warning     | `displayName` doesn't start with `Game: `, `version` isn't a release version like `1.0.0`, or `vortex-api` doesn't come from GitHub |
 | Information | `vortex-api` isn't installed yet, there is no lockfile, the lockfile lacks rollup's Linux binary or has an old version                            |
 | Information | A Vortex library is installed but missing from `vortex.externals`, or `src/common/constants` still has the `STEAM_APP_ID` or `GAME_EXECUTABLE.exe` placeholder |
@@ -187,7 +187,7 @@ Type `t` in a source file of a game extension:
 
 | Setting                      | Default | Description                                                                                                                                       |
 | ---------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `vortexHelper.useNexusApi`   | `true`  | Pick the game from the public Nexus Mods game list. When off, or when the list can't be loaded, the wizard asks for the name and the Nexus Mods domain. |
+| `vortexHelper.useNexusApi`   | `true`  | Pick the game from the public Nexus Mods game list. When off, or when the list can't be loaded, the wizard asks for the name, the Nexus Mods domain and the numerical id. |
 | `vortexHelper.author`        | `""`    | Author written to `package.json` of new extensions. When empty, the wizard asks for it.                                                           |
 | `vortexHelper.askSteamAppId` | `true`  | Ask for the game's Steam app id. When off, the placeholder `STEAM_APP_ID` is written, which the checks report.                                    |
 | `vortexHelper.askExecutable` | `true`  | Ask for the path of the game's executable, including any subfolder. When off, the placeholder `GAME_EXECUTABLE.exe` is written.                                                        |
@@ -229,11 +229,11 @@ Also available on [Open VSX](https://open-vsx.org/extension/der-floh/vortex-exte
 | `src/handlers/`    | One file per command                                                                          |
 | `src/project/`     | A game extension open in the workspace: detecting and picking it, its `package.json`, npm     |
 | `src/checks/`      | The checks, as a pure function of a project snapshot, and their entries in the Problems panel |
-| `src/wizard/`      | New Game Support Extension: its prompts, the Nexus Mods game list, the install after reload   |
+| `src/wizard/`      | New Game Support Extension: its prompts, the Nexus Mods game list, the install after reload; and the flow that adds or removes add-ons later |
 | `src/debug/`       | Debug in Vortex: build, deploy, start Vortex and attach                                       |
 | `src/snippets/`    | The snippets and the completion provider that offers them                                     |
 | `src/sidebar/`     | The Vortex view: its rows, what they read from a project, and the watch on Vortex itself      |
-| `src/templates/`   | The generated project: the baseline's files, the add-on folders and their catalogue, the `package.json` builder, the registry and writer |
+| `src/templates/`   | The generated project: the baseline's files, the add-on folders and their catalogue, the `package.json` builder, the registry and writer, and the planner that merges an add-on change into an existing project |
 | `src/utils/`       | Generic helpers that know nothing about Vortex                                                |
 | `src/types/`       | Types shared between the folders                                                              |
 | `src/test/`        | Mocha unit and integration tests, run inside a VS Code extension host                         |
@@ -266,7 +266,7 @@ npm run package
 
 CI runs on every push and pull request through the shared workflows of [Der-Floh/Der-Floh](https://github.com/Der-Floh/Der-Floh/blob/main/.github/CI.md). It runs the unit and integration tests in VS Code and packs a preview VSIX.
 
-To release, bump the version with `npm version x.y.z --no-git-tag-version` and publish a GitHub release `vx.y.z` from a commit whose CI is green. The publish workflow builds and tests the tag, attaches the VSIX to the release and publishes it to the Visual Studio Marketplace and Open VSX.
+To release, bump the version with `npm version x.y.z --no-git-tag-version` and publish a GitHub release `vx.y.z` from a commit whose CI is green. The publish workflow builds and tests the tag, attaches the VSIX to the release and publishes it to the Visual Studio Marketplace and Open VSX. Then it zips the VSIX and adds it to the Nexus Mods page as a new version of its main file, once the repository has the `NEXUSMODS_API_KEY` secret and the `NEXUSMODS_FILE_ID` and `NEXUSMODS_MOD_ID` variables; until then that step is skipped.
 
 ---
 
