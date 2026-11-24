@@ -252,7 +252,7 @@ suite('Debug in Vortex', () => {
     });
 
     test('the attach configuration maps the bundle\'s sources back to the workspace', () => {
-        const folder = vscode.Uri.file('F:\\projects\\tsgame-support');
+        const folder = vscode.Uri.file(path.resolve(path.sep, 'projects', 'tsgame-support'));
         // Uri.file normalizes the drive letter, so the expectation follows fsPath rather than the input
         const workspace = folder.fsPath.replace(/\\/g, '/');
         const configuration = vortexAttachConfiguration({ packId: 'tsgame-support', folder, port: 9222 });
